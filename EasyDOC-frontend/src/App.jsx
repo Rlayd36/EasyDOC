@@ -1,6 +1,11 @@
-import React from "react";
-import Login from "./pages/Login";
+import "./App.css";
 
-export default function App() {
-  return <Login />;
+function App() {
+  return (
+    <>
+      <h1> 졸설 슈웃 </h1>
+    </>
+  );
 }
+
+export default App;
