@@ -1,0 +1,148 @@
+/* ===============================
+   전역 리셋 (이 파일 하나로 끝내기)
+   =============================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ===============================
+   전체 페이지 래퍼
+   =============================== */
+.login-page {
+  width: 100vw;              /* ⬅ 화면 전체 폭 강제 */
+  min-height: 100vh;         /* ⬅ 화면 전체 높이 */
+  background: #eef2f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ===============================
+   가운데 컨테이너
+   =============================== */
+.login-wrap {
+  width: 100%;
+  max-width: 520px;          /* ⬅ 핵심: 과도한 폭 제거 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===============================
+   브랜드 영역
+   =============================== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 56px;
+  user-select: none;
+}
+
+/* 타이틀 (반응형) */
+.brand-title {
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+
+.brand-easy {
+  color: #111827;
+}
+
+.brand-doc {
+  color: #3f4b92;
+}
+
+.brand-icon {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+}
+
+/* ===============================
+   폼
+   =============================== */
+.form {
+  width: 100%;
+  max-width: 380px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+/* ===============================
+   입력창
+   =============================== */
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  outline: none;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:focus {
+  border-color: #b8bec8;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+}
+
+/* ===============================
+   버튼
+   =============================== */
+.btn {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 7px;
+  background: #2f3133;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 120ms ease, transform 80ms ease;
+}
+
+.btn:hover {
+  background: #1f2022;
+}
+
+.btn:active {
+  transform: scale(0.99);
+}
+
+/* ===============================
+   링크
+   =============================== */
+.link {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
