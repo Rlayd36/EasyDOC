@@ -24,7 +24,6 @@
 }
 
 /* 로고 */
-/* 사이드바 로고 컨테이너 */
 .sidebar-logo {
   display: flex;
   align-items: center;
@@ -33,7 +32,6 @@
   margin-bottom: 32px;
 }
 
-/* 사이드바 타이틀 텍스트 스타일 */
 .sidebar-title {
   font-size: 28px;
   font-weight: 800;
@@ -41,18 +39,15 @@
   margin: 0;
 }
 
-/* 타이틀 "Easy" 부분 스타일 */
 .title-easy {
   color: #111827;
 }
 
-/* 타이틀 "DOC" 부분 스타일 */
 .title-doc {
   color: #3f4b92;
 }
 
 /* 사용자 프로필 미니 */
-/* 사이드바 사용자 정보 컨테이너 */
 .sidebar-user {
   display: flex;
   align-items: center;
@@ -63,7 +58,6 @@
   margin-bottom: 24px;
 }
 
-/* 사용자 아바타 아이콘 */
 .user-avatar {
   width: 40px;
   height: 40px;
@@ -73,7 +67,6 @@
   place-items: center;
 }
 
-/* 사용자 이름 텍스트 */
 .user-name {
   color: #ffffff;
   font-size: 15px;
@@ -81,14 +74,12 @@
 }
 
 /* 네비게이션 */
-/* 사이드바 네비게이션 컨테이너 */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* 네비게이션 메뉴 아이템 */
 .nav-item {
   display: flex;
   align-items: center;
@@ -106,20 +97,17 @@
   width: 100%;
 }
 
-/* 네비게이션 아이템 호버 상태 */
 .nav-item:hover {
   background: rgba(59, 130, 246, 0.08);
   color: #374151;
 }
 
-/* 활성화된 네비게이션 아이템 */
 .nav-item--active {
   background: rgba(59, 130, 246, 0.12);
   color: #3b82f6;
   font-weight: 600;
 }
 
-/* 활성화된 네비게이션 아이템 호버 상태 */
 .nav-item--active:hover {
   background: rgba(59, 130, 246, 0.15);
 }
@@ -136,7 +124,6 @@
 /* ===============================
    통계 카드 행
    =============================== */
-/* 통계 카드를 가로로 배치하는 그리드 컨테이너 */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -144,7 +131,6 @@
   margin-bottom: 32px;
 }
 
-/* 개별 통계 카드 */
 .stat-card {
   display: flex;
   align-items: center;
@@ -156,26 +142,22 @@
   transition: box-shadow 150ms ease;
 }
 
-/* 통계 카드 호버 상태 */
 .stat-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-/* 통계 정보 컨테이너 */
 .stat-info {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* 통계 라벨 (설명 텍스트) */
 .stat-label {
   font-size: 13px;
   color: #6b7280;
   font-weight: 500;
 }
 
-/* 통계 값 (숫자) */
 .stat-value {
   font-size: 28px;
   font-weight: 700;
@@ -203,21 +185,18 @@
 }
 
 /* 폼 그룹 */
-/* 프로필 폼 전체 컨테이너 */
 .profile-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* 개별 폼 입력 그룹 (라벨 + 값) */
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* 폼 입력 필드 라벨 */
 .form-label {
   font-size: 13px;
   font-weight: 600;
@@ -226,7 +205,6 @@
   letter-spacing: 0.3px;
 }
 
-/* 폼 입력 필드 값 (읽기 전용 스타일) */
 .form-value {
   font-size: 15px;
   font-weight: 500;
@@ -286,7 +264,6 @@
    =============================== */
 
 /* 현재 설정된 단계 카드 */
-/* 현재 선택된 언어 능력 단계를 표시하는 카드 */
 .current-level-card {
   display: flex;
   justify-content: space-between;
@@ -299,14 +276,12 @@
   gap: 32px;
 }
 
-/* 현재 레벨 카드의 왼쪽 영역 (아이콘 + 정보) */
 .current-level-left {
   display: flex;
   align-items: flex-start;
   gap: 16px;
 }
 
-/* 현재 레벨 아이콘 */
 .current-level-icon {
   width: 48px;
   height: 48px;
@@ -317,47 +292,40 @@
   flex-shrink: 0;
 }
 
-/* 현재 레벨 정보 컨테이너 */
 .current-level-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-/* 현재 레벨 상단 라벨 ("현재 설정" 등) */
 .current-level-label {
   font-size: 13px;
   font-weight: 500;
   color: #7c3aed;
 }
 
-/* 현재 레벨 타이틀 컨테이너 (레벨 번호 + 이름) */
 .current-level-title {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* 레벨 번호 텍스트 */
 .level-number {
   font-size: 20px;
   font-weight: 700;
   color: #5b21b6;
 }
 
-/* 레벨 번호와 이름 사이의 구분 점 */
 .level-dot {
   color: #a78bfa;
 }
 
-/* 레벨 이름 텍스트 */
 .level-name {
   font-size: 16px;
   font-weight: 600;
   color: #6d28d9;
 }
 
-/* 현재 레벨 설명 텍스트 */
 .current-level-desc {
   font-size: 14px;
   color: #6b7280;
@@ -365,12 +333,10 @@
 }
 
 /* 변환 예시 */
-/* 현재 레벨 카드의 오른쪽 영역 (변환 예시) */
 .current-level-right {
   flex-shrink: 0;
 }
 
-/* 예시 섹션 헤더 */
 .example-header {
   display: flex;
   align-items: center;
@@ -380,14 +346,12 @@
   margin-bottom: 12px;
 }
 
-/* 변환 예시 목록 컨테이너 */
 .example-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* 개별 변환 예시 행 */
 .example-row {
   display: flex;
   align-items: center;
@@ -395,24 +359,20 @@
   font-size: 14px;
 }
 
-/* 변환 전 원본 텍스트 */
 .example-original {
   color: #6b7280;
 }
 
-/* 변환 화살표 */
 .example-arrow {
   color: #d1d5db;
 }
 
-/* 변환 후 결과 텍스트 */
 .example-converted {
   color: #dc2626;
   font-weight: 500;
 }
 
 /* 단계 선택 섹션 */
-/* 언어 능력 단계 선택 섹션 컨테이너 */
 .level-selection-section {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -421,21 +381,18 @@
   margin-bottom: 24px;
 }
 
-/* 섹션 부제목 (설명 텍스트) */
 .section-subtitle {
   font-size: 14px;
   color: #6b7280;
   margin: -16px 0 24px 0;
 }
 
-/* 레벨 옵션 목록 컨테이너 */
 .level-options {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* 개별 레벨 선택 옵션 버튼 */
 .level-option {
   display: flex;
   align-items: center;
@@ -450,20 +407,17 @@
   width: 100%;
 }
 
-/* 레벨 옵션 호버 상태 */
 .level-option:hover {
   border-color: #c4b5fd;
   background: #faf5ff;
 }
 
-/* 활성화된 레벨 옵션 */
 .level-option--active {
   border-color: #8b5cf6;
   background: #f5f3ff;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
-/* 레벨 번호 배지 */
 .level-badge {
   width: 32px;
   height: 32px;
@@ -477,45 +431,38 @@
   flex-shrink: 0;
 }
 
-/* 활성화된 레벨 배지 */
 .level-badge--active {
   background: #8b5cf6;
   color: #ffffff;
 }
 
-/* 레벨 옵션의 텍스트 콘텐츠 컨테이너 */
 .level-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* 레벨 타이틀 행 (이름 + 영문명) */
 .level-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* 레벨 타이틀 텍스트 */
 .level-title {
   font-size: 15px;
   font-weight: 600;
   color: #374151;
 }
 
-/* 활성화된 레벨 타이틀 */
 .level-title--active {
   color: #7c3aed;
 }
 
-/* 레벨 부제목 (영문명 등) */
 .level-subtitle {
   font-size: 14px;
   color: #9ca3af;
 }
 
-/* 레벨 설명 텍스트 */
 .level-description {
   font-size: 13px;
   color: #6b7280;
@@ -523,7 +470,6 @@
 }
 
 /* 도움말 섹션 */
-/* 도움말 정보 섹션 컨테이너 */
 .help-section {
   display: flex;
   gap: 16px;
@@ -533,7 +479,6 @@
   padding: 20px 24px;
 }
 
-/* 도움말 아이콘 */
 .help-icon {
   width: 40px;
   height: 40px;
@@ -544,14 +489,12 @@
   flex-shrink: 0;
 }
 
-/* 도움말 텍스트 콘텐츠 컨테이너 */
 .help-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* 도움말 섹션 제목 */
 .help-title {
   font-size: 15px;
   font-weight: 700;
@@ -559,7 +502,6 @@
   margin: 0;
 }
 
-/* 도움말 항목 목록 */
 .help-list {
   list-style: none;
   padding: 0;
@@ -569,7 +511,6 @@
   gap: 6px;
 }
 
-/* 도움말 목록의 개별 항목 */
 .help-list li {
   font-size: 14px;
   color: #78350f;
@@ -577,7 +518,6 @@
   position: relative;
 }
 
-/* 도움말 목록 항목 앞의 장식 기호 */
 .help-list li::before {
   content: "✦";
   position: absolute;
@@ -586,14 +526,12 @@
   font-size: 10px;
 }
 
-/* 도움말 강조 텍스트 */
 .help-highlight {
   font-weight: 600;
   color: #b45309;
 }
 
 /* 준비 중 placeholder */
-/* 준비 중인 기능의 플레이스홀더 컨텐츠 */
 .placeholder-content {
   display: flex;
   align-items: center;
@@ -610,7 +548,6 @@
    변환 이력 페이지
    =============================== */
 
-/* 변환 이력 페이지 헤더 */
 .history-header {
   display: flex;
   justify-content: space-between;
@@ -618,7 +555,6 @@
   margin-bottom: 20px;
 }
 
-/* 변환 이력 페이지 제목 */
 .history-title {
   font-size: 22px;
   font-weight: 700;
@@ -626,13 +562,11 @@
   margin: 0;
 }
 
-/* 필터 버튼 그룹 컨테이너 */
 .history-filters {
   display: flex;
   gap: 10px;
 }
 
-/* 개별 필터 버튼 */
 .filter-btn {
   display: flex;
   align-items: center;
@@ -648,20 +582,17 @@
   transition: all 150ms ease;
 }
 
-/* 필터 버튼 호버 상태 */
 .filter-btn:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
 /* 검색창 */
-/* 변환 이력 검색 영역 컨테이너 */
 .history-search {
   position: relative;
   margin-bottom: 20px;
 }
 
-/* 검색 입력 필드 */
 .search-input {
   width: 100%;
   height: 46px;
@@ -674,18 +605,15 @@
   transition: all 150ms ease;
 }
 
-/* 검색 입력 필드 플레이스홀더 */
 .search-input::placeholder {
   color: #9ca3af;
 }
 
-/* 검색 입력 필드 포커스 상태 */
 .search-input:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* 검색 아이콘 */
 .search-icon {
   position: absolute;
   left: 16px;
@@ -695,14 +623,12 @@
 }
 
 /* 문서 목록 */
-/* 변환 이력 문서 목록 컨테이너 */
 .document-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* 개별 문서 아이템 */
 .document-item {
   display: flex;
   align-items: center;
@@ -714,13 +640,11 @@
   transition: all 150ms ease;
 }
 
-/* 문서 아이템 호버 상태 */
 .document-item:hover {
   border-color: #d1d5db;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* 문서 아이콘 */
 .document-icon {
   width: 44px;
   height: 44px;
@@ -731,13 +655,11 @@
   flex-shrink: 0;
 }
 
-/* 문서 정보 컨테이너 */
 .document-info {
   flex: 1;
   min-width: 0;
 }
 
-/* 문서 이름과 배지 행 */
 .document-name-row {
   display: flex;
   align-items: center;
@@ -746,14 +668,12 @@
   flex-wrap: wrap;
 }
 
-/* 문서 이름 텍스트 */
 .document-name {
   font-size: 15px;
   font-weight: 600;
   color: #111827;
 }
 
-/* 문서 레벨 배지 */
 .document-level {
   padding: 3px 10px;
   border-radius: 12px;
@@ -761,7 +681,6 @@
   font-weight: 600;
 }
 
-/* 문서 카테고리 배지 */
 .document-category {
   padding: 3px 10px;
   background: #f3f4f6;
@@ -771,7 +690,6 @@
   color: #6b7280;
 }
 
-/* 문서 메타 정보 컨테이너 (날짜, 페이지 수 등) */
 .document-meta {
   display: flex;
   align-items: center;
@@ -779,7 +697,6 @@
   flex-wrap: wrap;
 }
 
-/* 메타 정보 개별 항목 */
 .meta-item {
   display: flex;
   align-items: center;
@@ -788,19 +705,16 @@
   color: #6b7280;
 }
 
-/* 메타 항목 사이의 구분선 */
 .meta-divider {
   color: #d1d5db;
 }
 
-/* 문서 액션 버튼 그룹 */
 .document-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-/* 개별 액션 버튼 (보기, 다운로드 등) */
 .action-btn {
   width: 36px;
   height: 36px;
@@ -814,7 +728,6 @@
   transition: all 150ms ease;
 }
 
-/* 액션 버튼 호버 상태 */
 .action-btn:hover {
   background: #f3f4f6;
   color: #374151;
@@ -839,6 +752,167 @@
     width: 100%;
     justify-content: flex-end;
   }
+}
+
+/* ===============================
+   계정 설정 페이지
+   =============================== */
+
+.settings-section {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+
+.settings-section--danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.section-title--danger {
+  color: #dc2626;
+}
+
+/* 폼 */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+}
+
+.form-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 버튼 */
+.btn-primary {
+  width: fit-content;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-danger {
+  width: fit-content;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.danger-desc {
+  font-size: 14px;
+  color: #991b1b;
+  margin: 0 0 16px 0;
+}
+
+/* 토글 */
+.settings-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toggle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.toggle-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toggle-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.toggle-desc {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 26px;
+  background: #d1d5db;
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  position: relative;
+  transition: background 200ms ease;
+  flex-shrink: 0;
+}
+
+.toggle-switch--on {
+  background: #3b82f6;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch--on .toggle-knob {
+  transform: translateX(22px);
 }
 
 /* 반응형 - 언어 설정 */

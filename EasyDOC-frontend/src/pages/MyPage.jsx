@@ -600,7 +600,79 @@ function HistoryContent() {
     </>
   );
 }
+// ============================================
+// 계정 설정 컴포넌트
+// ============================================
+function SettingsContent() {
+  const [notifications, setNotifications] = useState({
+    email: true,
+    marketing: false,
+  });
 
+  return (
+    <>
+      {/* 비밀번호 변경 */}
+      <section className="settings-section">
+        <h2 className="section-title">비밀번호 변경</h2>
+        <div className="settings-form">
+          <div className="form-group">
+            <label className="form-label">현재 비밀번호</label>
+            <input type="password" className="form-input" placeholder="현재 비밀번호 입력" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">새 비밀번호</label>
+            <input type="password" className="form-input" placeholder="새 비밀번호 입력" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">새 비밀번호 확인</label>
+            <input type="password" className="form-input" placeholder="새 비밀번호 다시 입력" />
+          </div>
+          <button className="btn-primary">비밀번호 변경</button>
+        </div>
+      </section>
+
+      {/* 알림 설정 */}
+      <section className="settings-section">
+        <h2 className="section-title">알림 설정</h2>
+        <div className="settings-toggles">
+          <div className="toggle-item">
+            <div className="toggle-info">
+              <span className="toggle-label">이메일 알림</span>
+              <span className="toggle-desc">변환 완료, 공지사항 등을 이메일로 받습니다</span>
+            </div>
+            <button
+              className={`toggle-switch ${notifications.email ? "toggle-switch--on" : ""}`}
+              onClick={() => setNotifications({ ...notifications, email: !notifications.email })}
+            >
+              <span className="toggle-knob"></span>
+            </button>
+          </div>
+          <div className="toggle-item">
+            <div className="toggle-info">
+              <span className="toggle-label">마케팅 정보 수신</span>
+              <span className="toggle-desc">이벤트, 프로모션 정보를 받습니다</span>
+            </div>
+            <button
+              className={`toggle-switch ${notifications.marketing ? "toggle-switch--on" : ""}`}
+              onClick={() => setNotifications({ ...notifications, marketing: !notifications.marketing })}
+            >
+              <span className="toggle-knob"></span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 계정 삭제 */}
+      <section className="settings-section settings-section--danger">
+        <h2 className="section-title section-title--danger">계정 삭제</h2>
+        <p className="danger-desc">
+          계정을 삭제하면 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+        </p>
+        <button className="btn-danger">계정 삭제</button>
+      </section>
+    </>
+  );
+}
 // ============================================
 // 메인 MyPage 컴포넌트
 // ============================================
@@ -665,7 +737,7 @@ export default function MyPage() {
       case "history":
         return <HistoryContent />;
       case "settings":
-        return <div className="placeholder-content">계정 설정 페이지 (준비 중)</div>;
+        return <SettingsContent/>;
       default:
         return <ProfileContent userData={userData} />;
     }
