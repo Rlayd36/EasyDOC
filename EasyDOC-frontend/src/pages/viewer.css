@@ -1,0 +1,312 @@
+/* ===============================
+   전역 리셋 (이 파일 하나로 끝내기)
+   =============================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ===============================
+   전체 레이아웃
+   =============================== */
+.viewer-page {
+    width: 100vw;               /* ⬅ 화면 전체 폭 강제 */
+    height: 100vh;              /* ⬅ 화면 전체 높이 */
+    background: #ffffff;
+    display: flex;
+    overflow: hidden; 
+    font-size: 15px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #000000;
+}
+
+/* ===============================
+   공통 사이드바 스타일
+   =============================== */
+.sidebar {
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    flex-shrink: 0;
+}
+
+.sidebar-left {
+    width: 350px;
+    border-right: 1px solid #CACACA;
+}
+
+.sidebar-right {
+    width: 350px;
+    border-left: 1px solid #CACACA;
+}
+
+/* ===============================
+   왼쪽 사이드바 컴포넌트
+   =============================== */
+/* 로고 영역 (Login 페이지 스타일 재사용) */
+.viewer-brand {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+    font-size: 50px;
+    font-weight: 800;
+    user-select: none;
+}
+/* 아이콘과 텍스트 사이의 간격은 아이콘에 직접 부여 */
+.viewer-brand svg {
+    margin-right: 12px;
+}
+
+.brand-text-easy { color: #000000; }
+.brand-text-doc { color: #3D4B90; }
+
+/* 업로드 버튼 */
+.btn-upload{
+    width: 100%;
+    height: 52px;
+    background: #3D4B90;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s;
+}
+.btn-upload:hover {
+    background: #2e3870;
+}
+
+/* 최근 문서 리스트 */
+.recent-section {
+    flex: 1;
+    overflow-y: auto;
+}
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #000000;
+}
+.section-title svg { /* 시계 아이콘 색상 */
+    color: #CACACA;
+}
+
+.doc-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.doc-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.doc-item:hover {
+    padding-left: 8px;
+    padding-right: 8px;
+    background: #f3f4f6
+}
+
+.doc-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+}
+.doc-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #ef4444; /* 붉은 색 아이콘 */
+}
+.doc-text {
+    display: flex;
+    flex-direction: column; /* 세로 정렬 (제목 위, 날짜 아래) */
+    min-width: 0;
+}
+.doc-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px; /* 날짜와의 간격 */
+}
+.doc-date {
+    font-size: 12px;
+    color: #898989;
+}
+
+/* ===============================
+   중앙 메인 (문서 뷰어)
+   =============================== */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: #FFFFFF;
+}
+
+.content-header {
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+.header-title {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #000000;
+}
+
+.hint-banner {
+    background-color: #ffffff;
+    padding: 12px 24px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #4b5563;
+}
+.hint-highlight {
+    background-color: #FEF3C7;
+    color: #D97706;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* PDF 뷰어 영역 */
+.pdf-container {
+    flex: 1;
+    background: #eff3fc;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+.pdf-frame {
+    width: 100%;
+    max-width: 900px; /* 너무 넓게 퍼지지 않도록 제한 */
+    height: 100%;
+    border: 1px solid #e5e7eb;
+    background: white;
+    display: block;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 하단 플로팅 요약 박스 */
+.summary-float-box {
+    position: absolute;
+    bottom: 30px;                   /* 하단에서 30px 띄움 */
+    left: 50%;
+    transform: translateX(-50%);    /*가로 중앙 정렬 */
+    width: 90%;                      /* 너비 설정 */
+    max-width: 800px;
+    background: linear-gradient(to right bottom, #EEF2FE, #FAF4FD);
+    border: 1px solid #e0e7ff;
+    border-radius: 16px;            /* 둥근 모서리 */
+    padding: 24px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 50; /*다른 요소보다 위에 오도록 */
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 아이콘과 닫기 버튼 양끝 정렬 */
+    margin-bottom: 12px;
+    color: #3D4B90;
+    font-weight: 800;
+    font-size: 16px;
+}
+.summary-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.summary-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #4b5563;
+    margin: 0;
+}
+.btn-close-summary {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.btn-close-summary:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #374151;
+}
+
+/* ===============================
+   오른쪽 사이드바
+   =============================== */
+.user-profile-area {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 40px;
+}
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    background: #D9D9D9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+.explanation-list {
+    list-style: none;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #000000;
+}
+.explanation-list li {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+}
+.step-num {
+    font-weight: 800;
+    margin-right: 8px;
+    color: #000000;
+    min-width: 15px; /* 숫자 정렬을 위한 최소 너비 */
+}
