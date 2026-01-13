@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import "./login.css";
+import SignUp from "./SignUp";
 
 export default function Login() {
+  const [showSignUp, setShowSignUp] = useState(false);
+
   const onSubmit = (e) => {
     e.preventDefault();
     // TODO: 로그인 로직 연결
   };
+
+  if (showSignUp) {
+    return <SignUp />;
+  }
 
   return (
     <div className="login-page">
@@ -34,9 +41,18 @@ export default function Login() {
             <input className="input" type="password" placeholder="Value" />
           </div>
 
-          <button className="btn" type="submit">
-            Sign In
-          </button>
+          <div className="button-group">
+            <button className="btn btn-signin" type="submit">
+              Sign In
+            </button>
+            <button
+              className="btn btn-register"
+              type="button"
+              onClick={() => setShowSignUp(true)}
+            >
+              Register
+            </button>
+          </div>
 
           <a className="link" href="#">
             Forgot password?
@@ -57,11 +73,37 @@ function DocumentIcon() {
       xmlns="http://www.w3.org/2000/svg"
     >
       {/* back sheet */}
-      <rect x="16" y="12" width="54" height="68" rx="6" stroke="#111827" strokeWidth="3" />
+      <rect
+        x="16"
+        y="12"
+        width="54"
+        height="68"
+        rx="6"
+        stroke="#111827"
+        strokeWidth="3"
+      />
       {/* front sheet */}
-      <rect x="28" y="22" width="54" height="68" rx="6" fill="#FFFFFF" stroke="#111827" strokeWidth="3" />
+      <rect
+        x="28"
+        y="22"
+        width="54"
+        height="68"
+        rx="6"
+        fill="#FFFFFF"
+        q
+        stroke="#111827"
+        strokeWidth="3"
+      />
       {/* small box */}
-      <rect x="38" y="34" width="16" height="12" rx="2" stroke="#111827" strokeWidth="3" />
+      <rect
+        x="38"
+        y="34"
+        width="16"
+        height="12"
+        rx="2"
+        stroke="#111827"
+        strokeWidth="3"
+      />
       {/* lines */}
       <line x1="38" y1="54" x2="74" y2="54" stroke="#111827" strokeWidth="3" />
       <line x1="38" y1="62" x2="74" y2="62" stroke="#111827" strokeWidth="3" />

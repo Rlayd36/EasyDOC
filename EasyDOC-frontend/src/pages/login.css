@@ -11,8 +11,8 @@
    전체 페이지 래퍼
    =============================== */
 .login-page {
-  width: 100vw;              /* ⬅ 화면 전체 폭 강제 */
-  min-height: 100vh;         /* ⬅ 화면 전체 높이 */
+  width: 100vw; /* ⬅ 화면 전체 폭 강제 */
+  min-height: 100vh; /* ⬅ 화면 전체 높이 */
   background: #eef2f7;
   display: flex;
   align-items: center;
@@ -25,7 +25,7 @@
    =============================== */
 .login-wrap {
   width: 100%;
-  max-width: 520px;          /* ⬅ 핵심: 과도한 폭 제거 */
+  max-width: 520px; /* ⬅ 핵심: 과도한 폭 제거 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -110,24 +110,45 @@
 }
 
 /* ===============================
+   버튼 그룹
+   =============================== */
+.button-group {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* ===============================
    버튼
    =============================== */
 .btn {
-  width: 100%;
+  flex: 1;
   height: 44px;
   border: none;
   border-radius: 7px;
-  background: #2f3133;
-  color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 6px;
   transition: background 120ms ease, transform 80ms ease;
 }
 
-.btn:hover {
-  background: #1f2022;
+.btn-signin {
+  background: #e0e0e0;
+  color: #000000;
+}
+
+.btn-signin:hover {
+  background: #d0d0d0;
+}
+
+.btn-register {
+  background: #333333;
+  color: #ffffff;
+}
+
+.btn-register:hover {
+  background: #222222;
 }
 
 .btn:active {
