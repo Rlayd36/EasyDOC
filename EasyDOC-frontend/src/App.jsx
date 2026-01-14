@@ -1,6 +1,6 @@
 import React from "react";
-import MyPage from "./pages/MyPage";
+import Login from "./pages/Login";
 
 export default function App() {
-  return <MyPage />;
+  return <Login />;
 }
