@@ -1,9 +1,11 @@
 import React, { useState, useRef } from "react";
 import "./Upload.css";
+import MyPage from "./MyPage";
 
 export default function Upload() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
+  const [showMyPage, setShowMyPage] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -76,6 +78,10 @@ export default function Upload() {
     return "default";
   };
 
+  if (showMyPage) {
+    return <MyPage />;
+  }
+
   return (
     <div className="upload-page">
       {/* Header */}
@@ -87,7 +93,7 @@ export default function Upload() {
             <span className="brand-doc">DOC</span>
           </h1>
         </div>
-        <div className="header-user">
+        <div className="header-user" onClick={() => setShowMyPage(true)}>
           <UserIcon />
         </div>
       </header>

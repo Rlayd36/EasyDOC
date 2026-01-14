@@ -1,24 +1,30 @@
 import React, { useState } from "react";
 import "./login.css";
-import SignUp from "./SignUp";
+import SignUp from "./signup";
+import Upload from "./Upload";
 
 export default function Login() {
   const [showSignUp, setShowSignUp] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
   const onSubmit = (e) => {
     e.preventDefault();
-    // TODO: 로그인 로직 연결
+    setShowUpload(true);
   };
 
   if (showSignUp) {
     return <SignUp />;
   }
 
+  if (showUpload) {
+    return <Upload />;
+  }
+
   return (
     <div className="login-page">
       <div className="login-wrap">
         {/* Brand */}
-        <div className="brand">
+        <div className="brand">     
           <div className="brand-icon" aria-hidden="true">
             <DocumentIcon />
           </div>
