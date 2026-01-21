@@ -7,24 +7,53 @@ export default function Login() {
   const [showSignUp, setShowSignUp] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-    setShowUpload(true);
-  };
-
-  if (showSignUp) {
-    return <SignUp />;
-  }
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   if (showUpload) {
     return <Upload />;
   }
 
+  if (showSignUp) {
+    return <SignUp onBack={() => setShowSignUp(false)} />;
+  }
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    // 불필요한 공백 제거
+    const cleanEmail = String(email || "").trim();
+    const cleanPassword = String(password || "").trim();
+
+    // 서버로 로그인 요청
+    try {
+      const response = await fetch("http://localhost:8080/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPassword }),
+      });
+
+      if (response.ok) {
+        alert("로그인 성공!");
+        setShowUpload(true);
+      } else {
+        const errorMsg = await response.text();
+        console.log("서버 에러 응답:", errorMsg);
+        alert("로그인 실패: " + errorMsg);
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert("서버 연결에 실패했습니다.");
+    }
+  };
+
   return (
     <div className="login-page">
       <div className="login-wrap">
         {/* Brand */}
-        <div className="brand">     
+        <div className="brand">
           <div className="brand-icon" aria-hidden="true">
             <DocumentIcon />
           </div>
@@ -39,12 +68,26 @@ export default function Login() {
         <form className="form" onSubmit={onSubmit}>
           <div className="field">
             <label className="label">Email</label>
-            <input className="input" type="email" placeholder="Value" />
+            <input
+              className="input"
+              type="email"
+              placeholder="example@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
 
           <div className="field">
             <label className="label">Password</label>
-            <input className="input" type="password" placeholder="Value" />
+            <input
+              className="input"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
 
           <div className="button-group">
@@ -96,7 +139,6 @@ function DocumentIcon() {
         height="68"
         rx="6"
         fill="#FFFFFF"
-        q
         stroke="#111827"
         strokeWidth="3"
       />
