@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import axios from "axios"; // 통신 라이브러리
 import "./Upload.css";
 import MyPage from "./MyPage";
 
@@ -8,6 +9,9 @@ export default function Upload() {
   const [showMyPage, setShowMyPage] = useState(false);
   const fileInputRef = useRef(null);
 
+  // AWS API Gateway 주소
+  const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -16,16 +20,37 @@ export default function Upload() {
   };
 
   const handleUpload = async () => {
+    alert("업로드 버튼이 클릭되었습니다! (파일 유무: " + (selectedFile ? "있음" : "없음") + ")");
+
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
     }
 
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+      // AWS Lambda에 업로드 URL 요청
+      console.log("1. URL 요청 중...");
+      const response = await axios.get(API_GATEWAY_URL, {
+        params: {
+          fileName: selectedFile.name,
+          fileType: selectedFile.type
+        }
+      });
 
-      // TODO: 백엔드 API가 구현되면 여기서 API 호출 (* 현재는 로컬에서 파일 정보만 저장)
+      const {uploadUrl} = response.data;
+      console.log("2. URL 발급 완료:", uploadUrl);
+
+      // 발급받은 URL을 이용해 S3에 파일 직접 업로드
+      console.log("3. S3로 파일 전송 중...");
+      await axios.put(uploadUrl, selectedFile, {
+        headers: {
+          "Content-Type": selectedFile.type,
+        }
+      });
+
+      console.log("4. 업로드 성공!");
+
+      // UPDATE: UI 업데이트 (최근 문서 목록에 추가)
       const fileInfo = {
         name: selectedFile.name,
         date: new Date()
@@ -43,7 +68,7 @@ export default function Upload() {
       setRecentDocs([fileInfo, ...filteredDocs.slice(0, 9)]);
 
       // 파일 저장 (나중에 백엔드 API로 대체)
-      console.log("업로드 성공", selectedFile.name);
+      //console.log("업로드 성공", selectedFile.name);
 
       // 초기화
       setSelectedFile(null);
@@ -51,7 +76,7 @@ export default function Upload() {
         fileInputRef.current.value = "";
       }
 
-      alert("파일이 업로드 성공! (백엔드 API 연결 후 DB로 밀어넣을 예정)");
+      alert("파일 업로드 성공!");
     } catch (error) {
       console.error("파일 업로드 오류:", error);
       alert("파일 업로드 중 오류가 발생했습니다.");
