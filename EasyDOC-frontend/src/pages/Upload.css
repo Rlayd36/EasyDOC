@@ -1,0 +1,293 @@
+/* ===============================
+   전체 페이지 래퍼
+   =============================== */
+.upload-page {
+  width: 100vw;
+  min-height: 100vh;
+  background: #eef2f7;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===============================
+   헤더
+   =============================== */
+.upload-header {
+  width: 100%;
+  height: 64px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-title {
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.brand-easy {
+  color: #111827;
+}
+
+.brand-doc {
+  color: #3f4b92;
+}
+
+.header-user {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 120ms ease;
+}
+
+.header-user:hover {
+  background: #f3f4f6;
+}
+
+/* ===============================
+   메인 컨테이너
+   =============================== */
+.upload-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===============================
+   사이드바
+   =============================== */
+.upload-sidebar {
+  width: 280px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  overflow-y: auto;
+}
+
+.sidebar-recent {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.recent-item:hover {
+  background: #f9fafb;
+}
+
+.recent-item-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recent-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.recent-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-item-date {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.recent-item-arrow {
+  flex-shrink: 0;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===============================
+   메인 콘텐츠 영역
+   =============================== */
+.upload-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  overflow-y: auto;
+}
+
+.upload-card {
+  width: 100%;
+  max-width: 600px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.upload-icon-wrapper {
+  width: 120px;
+  height: 120px;
+  background: #6b46c1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  margin-bottom: 24px;
+}
+
+.upload-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.upload-subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 32px 0;
+}
+
+.upload-formats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.format-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.format-item span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.selected-file {
+  width: 100%;
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-btn {
+  width: 100%;
+  height: 48px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease;
+}
+
+.upload-btn:hover {
+  background: #1d4ed8;
+}
+
+.upload-btn:active {
+  transform: scale(0.98);
+}
+
+/* ===============================
+   반응형 디자인
+   =============================== */
+@media (max-width: 768px) {
+  .upload-container {
+    flex-direction: column;
+  }
+
+  .upload-sidebar {
+    width: 100%;
+    max-height: 300px;
+  }
+
+  .upload-main {
+    padding: 24px;
+  }
+
+  .upload-card {
+    padding: 32px 24px;
+  }
+
+  .upload-formats {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+  }
+}
