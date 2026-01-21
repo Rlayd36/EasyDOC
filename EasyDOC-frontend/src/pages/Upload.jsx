@@ -7,10 +7,15 @@ export default function Upload() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showMyPage, setShowMyPage] = useState(false);
+  const [ocrResult, setOcrResult] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
   const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+
+  // OCR용 FastAPI 주소
+  const FASTAPI_OCR_URL = "http://localhost:8000/ocr";
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -26,6 +31,8 @@ export default function Upload() {
       fileInputRef.current?.click();
       return;
     }
+
+    setIsLoading(true); // OCR엔진 로딩 시작
 
     try {
       // AWS Lambda에 업로드 URL 요청
@@ -50,7 +57,19 @@ export default function Upload() {
 
       console.log("4. 업로드 성공!");
 
-      // UPDATE: UI 업데이트 (최근 문서 목록에 추가)
+      // FastAPI에 OCR 요청
+      console.log("5. OCR 서버에 분석 요청...");
+
+      // 파일은 이미 S3에 있으므로 파일 자체가 아니라 파일 이름만 전송
+      const ocrResponse = await axios.post(FASTAPI_OCR_URL, {
+        filename: selectedFile.name
+      });
+
+      const extractedText = ocrResponse.data.text;
+      console.log("6. OCR 결과 도착:", extractedText);
+      setOcrResult(extractedText); // 화면에 표시
+
+      // UI 업데이트 (최근 문서 목록에 추가)
       const fileInfo = {
         name: selectedFile.name,
         date: new Date()
@@ -76,10 +95,12 @@ export default function Upload() {
         fileInputRef.current.value = "";
       }
 
-      alert("파일 업로드 성공!");
+      alert("파일 업로드 및 분석 완료!");
     } catch (error) {
-      console.error("파일 업로드 오류:", error);
-      alert("파일 업로드 중 오류가 발생했습니다.");
+      console.error("오류 발생:", error);
+      alert("작업 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false); // OCR 로딩 끝
     }
   };
 
