@@ -10,7 +10,7 @@ OCR 실행 준비물: Python 3.10 버전, AWS CLI 설치
 
 라이브러리 설치 (최초 1회): EasyDOC-backend 폴더에서 가상환경을 만들고 라이브러리 설치
 cd EasyDOC-backend
-python -m venv venv
+py -3.10 -m venv venv
 .\venv\Scripts\activate (맥은 source venv/bin/activate)
 pip install -r requirements.txt
 ---
