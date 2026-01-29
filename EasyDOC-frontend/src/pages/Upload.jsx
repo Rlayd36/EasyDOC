@@ -1,12 +1,11 @@
 import React, { useState, useRef } from "react";
 import axios from "axios"; // 통신 라이브러리
 import "./Upload.css";
-import MyPage from "./MyPage";
 
-export default function Upload() {
+export default function Upload({onNavigateToMyPage}) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
-  const [showMyPage, setShowMyPage] = useState(false);
+
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
@@ -103,10 +102,6 @@ export default function Upload() {
     return "default";
   };
 
-  if (showMyPage) {
-    return <MyPage />;
-  }
-
   return (
     <div className="upload-page">
       {/* Header */}
@@ -118,7 +113,7 @@ export default function Upload() {
             <span className="brand-doc">DOC</span>
           </h1>
         </div>
-        <div className="header-user" onClick={() => setShowMyPage(true)}>
+        <div className="header-user" onClick={onNavigateToMyPage} style={{cursor: "pointer"}}>
           <UserIcon />
         </div>
       </header>

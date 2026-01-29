@@ -2,27 +2,55 @@ import React, { useState } from "react";
 import "./login.css";
 import SignUp from "./signup";
 import Upload from "./Upload";
+import MyPage from "./MyPage";
 
 export default function Login() {
-  const [showSignUp, setShowSignUp] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-
-  const [email, setEmail] = useState("");
+  const [currentView, setCurrentView] = useState("login");
+  
+  // 로그인한 사용자 정보 저장
+  const [userEmail, setUserEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailInput, setEmailInput] = useState("");
 
-  if (showUpload) {
-    return <Upload />;
-  }
+  //화면 렌더링
+  const renderView = () => {
+    switch (currentView) {
+      case "upload":
+        return (
+          <Upload 
+            onNavigateToMyPage={() => setCurrentView("mypage")} 
+          />
+        );
+      case "mypage":
+        return (
+          <MyPage 
+            userEmail={userEmail}
+            onNavigateToUpload={() => setCurrentView("upload")}
+            onLogout={handleLogout}
+          />
+        );
+      case "signup":
+        return <SignUp onBack={() => setCurrentView("login")} />;
+      case "login":
+      default:
+        return null;
+    }
+  };
 
-  if (showSignUp) {
-    return <SignUp onBack={() => setShowSignUp(false)} />;
-  }
+  //로그아웃
+  const handleLogout = () => {
+    setUserEmail("");
+    setPassword("");
+    setEmailInput("");
+    setCurrentView("login");
+    alert("로그아웃 되었습니다.");
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
 
     // 불필요한 공백 제거
-    const cleanEmail = String(email || "").trim();
+    const cleanEmail = String(emailInput || "").trim();
     const cleanPassword = String(password || "").trim();
 
     // 서버로 로그인 요청
@@ -37,7 +65,8 @@ export default function Login() {
 
       if (response.ok) {
         alert("로그인 성공!");
-        setShowUpload(true);
+        setUserEmail(cleanEmail);
+        setCurrentView("upload");
       } else {
         const errorMsg = await response.text();
         console.log("서버 에러 응답:", errorMsg);
@@ -48,6 +77,10 @@ export default function Login() {
       alert("서버 연결에 실패했습니다.");
     }
   };
+
+  if(currentView!=="login"){
+    return renderView();
+  }
 
   return (
     <div className="login-page">
@@ -72,8 +105,8 @@ export default function Login() {
               className="input"
               type="email"
               placeholder="example@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
               required
             />
           </div>
@@ -97,7 +130,7 @@ export default function Login() {
             <button
               className="btn btn-register"
               type="button"
-              onClick={() => setShowSignUp(true)}
+              onClick={() => setCurrentView("signup")}
             >
               Register
             </button>

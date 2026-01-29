@@ -144,6 +144,17 @@ function WordStatsIcon() {
   );
 }
 
+/* 로그아웃 아이콘 */
+function LogoutIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round"/>
+      <polyline points="16 17 21 12 16 7" strokeLinecap="round" strokeLinejoin="round"/>
+      <line x1="21" y1="12" x2="9" y2="12" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ============================================
 // 프로필 정보 컴포넌트
 // ============================================
@@ -603,11 +614,81 @@ function HistoryContent() {
 // ============================================
 // 계정 설정 컴포넌트
 // ============================================
-function SettingsContent() {
-  const [notifications, setNotifications] = useState({
+function SettingsContent({userEmail,onLogout}) {
+  const [pwForm, setPwForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword:""
+  });
+
+  const [notifications,setNotifications] = useState({
     email: true,
     marketing: false,
   });
+
+  const handlePwChange = (e) => {
+    const { name, value } = e.target;
+    setPwForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  //비밀번호 변경
+  const handleSubmitPassword = async () => {
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      alert("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    if (pwForm.newPassword.length < 8) {
+      alert("비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8080/api/users/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          currentPassword: pwForm.currentPassword,
+          newPassword: pwForm.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        alert("비밀번호가 변경되었습니다. 다시 로그인해주세요.");
+        onLogout();
+      } else {
+        const msg = await response.text();
+        alert("변경 실패: " + msg);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("서버 오류가 발생했습니다.");
+    }
+  };
+
+  //계정 삭제
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/users/${userEmail}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        alert("계정이 삭제되었습니다.");
+        onLogout();
+      } else {
+        const msg = await response.text();
+        alert("삭제 실패: " + msg);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("서버 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <>
@@ -617,17 +698,40 @@ function SettingsContent() {
         <div className="settings-form">
           <div className="form-group">
             <label className="form-label">현재 비밀번호</label>
-            <input type="password" className="form-input" placeholder="현재 비밀번호 입력" />
+            <input
+              type="password"
+              name="currentPassword"
+              className="form-input" 
+              placeholder="현재 비밀번호 입력"
+              value={pwForm.currentPassword}
+              onChange={handlePwChange} 
+            />
           </div>
           <div className="form-group">
             <label className="form-label">새 비밀번호</label>
-            <input type="password" className="form-input" placeholder="새 비밀번호 입력" />
+            <input
+              type="password"
+              name="newPassword" 
+              className="form-input" 
+              placeholder="새 비밀번호 입력"
+              value={pwForm.newPassword}
+              onChange={handlePwChange}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">새 비밀번호 확인</label>
-            <input type="password" className="form-input" placeholder="새 비밀번호 다시 입력" />
+            <input 
+              type="password"
+              name="confirmPassword" 
+              className="form-input" 
+              placeholder="새 비밀번호 다시 입력"
+              value={pwForm.confirmPassword}
+              onChange={handlePwChange}
+            />
           </div>
-          <button className="btn-primary">비밀번호 변경</button>
+          <button className="btn-primary" onClick={handleSubmitPassword}>
+            비밀번호 변경
+          </button>
         </div>
       </section>
 
@@ -668,11 +772,14 @@ function SettingsContent() {
         <p className="danger-desc">
           계정을 삭제하면 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
         </p>
-        <button className="btn-danger">계정 삭제</button>
+        <button className="btn-danger" onClick={handleDeleteAccount}>
+          계정 삭제
+        </button>
       </section>
     </>
   );
 }
+
 // ============================================
 // 메인 MyPage 컴포넌트
 // ============================================
@@ -699,14 +806,14 @@ function SettingsContent() {
  * 백엔드 구현 이후에나 리팩토링 생각해볼 수 있을 듯
  */
 
-export default function MyPage() {
+export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   // 현재 활성화된 메뉴 상태 (기본값: 프로필)
   const [activeMenu, setActiveMenu] = useState("profile");
 
   // ===== 더미 사용자 데이터 =====
   const userData = {
     name: "박영서",
-    email: "pys010725@gmail.com",
+    email: userEmail||"pys010725@gmail.com",
     joinDate: "2024년 10월 15일",
     stats: {
       documents: 17,
@@ -737,75 +844,80 @@ export default function MyPage() {
       case "history":
         return <HistoryContent />;
       case "settings":
-        return <SettingsContent/>;
+        return <SettingsContent userEmail={userEmail} onLogout={onLogout}/>;
       default:
         return <ProfileContent userData={userData} />;
     }
   };
 
-  return (
+return (
     <div className="mypage">
       {/* ===== 사이드바 영역 ===== */}
-      {/* 
-        고정 너비 사이드바 (260px)
+      {/* 고정 너비 사이드바 (260px)
         모바일에서는 오버레이 써야 하나?
       */}
       <aside className="sidebar">
-        <div className="sidebar-logo">
-          <DocumentIcon />
-          <h1 className="sidebar-title">
-            <span className="title-easy">Easy</span>
-            <span className="title-doc">DOC</span>
-          </h1>
-        </div>
-
-        {/* 사용자 프로필 미니 카드 */}
-        {/* 
-          현재 로그인한 사용자 표시
-          프로필 이미지 같은 건 추가할 수 있을 듯.
-        */}
-        <div className="sidebar-user">
-          <div className="user-avatar">
-            {/* 차후: 실제 프로필 이미지로 대체 */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" />
-            </svg>
+        <div className="sidebar-top">
+          <div className="sidebar-logo" onClick={onNavigateToUpload}>
+            <DocumentIcon />
+            <h1 className="sidebar-title">
+              <span className="title-easy">Easy</span>
+              <span className="title-doc">DOC</span>
+            </h1>
           </div>
-          <span className="user-name">{userData.name}</span>
+
+          {/* 사용자 프로필 미니 카드 */}
+          {/* 현재 로그인한 사용자 표시
+            프로필 이미지 같은 건 추가할 수 있을 듯.
+          */}
+          <div className="sidebar-user">
+            <div className="user-avatar">
+              {/* 차후: 실제 프로필 이미지로 대체 */}
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" />
+              </svg>
+            </div>
+            <span className="user-name">{userData.name}</span>
+          </div>
+
+          {/* 네비게이션 메뉴 */}
+          {/* 구성요소는 동적으로 생성
+            클릭 시 activeMenu 상태 변경
+          */}
+          <nav className="sidebar-nav">
+            {menuItems.map((item) => {
+              const Icon = item.icon; // 아이콘 컴포넌트 추출
+              const isActive = activeMenu === item.id; // 현재 활성화 여부 확인
+              return (
+                <button
+                  key={item.id}
+                  className={`nav-item ${isActive ? "nav-item--active" : ""}`}
+                  onClick={() => setActiveMenu(item.id)}
+                >
+                  <Icon active={isActive} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* 네비게이션 메뉴 */}
-        {/* 
-          구성요소는 동적으로 생성
-          클릭 시 activeMenu 상태 변경
-        */}
-        <nav className="sidebar-nav">
-          {menuItems.map((item) => {
-            const Icon = item.icon; // 아이콘 컴포넌트 추출
-            const isActive = activeMenu === item.id; // 현재 활성화 여부 확인
-            return (
-              <button
-                key={item.id}
-                className={`nav-item ${isActive ? "nav-item--active" : ""}`}
-                onClick={() => setActiveMenu(item.id)}
-              >
-                <Icon active={isActive} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/*하단 로그아웃 버튼 */}
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={onLogout}>
+            <LogoutIcon />
+            <span>로그아웃</span>
+          </button>
+        </div>
       </aside>
 
       {   /* ===== 메인 콘텐츠 영역 ===== */}
-      {/* 
-        Flex 1로 남은 공간 모두 차지
+      {/* Flex 1로 남은 공간 모두 차지
         선택된 메뉴에 따라 동적으로 콘텐츠 렌더링
       */}
       <main className="main-content">
         {renderContent()}
-        { }
       </main>
     </div>
   );

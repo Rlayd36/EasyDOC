@@ -21,6 +21,42 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  justify-content: space-between;
+}
+
+/* 로그아웃 버튼 */
+.sidebar-footer {
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: auto;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ef4444; /* 빨간색 계열 */
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: left;
+}
+
+.logout-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* 상단 영역 (로고+메뉴) 묶음 */
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
 }
 
 /* 로고 */
@@ -30,6 +66,12 @@
   gap: 12px;
   padding: 0 8px;
   margin-bottom: 32px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.sidebar-logo:hover{
+  opacity: 0.8;
 }
 
 .sidebar-title {
