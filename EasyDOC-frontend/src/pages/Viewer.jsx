@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import axios from "axios"; 
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
 
@@ -30,16 +31,88 @@ export default function Viewer() {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
-    // 샘플 데이터
-    const recentDocs = [
+    // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
+    const [pdfUrl, setPdfUrl] = useState("/sample.pdf");
+
+    // 최근 문서 목록 상태
+    const [recentDocs, setRecentDocs] = useState([
         {id: 1, title: '행정기본법.pdf', date: '2024.11.14'},
         {id: 2, title: '조세특례제한법.pdf', date: '2024.11.13'},
         {id: 3, title: '도시및주거환경지정비법.pdf', date: '2024.11.13'},
         {id: 4, title: '건축법시행령.pdf', date: '2024.11.12'},
-    ];
+    ]);
 
-    // 로컬 PDF 경로 (public 폴더 내에 파일이 있어야 함)
-    const pdfUrl = "/sample.pdf";
+    // 파일 선택을 위한 ref
+    const fileInputRef = useRef(null);
+
+    // AWS API Gateway 주소
+    const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+
+    // 버튼 클릭 시 숨겨진 input 실행
+    const handleUploadBtnClick = () => {
+      console.log("버튼 클릭됨! fileInputRef 상태:", fileInputRef.current); //디버깅용
+      fileInputRef.current?.click();
+    };
+    
+    // 파일 선택 시 업로드 로직
+    const handleFileChange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const objectUrl = URL.createObjectURL(file);
+      setPdfUrl(objectUrl);
+
+      try {
+        // AWS Lambda에 업로드 URL 요청
+        console.log("1. URL 요청 중...");
+        const response = await axios.get(API_GATEWAY_URL, {
+          params: {
+            fileName: file.name,
+            fileType: file.type
+          }
+        });
+
+        const {uploadUrl} = response.data;
+        console.log("2. URL 발급 완료:", uploadUrl);
+
+        // S3로 파일 업로드
+        console.log("3. S3로 파일 전송 중...");
+        await axios.put(uploadUrl, file, {
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+        console.log("4. 업로드 성공!");
+
+        // 최근 문서 목록 업데이트
+        const newDoc = {
+          id: Date.now(), // 고유 ID
+          title: file.name,
+          date: new Date().toLocaleDateString("ko-KR", {
+            year: "numeric",
+            month:"2-digit",
+            day: "2-digit",
+          })
+          .replace(/\. /g, ".") // 형식: 2024.11.14
+          .replace(".", "")     // 마지막 점 제거 (선택사항)
+        };
+
+        // 중복 제거 및 리스트 최신화
+        const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
+        setRecentDocs([newDoc, ...filteredDocs].slice(0, 10)); // 최대 10개 유지
+
+        alert("문서가 성공적으로 업로드되었습니다.");
+
+      } catch (error) {
+        console.error("파일 업로드 오류:", error);
+        alert("파일 업로드 중 오류가 발생했습니다.");
+      } finally {
+        // input 초기화 (같은 파일 다시 선택 가능)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    };
 
     return (
     <div className="viewer-page">
@@ -54,7 +127,14 @@ export default function Viewer() {
         </div>
 
         {/* 업로드 버튼 */}
-        <button className="btn-upload">
+        <input
+          type = "file"
+          ref = {fileInputRef}
+          style = {{ display: "none" }}
+          accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
+          onChange={handleFileChange}
+        />
+        <button className="btn-upload" onClick={handleUploadBtnClick}>
           <Upload size={20} />
           <span>문서 업로드</span>
         </button>
