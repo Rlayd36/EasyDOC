@@ -4,9 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import boto3
 import os
 from ocr_logic import EasyDocOCR
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
+# Google Cloud 인증 키 위치 지정
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json"
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
