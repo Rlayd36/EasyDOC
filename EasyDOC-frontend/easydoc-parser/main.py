@@ -1,9 +1,14 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
+import olefile
+import zlib
 import io
-import tempfile
+import boto3
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -14,9 +19,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# S3 클라이언트
+s3 = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_DEFAULT_REGION"),
+)
+BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+
+
 @app.get("/")
 def root():
     return {"message": "EasyDOC Parser API 작동 중!"}
+
 
 @app.post("/parse/pdf")
 async def parse_pdf(file: UploadFile = File(...)):
@@ -36,24 +52,19 @@ async def parse_pdf(file: UploadFile = File(...)):
         "text": text
     }
 
+
 @app.post("/parse/hwp")
 async def parse_hwp(file: UploadFile = File(...)):
     """HWP 파일에서 텍스트 추출"""
-    import olefile
-    import zlib
-    
     contents = await file.read()
     
     try:
         ole = olefile.OleFileIO(io.BytesIO(contents))
         
-        # HWP 파일 내부의 텍스트 스트림 읽기
         if ole.exists("PrvText"):
-            # 미리보기 텍스트 (가장 쉬운 방법)
             encoded_text = ole.openstream("PrvText").read()
             text = encoded_text.decode("utf-16", errors="ignore")
         elif ole.exists("BodyText/Section0"):
-            # 본문에서 추출 시도
             data = ole.openstream("BodyText/Section0").read()
             try:
                 decompressed = zlib.decompress(data, -15)
@@ -72,3 +83,40 @@ async def parse_hwp(file: UploadFile = File(...)):
         "filename": file.filename,
         "text": text.strip()
     }
+
+
+@app.get("/parse/s3/{file_key:path}")
+async def parse_from_s3(file_key: str):
+    """S3에서 파일 가져와서 파싱"""
+    try:
+        # S3에서 파일 다운로드
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=file_key)
+        contents = response["Body"].read()
+        filename = file_key.split("/")[-1]
+        ext = filename.split(".")[-1].lower()
+        
+        # 확장자에 따라 파싱
+        if ext == "pdf":
+            text = ""
+            with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            return {"filename": filename, "text": text}
+        
+        elif ext == "hwp":
+            ole = olefile.OleFileIO(io.BytesIO(contents))
+            if ole.exists("PrvText"):
+                encoded_text = ole.openstream("PrvText").read()
+                text = encoded_text.decode("utf-16", errors="ignore")
+            else:
+                text = "텍스트를 추출할 수 없습니다."
+            ole.close()
+            return {"filename": filename, "text": text.strip()}
+        
+        else:
+            return {"error": "지원하지 않는 파일 형식입니다."}
+    
+    except Exception as e:
+        return {"error": str(e)}
