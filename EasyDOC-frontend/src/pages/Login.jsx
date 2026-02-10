@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import "./login.css";
 import SignUp from "./signup";
 import Upload from "./Upload";
+import Forgotpw from "./Forgotpw";
 
 export default function Login() {
   const [showSignUp, setShowSignUp] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showForgotPw, setShowForgotPw] = useState(false);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -20,11 +22,15 @@ export default function Login() {
     return <Upload />;
   }
 
+  if (showForgotPw) {
+    return <Forgotpw onBackToLogin={() => setShowForgotPw(false)} />;
+  }
+
   return (
     <div className="login-page">
       <div className="login-wrap">
         {/* Brand */}
-        <div className="brand">     
+        <div className="brand">
           <div className="brand-icon" aria-hidden="true">
             <DocumentIcon />
           </div>
@@ -60,9 +66,13 @@ export default function Login() {
             </button>
           </div>
 
-          <a className="link" href="#">
+          <button
+            type="button"
+            className="link"
+            onClick={() => setShowForgotPw(true)}
+          >
             Forgot password?
-          </a>
+          </button>
         </form>
       </div>
     </div>
