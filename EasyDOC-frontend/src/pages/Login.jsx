@@ -96,7 +96,6 @@ function DocumentIcon() {
         height="68"
         rx="6"
         fill="#FFFFFF"
-        q
         stroke="#111827"
         strokeWidth="3"
       />
