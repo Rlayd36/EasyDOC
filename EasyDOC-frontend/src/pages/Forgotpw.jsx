@@ -16,8 +16,8 @@ export default function Forgotpw({ onBackToLogin }) {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("비밀번호는 6자 이상 입력해주세요.");
+    if (newPassword.length < 8) {
+      setError("비밀번호는 8자 이상 입력해주세요.");
       return;
     }
 
@@ -62,10 +62,10 @@ export default function Forgotpw({ onBackToLogin }) {
               <input
                 className="input"
                 type="password"
-                placeholder="새 비밀번호 (6자 이상)"
+                placeholder="새 비밀번호 (8자 이상)"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 required
               />
             </div>
@@ -78,7 +78,7 @@ export default function Forgotpw({ onBackToLogin }) {
                 placeholder="새 비밀번호 다시 입력"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 required
               />
             </div>
