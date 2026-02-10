@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./login.css";
-import SignUp from "./signup";
+import SignUp from "./SignUp";
 import Upload from "./Upload";
 import Forgotpw from "./Forgotpw";
 
