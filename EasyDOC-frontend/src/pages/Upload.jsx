@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import axios from "axios"; // 통신 라이브러리
+import Viewer from "./Viewer";
 import "./Upload.css";
 import MyPage from "./MyPage";
 
@@ -7,6 +8,9 @@ export default function Upload() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showMyPage, setShowMyPage] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
+  const [parseResult, setParseResult] = useState(null);
+  const [parsedText, setParsedText] = useState("");
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
@@ -49,6 +53,21 @@ export default function Upload() {
       });
 
       console.log("4. 업로드 성공!");
+
+      // 👇 파싱 요청 추가
+      console.log("5. 파싱 요청 중...");
+      const parseResponse = await axios.get(
+      `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
+      );
+      console.log("6. 파싱 완료!", parseResponse.data);
+      setParsedText(parseResponse.data.text);
+      setParseResult(parseResponse.data);
+      setShowViewer(true);
+
+      // S3에 업로드된 파일 파싱 (파싱 서버가 있는 경우)
+      // const s3Key = `uploads/${selectedFile.name}`;
+      // const parseResponse = await axios.get(`http://localhost:8000/parse/s3/${s3Key}`);
+      // console.log("파싱 결과:", parseResponse.data.text);
 
       // UPDATE: UI 업데이트 (최근 문서 목록에 추가)
       const fileInfo = {
@@ -102,6 +121,9 @@ export default function Upload() {
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) return "image";
     return "default";
   };
+  if (showViewer) {
+    return <Viewer parsedData={parseResult} />;
+  }
 
   if (showMyPage) {
     return <MyPage />;

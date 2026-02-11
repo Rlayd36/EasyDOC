@@ -310,3 +310,33 @@
     color: #000000;
     min-width: 15px; /* 숫자 정렬을 위한 최소 너비 */
 }
+/* 파싱 결과 영역 */
+.parsed-content {
+  width: 100%;
+  max-width: 900px;
+  height: 100%;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.parsed-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0;
+  color: #374151;
+}
+
+.loading-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #6b7280;
+}

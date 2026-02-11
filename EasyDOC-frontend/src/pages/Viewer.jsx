@@ -27,7 +27,7 @@ function LogoIcon() {
   );
 }
 
-export default function Viewer() {
+export default function Viewer({ parsedData }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
@@ -55,64 +55,76 @@ export default function Viewer() {
     };
     
     // 파일 선택 시 업로드 로직
-    const handleFileChange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+// 상단에 state 추가 (기존 state들 근처에)
+const [parsedText, setParsedText] = useState(parsedData?.text || "");
+const [isLoading, setIsLoading] = useState(false);
 
-      const objectUrl = URL.createObjectURL(file);
-      setPdfUrl(objectUrl);
 
-      try {
-        // AWS Lambda에 업로드 URL 요청
-        console.log("1. URL 요청 중...");
-        const response = await axios.get(API_GATEWAY_URL, {
-          params: {
-            fileName: file.name,
-            fileType: file.type
-          }
-        });
+// handleFileChange 수정
+const handleFileChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-        const {uploadUrl} = response.data;
-        console.log("2. URL 발급 완료:", uploadUrl);
+  const objectUrl = URL.createObjectURL(file);
+  setPdfUrl(objectUrl);
+  setIsLoading(true);  // 로딩 시작
 
-        // S3로 파일 업로드
-        console.log("3. S3로 파일 전송 중...");
-        await axios.put(uploadUrl, file, {
-          headers: {
-            "Content-Type": file.type,
-          },
-        });
-        console.log("4. 업로드 성공!");
-
-        // 최근 문서 목록 업데이트
-        const newDoc = {
-          id: Date.now(), // 고유 ID
-          title: file.name,
-          date: new Date().toLocaleDateString("ko-KR", {
-            year: "numeric",
-            month:"2-digit",
-            day: "2-digit",
-          })
-          .replace(/\. /g, ".") // 형식: 2024.11.14
-          .replace(".", "")     // 마지막 점 제거 (선택사항)
-        };
-
-        // 중복 제거 및 리스트 최신화
-        const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
-        setRecentDocs([newDoc, ...filteredDocs].slice(0, 10)); // 최대 10개 유지
-
-        alert("문서가 성공적으로 업로드되었습니다.");
-
-      } catch (error) {
-        console.error("파일 업로드 오류:", error);
-        alert("파일 업로드 중 오류가 발생했습니다.");
-      } finally {
-        // input 초기화 (같은 파일 다시 선택 가능)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+  try {
+    // AWS Lambda에 업로드 URL 요청
+    console.log("1. URL 요청 중...");
+    const response = await axios.get(API_GATEWAY_URL, {
+      params: {
+        fileName: file.name,
+        fileType: file.type
       }
+    });
+
+    const {uploadUrl} = response.data;
+    console.log("2. URL 발급 완료:", uploadUrl);
+
+    // S3로 파일 업로드
+    console.log("3. S3로 파일 전송 중...");
+    await axios.put(uploadUrl, file, {
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+    console.log("4. 업로드 성공!");
+
+    // 👇 파싱 요청 추가
+    console.log("5. 파싱 요청 중...");
+    const parseResponse = await axios.get(
+      `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
+    );
+    console.log("6. 파싱 완료!", parseResponse.data);
+    setParsedText(parseResponse.data.text);  // 파싱 결과 저장
+
+    // 최근 문서 목록 업데이트
+    const newDoc = {
+      id: Date.now(),
+      title: file.name,
+      date: new Date().toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month:"2-digit",
+        day: "2-digit",
+      })
+      .replace(/\. /g, ".")
+      .replace(".", "")
     };
+
+    const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
+    setRecentDocs([newDoc, ...filteredDocs].slice(0, 10));
+
+  } catch (error) {
+    console.error("파일 처리 오류:", error);
+    alert("파일 처리 중 오류가 발생했습니다.");
+  } finally {
+    setIsLoading(false);  // 로딩 끝
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+};
 
     return (
     <div className="viewer-page">
@@ -183,12 +195,17 @@ export default function Viewer() {
         </div>
 
         <div className="pdf-container">
-          {/* iframe을 통한 PDF 뷰어 */}
-          <iframe
-            src={pdfUrl}
-            className="pdf-frame"
-            title="Document Viewer"
-          />
+          {parsedText ? (
+            <div className="parsed-content">
+              <pre>{parsedText}</pre>
+            </div>
+          ) : (
+            <iframe
+              src={pdfUrl}
+              className="pdf-frame"
+              title="Document Viewer"
+            />
+          )}
 
           {/* 플로팅 요약 박스 */}
           {showSummary && (
