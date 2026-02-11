@@ -3,23 +3,88 @@ import "./login.css";
 import SignUp from "./SignUp";
 import Upload from "./Upload";
 import Forgotpw from "./Forgotpw";
+import MyPage from "./MyPage";
 
 export default function Login() {
-  const [showSignUp, setShowSignUp] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
+  const [currentView, setCurrentView] = useState("login");
   const [showForgotPw, setShowForgotPw] = useState(false);
+  
+  // 로그인한 사용자 정보 저장
+  const [userEmail, setUserEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailInput, setEmailInput] = useState("");
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-    setShowUpload(true);
+
+  //화면 렌더링
+  const renderView = () => {
+    switch (currentView) {
+      case "upload":
+        return (
+          <Upload 
+            onNavigateToMyPage={() => setCurrentView("mypage")} 
+          />
+        );
+      case "mypage":
+        return (
+          <MyPage 
+            userEmail={userEmail}
+            onNavigateToUpload={() => setCurrentView("upload")}
+            onLogout={handleLogout}
+          />
+        );
+      case "signup":
+        return <SignUp onBack={() => setCurrentView("login")} />;
+      case "login":
+      default:
+        return null;
+    }
   };
 
-  if (showSignUp) {
-    return <SignUp />;
-  }
+  //로그아웃
+  const handleLogout = () => {
+    setUserEmail("");
+    setPassword("");
+    setEmailInput("");
+    setCurrentView("login");
+    alert("로그아웃 되었습니다.");
+  };
 
-  if (showUpload) {
-    return <Upload />;
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    //불필요한 공백 제거
+    const cleanEmail = String(emailInput || "").trim();
+    const cleanPassword = String(password || "").trim();
+
+    //서버로 로그인 요청
+    try{
+      const response = await fetch("http://localhost:8080/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPassword }),
+      });
+
+      if (response.ok) {
+        const data=await response.json(); //응답을 JSON으로 받기
+        alert("로그인 성공!");
+
+        setUserEmail(data.email);
+        setCurrentView("upload");
+      } else {
+        const errorMsg = await response.text();
+        console.log("서버 에러 응답:", errorMsg);
+        alert("로그인 실패: " + errorMsg);
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert("서버 연결에 실패했습니다.");
+    }
+  };
+
+  if(currentView!=="login"){
+    return renderView();
   }
 
   if (showForgotPw) {
@@ -45,12 +110,26 @@ export default function Login() {
         <form className="form" onSubmit={onSubmit}>
           <div className="field">
             <label className="label">Email</label>
-            <input className="input" type="email" placeholder="Value" />
+            <input
+              className="input"
+              type="email"
+              placeholder="example@email.com"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              required
+            />
           </div>
 
           <div className="field">
             <label className="label">Password</label>
-            <input className="input" type="password" placeholder="Value" />
+            <input
+              className="input"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
 
           <div className="button-group">
@@ -60,7 +139,7 @@ export default function Login() {
             <button
               className="btn btn-register"
               type="button"
-              onClick={() => setShowSignUp(true)}
+              onClick={() => setCurrentView("signup")}
             >
               Register
             </button>

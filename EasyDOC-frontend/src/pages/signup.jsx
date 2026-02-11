@@ -19,10 +19,44 @@ const Signup = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
     e.preventDefault();
-    console.log("회원가입 정보:", formData);
-    //추후 백엔드 연동
+    /*비밀번호 길이 검사*/
+    if(formData.password.length<8){
+      alert("비밀번호는 최소 8자 이상이어야 합니다.");
+      return;
+    }
+    /*비밀번호 일치 검사*/
+    if(formData.password!==formData.confirmPassword){
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    /*백엔드 연결*/
+    try{
+      const response=await fetch("http://localhost:8080/api/users/signup",{
+        method: "POST",
+        headers:{
+          "Content-Type":"application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+      if(response.ok){
+        alert("회원가입 성공! 로그인 해주세요.");
+        window.location.reload();
+      }
+      else{
+        const errorMsg=await response.text();
+        alert("회원가입 실패: "+errorMsg);
+      }
+    }
+    catch(error){
+      console.error("Error:",error);
+      alert("서버 연결에 실패했습니다.");
+    }
   };
 
   return (
