@@ -1,13 +1,17 @@
 package com.easydoc.controller;
 
+
 import com.easydoc.entity.User;
 import com.easydoc.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+
+import java.util.HashMap;
 import java.util.Map;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import java.util.Optional;
+
 
 
 
@@ -19,17 +23,26 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+
     /*회원가입*/
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user){
         if(userRepository.findByEmail(user.getEmail()).isPresent()){
             return ResponseEntity.badRequest().body("이미 존재하는 이메일입니다.");
         }
+
+        //비밀번호 암호화
+        String encodedPassword=passwordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
+
         userRepository.save(user);
         return ResponseEntity.ok("회원가입 성공!");
     }
     
-    /*로그인(추후 비밀번호 암호화 예정)*/
+    /*로그인*/
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginData){
         String email=loginData.get("email");
@@ -37,10 +50,14 @@ public class UserController {
 
         User user=userRepository.findByEmail(email).orElse(null);
 
-        if(user==null||!user.getPassword().equals(password)){
+        if(user==null || !passwordEncoder.matches(password, user.getPassword())){
             return ResponseEntity.status(401).body("이메일 또는 비밀번호가 잘못되었습니다.");
         }
-        return ResponseEntity.ok("로그인 성공");
+
+        return ResponseEntity.ok(Map.of(
+            "email", user.getEmail(),
+            "name", user.getName()
+        ));
     }
 
     /*비밀번호 변경*/
@@ -52,11 +69,11 @@ public class UserController {
 
         User user=userRepository.findByEmail(email).orElse(null); 
 
-        if(user==null||!user.getPassword().equals(currentPassword)){
+        if(user==null||!passwordEncoder.matches(currentPassword,user.getPassword())){
             return ResponseEntity.status(401).body("현재 비밀번호가 일치하지 않습니다.");
         }
 
-        user.setPassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         return ResponseEntity.ok("비밀번호가 변경되었습니다!");
     }
@@ -71,6 +88,24 @@ public class UserController {
         }
         userRepository.delete(user);
         return ResponseEntity.ok("계정이 삭제되었습니다!");
+    }
+
+    /*사용자정보 조회*/
+    @GetMapping("/{email}")
+    public ResponseEntity<?> getUserInfo(@PathVariable String email){
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if(userOptional.isPresent()){
+            User user = userOptional.get();
+            Map<String, Object> response = new HashMap<>();
+            response.put("name", user.getName());
+            response.put("email", user.getEmail());
+            response.put("joinDate", user.getJoinDate()); 
+            
+            return ResponseEntity.ok(response);
+        } 
+        else{
+            return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
+        }
     }
 }
 

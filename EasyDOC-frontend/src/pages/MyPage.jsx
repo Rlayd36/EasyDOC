@@ -642,10 +642,12 @@ function SettingsContent({userEmail,onLogout}) {
       return;
     }
 
+    const token=localStorage.getItem("token");
+
     try {
       const response = await fetch("http://localhost:8080/api/users/password", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json"},
         body: JSON.stringify({
           email: userEmail,
           currentPassword: pwForm.currentPassword,
@@ -809,20 +811,44 @@ function SettingsContent({userEmail,onLogout}) {
 export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   // 현재 활성화된 메뉴 상태 (기본값: 프로필)
   const [activeMenu, setActiveMenu] = useState("profile");
-
+  
   // ===== 더미 사용자 데이터 =====
-  const userData = {
-    name: "박영서",
-    email: userEmail||"pys010725@gmail.com",
-    joinDate: "2024년 10월 15일",
-    stats: {
-      documents: 17,
-      pages: 1248,
-      words: 67,
-    },
-  };
+  const [userData,setUserData]=useState({
+    name: " ",
+    email: userEmail,
+    joinDate: "",
+    stats:{documents: 0, pages:0,words:0}
+  });
 
-  // 사이드바 메뉴 아이템 정의
+  React.useEffect(() => {
+    if(userEmail){
+
+      fetch(`http://localhost:8080/api/users/${userEmail}`)
+        .then(res => res.json())
+        .then(data => {
+          //날짜 포맷팅
+          const formattedDate = data.joinDate 
+            ? new Date(data.joinDate).toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })
+            : "정보 없음";
+
+          setUserData(prev => ({
+            ...prev,
+            name: data.name,
+            email: data.email,
+            joinDate: formattedDate
+          }));
+        })
+        .catch(err => {
+          console.error("정보 로딩 실패:", err);
+        });
+    }
+  }, [userEmail]);
+
+  //사이드바 메뉴 아이템 정의
   const menuItems = [
     { id: "profile", label: "프로필 정보", icon: ProfileIcon },
     { id: "language", label: "언어 능력 설정", icon: LanguageIcon },

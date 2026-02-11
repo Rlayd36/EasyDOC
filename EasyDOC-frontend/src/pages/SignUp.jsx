@@ -42,22 +42,21 @@ const Signup = () => {
           email: formData.email,
           password: formData.password,
         }),
-    });
-    if(response.ok){
-      alert("회원가입 성공! 로그인 해주세요.");
-      window.location.reload();
+      });
+      if(response.ok){
+        alert("회원가입 성공! 로그인 해주세요.");
+        window.location.reload();
+      }
+      else{
+        const errorMsg=await response.text();
+        alert("회원가입 실패: "+errorMsg);
+      }
     }
-    else{
-      const errorMsg=await response.text();
-      alert("회원가입 실패: "+errorMsg);
+    catch(error){
+      console.error("Error:",error);
+      alert("서버 연결에 실패했습니다.");
     }
-  }
-  catch(error){
-    console.error("Error:",error);
-    alert("서버 연결에 실패했습니다.");
-  }
-};
-
+  };
 
   return (
     <div className="signup-page">

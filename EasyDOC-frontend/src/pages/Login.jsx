@@ -49,12 +49,12 @@ export default function Login() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // 불필요한 공백 제거
+    //불필요한 공백 제거
     const cleanEmail = String(emailInput || "").trim();
     const cleanPassword = String(password || "").trim();
 
-    // 서버로 로그인 요청
-    try {
+    //서버로 로그인 요청
+    try{
       const response = await fetch("http://localhost:8080/api/users/login", {
         method: "POST",
         headers: {
@@ -64,8 +64,10 @@ export default function Login() {
       });
 
       if (response.ok) {
+        const data=await response.json(); //응답을 JSON으로 받기
         alert("로그인 성공!");
-        setUserEmail(cleanEmail);
+
+        setUserEmail(data.email);
         setCurrentView("upload");
       } else {
         const errorMsg = await response.text();
