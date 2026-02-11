@@ -7,8 +7,11 @@ import io
 import boto3
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# 프로젝트 최상위 폴더(EasyDOC)의 .env 파일 로드
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 app = FastAPI()
 
