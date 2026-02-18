@@ -1,13 +1,49 @@
 import React, { useState } from "react";
 import "./Forgotpw.css";
 
+const API_BASE = "http://localhost:8080/api/users";
+
 export default function Forgotpw({ onBackToLogin }) {
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e) => {
+  // 1단계: 이메일로 재설정 요청
+  const onRequestReset = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        setToken(data.token);
+        setStep(2);
+      } else {
+        setError(
+          typeof data === "string"
+            ? data
+            : "등록된 이메일이 없거나 요청을 처리할 수 없습니다.",
+        );
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setError("서버 연결에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2단계: 토큰 + 새 비밀번호로 재설정
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -15,14 +51,40 @@ export default function Forgotpw({ onBackToLogin }) {
       setError("새 비밀번호가 일치하지 않습니다.");
       return;
     }
-
     if (newPassword.length < 8) {
       setError("비밀번호는 8자 이상 입력해주세요.");
       return;
     }
 
-    // TODO: 비밀번호 재설정 API 연동
-    console.log("비밀번호 재설정:", { email, newPassword });
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        alert("비밀번호가 재설정되었습니다. 로그인해주세요.");
+        onBackToLogin();
+        return;
+      }
+      setError(
+        typeof data === "string"
+          ? data
+          : "토큰이 유효하지 않거나 만료되었습니다.",
+      );
+      console.error("Error:", error);
+    } catch (error) {
+      console.error("Error:", error);
+      // 서버는 처리했지만 응답을 못 받은 경우가 있으므로, 에러 대신 안내 후 로그인으로 이동
+      alert(
+        "처리가 완료되었을 수 있습니다. 새 비밀번호로 로그인을 시도해 보세요.",
+      );
+      onBackToLogin();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,55 +102,88 @@ export default function Forgotpw({ onBackToLogin }) {
 
         <div className="forgotpw-card">
           <h2 className="forgotpw-title">비밀번호 재설정</h2>
-          <p className="forgotpw-desc">
-            가입한 이메일과 새 비밀번호를 입력해주세요.
-          </p>
 
-          <form className="form" onSubmit={onSubmit}>
-            <div className="field">
-              <label className="label">Email</label>
-              <input
-                className="input"
-                type="email"
-                placeholder="가입한 이메일 주소"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
+          {step === 1 && (
+            <>
+              <p className="forgotpw-desc">
+                가입한 이메일을 입력하시면 재설정 절차를 안내합니다.
+              </p>
+              <form className="form" onSubmit={onRequestReset}>
+                <div className="field">
+                  <label className="label">Email</label>
+                  <input
+                    className="input"
+                    type="email"
+                    placeholder="가입한 이메일 주소"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                {error && <p className="forgotpw-error">{error}</p>}
+                <button
+                  className="btn btn-submit"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "처리 중..." : "재설정 링크 받기"}
+                </button>
+              </form>
+            </>
+          )}
 
-            <div className="field">
-              <label className="label">새 비밀번호</label>
-              <input
-                className="input"
-                type="password"
-                placeholder="새 비밀번호 (8자 이상)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label className="label">새 비밀번호 확인</label>
-              <input
-                className="input"
-                type="password"
-                placeholder="새 비밀번호 다시 입력"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </div>
-
-            {error && <p className="forgotpw-error">{error}</p>}
-
-            <button className="btn btn-submit" type="submit">
-              비밀번호 재설정
-            </button>
-          </form>
+          {step === 2 && (
+            <>
+              <p className="forgotpw-desc">
+                새 비밀번호를 입력해주세요. (토큰은 이미 확인되었습니다)
+              </p>
+              <form className="form" onSubmit={onSubmit}>
+                <div className="field">
+                  <label className="label">새 비밀번호</label>
+                  <input
+                    className="input"
+                    type="password"
+                    placeholder="새 비밀번호 (8자 이상)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">새 비밀번호 확인</label>
+                  <input
+                    className="input"
+                    type="password"
+                    placeholder="새 비밀번호 다시 입력"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                {error && <p className="forgotpw-error">{error}</p>}
+                <button
+                  className="btn btn-submit"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "처리 중..." : "비밀번호 재설정"}
+                </button>
+              </form>
+              <button
+                type="button"
+                className="link link-back"
+                onClick={() => setStep(1)}
+                style={{ marginTop: "0.5rem" }}
+              >
+                이메일 다시 입력
+              </button>
+            </>
+          )}
 
           <button
             type="button"
