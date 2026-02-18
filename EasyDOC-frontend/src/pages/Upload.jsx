@@ -9,6 +9,7 @@ export default function Upload({onNavigateToMyPage}) {
   const [showViewer, setShowViewer] = useState(false);
   const [parseResult, setParseResult] = useState(null);
   const [parsedText, setParsedText] = useState("");
+  const [ocrResult, setOcrResult] = useState(null); // OCR 상태
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
@@ -52,14 +53,32 @@ export default function Upload({onNavigateToMyPage}) {
 
       console.log("4. 업로드 성공!");
 
-      // 👇 파싱 요청 추가
-      console.log("5. 파싱 요청 중...");
-      const parseResponse = await axios.get(
-      `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
-      );
-      console.log("6. 파싱 완료!", parseResponse.data);
-      setParsedText(parseResponse.data.text);
-      setParseResult(parseResponse.data);
+      // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
+
+      if (selectedFile.type.startsWith("image/")) {
+        // 파일이 이미지일 때 -> OCR 실행
+        console.log("5. OCR 서버에 분석 요청...");
+        const ocrResponse = await axios.get(
+          `http://localhost:8000/ocr/s3/${encodeURIComponent(selectedFile.name)}`
+        );
+        console.log("6. OCR 결과 도착!", ocrResponse.data);
+        setOcrResult(ocrResponse.data); // 결과 저장
+        setParseResult(null);           // 파싱 데이터는 비움
+        setParsedText("");
+      } else {
+
+        // 파일이 문서일 때 -> 파싱 실행
+        // 👇 파싱 요청 추가
+        console.log("5. 파싱 요청 중...");
+        const parseResponse = await axios.get(
+        `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
+        );
+        console.log("6. 파싱 완료!", parseResponse.data);
+        setParsedText(parseResponse.data.text);
+        setParseResult(parseResponse.data);
+        setOcrResult(null);             // OCR 데이터는 비움
+      }
+
       setShowViewer(true);
 
       // S3에 업로드된 파일 파싱 (파싱 서버가 있는 경우)
@@ -120,7 +139,8 @@ export default function Upload({onNavigateToMyPage}) {
     return "default";
   };
   if (showViewer) {
-    return <Viewer parsedData={parseResult} />;
+    // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
+    return <Viewer parsedData={parseResult} ocrData={ocrResult} />;
   }
 
   return (

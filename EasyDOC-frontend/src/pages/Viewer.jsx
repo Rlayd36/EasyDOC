@@ -27,7 +27,7 @@ function LogoIcon() {
   );
 }
 
-export default function Viewer({ parsedData }) {
+export default function Viewer({ parsedData, ocrData }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
@@ -57,6 +57,7 @@ export default function Viewer({ parsedData }) {
     // 파일 선택 시 업로드 로직
 // 상단에 state 추가 (기존 state들 근처에)
 const [parsedText, setParsedText] = useState(parsedData?.text || "");
+const [ocrText, setOcrText] = useState(ocrData ? (ocrData.text || ocrData) : ""); // OCR
 const [isLoading, setIsLoading] = useState(false);
 
 
@@ -91,13 +92,29 @@ const handleFileChange = async (e) => {
     });
     console.log("4. 업로드 성공!");
 
-    // 👇 파싱 요청 추가
-    console.log("5. 파싱 요청 중...");
-    const parseResponse = await axios.get(
-      `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
-    );
-    console.log("6. 파싱 완료!", parseResponse.data);
-    setParsedText(parseResponse.data.text);  // 파싱 결과 저장
+    // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
+
+    if (file.type.startsWith("image/")) {
+      // 파일이 이미지일 때 -> OCR 실행
+      console.log("5. OCR 서버에 분석 요청...");
+      const ocrResponse = await axios.get(
+        `http://localhost:8000/ocr/s3/${encodeURIComponent(file.name)}`
+      );
+      console.log("6. OCR 결과 도착!", ocrResponse.data);
+      setOcrText(ocrResponse.data.text || ocrResponse.data);
+      setParsedText("");  // 문서 파싱 결과는 비움
+      } else {
+
+      // 파일이 문서일 때 -> 파싱 실행
+      // 👇 파싱 요청 추가
+      console.log("5. 파싱 요청 중...");
+      const parseResponse = await axios.get(
+        `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
+      );
+      console.log("6. 파싱 완료!", parseResponse.data);
+      setParsedText(parseResponse.data.text);  // 파싱 결과 저장
+      setOcrText("");     // OCR 결과는 비움
+    }
 
     // 최근 문서 목록 업데이트
     const newDoc = {
@@ -195,9 +212,10 @@ const handleFileChange = async (e) => {
         </div>
 
         <div className="pdf-container">
-          {parsedText ? (
+          {/* 텍스트가 있으면 표시, 없으면 PDF 표시 */}
+          {(ocrText || parsedText) ? (
             <div className="parsed-content">
-              <pre>{parsedText}</pre>
+              <pre>{ocrText ? ocrText: parsedText}</pre>
             </div>
           ) : (
             <iframe
