@@ -58,8 +58,22 @@ export default function Upload({onNavigateToMyPage}) {
       `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
       );
       console.log("6. 파싱 완료!", parseResponse.data);
-      setParsedText(parseResponse.data.text);
-      setParseResult(parseResponse.data);
+      
+      const extractedText = parseResponse.data.text;
+      setParsedText(extractedText);
+      
+      // 👇 난이도 분석 추가
+      console.log("7. 난이도 분석 요청 중...");
+      const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
+        text: extractedText,
+        min_level: 3
+      });
+      console.log("8. 난이도 분석 완료!", analyzeResponse.data);
+      
+      setParseResult({
+        ...parseResponse.data,
+        difficultWords: analyzeResponse.data.difficult_words || []
+      });
       setShowViewer(true);
 
       // S3에 업로드된 파일 파싱 (파싱 서버가 있는 경우)

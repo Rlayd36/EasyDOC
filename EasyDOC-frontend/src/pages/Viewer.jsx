@@ -3,6 +3,74 @@ import axios from "axios";
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
 
+// 텍스트 하이라이트 컴포넌트
+function HighlightedText({ text, difficultWords, onWordClick }) {
+  if (!text) return null;
+
+  // 어려운 단어를 Map으로 변환 (빠른 검색을 위해)
+  const wordMap = new Map();
+  difficultWords.forEach(item => {
+    wordMap.set(item.word, item);
+  });
+
+  // 단어별로 분리하여 하이라이트 처리
+  const lines = text.split('\n');
+  
+  return (
+    <div className="highlighted-text">
+      {lines.map((line, lineIdx) => {
+        // 각 라인을 단어로 분리
+        const parts = [];
+        let currentPos = 0;
+        
+        // 정규식으로 한글, 영문, 숫자 등을 단어로 추출
+        const regex = /[\uAC00-\uD7A3]+|[a-zA-Z]+|[0-9]+/g;
+        let match;
+        
+        while ((match = regex.exec(line)) !== null) {
+          const word = match[0];
+          const startPos = match.index;
+          
+          // 단어 이전의 텍스트 추가
+          if (startPos > currentPos) {
+            parts.push(line.substring(currentPos, startPos));
+          }
+          
+          // 단어가 어려운 단어 목록에 있는지 확인
+          if (wordMap.has(word)) {
+            const wordInfo = wordMap.get(word);
+            parts.push(
+              <span 
+                key={`${lineIdx}-${startPos}`}
+                className={`difficult-word level-${wordInfo.level}`}
+                onClick={() => onWordClick(wordInfo)}
+                title={wordInfo.easy_expression || `난이도: ${wordInfo.level}`}
+              >
+                {word}
+              </span>
+            );
+          } else {
+            parts.push(word);
+          }
+          
+          currentPos = startPos + word.length;
+        }
+        
+        // 라인 끝까지 남은 텍스트 추가
+        if (currentPos < line.length) {
+          parts.push(line.substring(currentPos));
+        }
+        
+        return (
+          <div key={lineIdx}>
+            {parts}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // 로고 아이콘 (Login 페이지의 DocumentIcon 재사용 및 크기 조정)
 function LogoIcon() {
   return (
@@ -48,6 +116,10 @@ export default function Viewer({ parsedData }) {
     // AWS API Gateway 주소
     const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
 
+    // 난이도 분석 관련 상태
+    const [difficultWords, setDifficultWords] = useState(parsedData?.difficultWords || []);
+    const [selectedWord, setSelectedWord] = useState(null);
+
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
       console.log("버튼 클릭됨! fileInputRef 상태:", fileInputRef.current); //디버깅용
@@ -55,9 +127,23 @@ export default function Viewer({ parsedData }) {
     };
     
     // 파일 선택 시 업로드 로직
-// 상단에 state 추가 (기존 state들 근처에)
 const [parsedText, setParsedText] = useState(parsedData?.text || "");
 const [isLoading, setIsLoading] = useState(false);
+
+// 난이도 분석 함수
+const analyzeText = async (text) => {
+  try {
+    console.log("난이도 분석 요청 중...");
+    const response = await axios.post("http://localhost:8000/analyze", {
+      text: text,
+      min_level: 3  // 3단계 이상만
+    });
+    console.log("난이도 분석 완료:", response.data);
+    setDifficultWords(response.data.difficult_words || []);
+  } catch (error) {
+    console.error("난이도 분석 오류:", error);
+  }
+};
 
 
 // handleFileChange 수정
@@ -97,7 +183,11 @@ const handleFileChange = async (e) => {
       `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
     );
     console.log("6. 파싱 완료!", parseResponse.data);
-    setParsedText(parseResponse.data.text);  // 파싱 결과 저장
+    const extractedText = parseResponse.data.text;
+    setParsedText(extractedText);  // 파싱 결과 저장
+
+    // 👇 난이도 분석 추가
+    await analyzeText(extractedText);
 
     // 최근 문서 목록 업데이트
     const newDoc = {
@@ -197,7 +287,11 @@ const handleFileChange = async (e) => {
         <div className="pdf-container">
           {parsedText ? (
             <div className="parsed-content">
-              <pre>{parsedText}</pre>
+              <HighlightedText 
+                text={parsedText} 
+                difficultWords={difficultWords}
+                onWordClick={setSelectedWord}
+              />
             </div>
           ) : (
             <iframe

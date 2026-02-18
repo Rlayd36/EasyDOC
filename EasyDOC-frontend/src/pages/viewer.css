@@ -340,3 +340,73 @@
   font-size: 18px;
   color: #6b7280;
 }
+
+/* ===============================
+   하이라이트 텍스트 스타일
+   =============================== */
+.highlighted-text {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #374151;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.difficult-word {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+/* 난이도별 색상 */
+.difficult-word.level-3 {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.difficult-word.level-4 {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.difficult-word.level-5 {
+  background-color: #fecaca;
+  color: #991b1b;
+}
+
+.difficult-word:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 선택된 단어 툴팁 스타일 */
+.word-tooltip {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.word-tooltip .tooltip-word {
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.word-tooltip .tooltip-level {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.word-tooltip .tooltip-easy {
+  color: #059669;
+  font-weight: 500;
+}

@@ -7,11 +7,12 @@ import io
 import boto3
 import os
 from dotenv import load_dotenv
-from pathlib import Path
+import pandas as pd
+from konlpy.tag import Okt
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# 프로젝트 최상위 폴더(EasyDOC)의 .env 파일 로드
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 app = FastAPI()
 
@@ -30,6 +31,22 @@ s3 = boto3.client(
     region_name=os.getenv("AWS_DEFAULT_REGION"),
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+
+# 형태소 분석기
+okt = Okt()
+
+# 단어 난이도 사전 로드
+word_df = pd.read_csv("word_difficulty_dataset.csv")
+word_dict = dict(zip(word_df['단어'], word_df['난이도']))
+easy_dict = dict(zip(word_df['단어'], word_df['쉬운표현']))
+
+# 난이도 분류 모델 로드
+MODEL_PATH = "word_difficulty_model"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+diff_model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+diff_model.to(device)
+diff_model.eval()
 
 
 @app.get("/")
@@ -123,3 +140,61 @@ async def parse_from_s3(file_key: str):
     
     except Exception as e:
         return {"error": str(e)}
+
+
+def predict_difficulty(word):
+    """모델로 난이도 예측"""
+    inputs = tokenizer(word, return_tensors="pt", padding=True, truncation=True, max_length=32)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    with torch.no_grad():
+        outputs = diff_model(**inputs)
+        pred = torch.argmax(outputs.logits, dim=1).item() + 1
+    
+    return pred
+
+
+@app.post("/analyze")
+async def analyze_text(data: dict):
+    """텍스트에서 어려운 단어 분석"""
+    text = data.get("text", "")
+    min_level = data.get("min_level", 3)  # 기본값: 3단계 이상만
+    
+    # 명사 추출
+    nouns = okt.nouns(text)
+    
+    # 중복 제거
+    unique_nouns = list(set(nouns))
+    
+    result = []
+    for noun in unique_nouns:
+        if len(noun) < 2:  # 한 글자는 스킵
+            continue
+            
+        # 데이터셋에 있으면 저장된 난이도 사용
+        if noun in word_dict:
+            level = word_dict[noun]
+            easy = easy_dict.get(noun, "")
+            source = "dictionary"
+        else:
+            # 없으면 모델로 예측
+            level = predict_difficulty(noun)
+            easy = ""
+            source = "model"
+        
+        # 지정 난이도 이상만 반환
+        if level >= min_level:
+            result.append({
+                "word": noun,
+                "level": int(level),
+                "easy_expression": easy if pd.notna(easy) else "",
+                "source": source
+            })
+    
+    # 난이도 높은 순 정렬
+    result.sort(key=lambda x: x["level"], reverse=True)
+    
+    return {
+        "total_nouns": len(unique_nouns),
+        "difficult_words": result
+    }
