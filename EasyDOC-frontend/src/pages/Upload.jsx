@@ -56,10 +56,10 @@ export default function Upload({onNavigateToMyPage}) {
       // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
 
       if (selectedFile.type.startsWith("image/")) {
-        // 파일이 이미지일 때 -> OCR 실행
+        // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
         console.log("5. OCR 서버에 분석 요청...");
         const ocrResponse = await axios.get(
-          `http://localhost:8000/ocr/s3/${encodeURIComponent(selectedFile.name)}`
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(selectedFile.name)}`
         );
         console.log("6. OCR 결과 도착!", ocrResponse.data);
         setOcrResult(ocrResponse.data); // 결과 저장
@@ -67,7 +67,7 @@ export default function Upload({onNavigateToMyPage}) {
         setParsedText("");
       } else {
 
-        // 파일이 문서일 때 -> 파싱 실행
+        // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         // 👇 파싱 요청 추가
         console.log("5. 파싱 요청 중...");
         const parseResponse = await axios.get(

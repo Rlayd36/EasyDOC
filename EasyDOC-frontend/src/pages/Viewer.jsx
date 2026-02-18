@@ -95,17 +95,17 @@ const handleFileChange = async (e) => {
     // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
 
     if (file.type.startsWith("image/")) {
-      // 파일이 이미지일 때 -> OCR 실행
+      // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
       console.log("5. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8000/ocr/s3/${encodeURIComponent(file.name)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(file.name)}`
       );
       console.log("6. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
       } else {
 
-      // 파일이 문서일 때 -> 파싱 실행
+      // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       // 👇 파싱 요청 추가
       console.log("5. 파싱 요청 중...");
       const parseResponse = await axios.get(

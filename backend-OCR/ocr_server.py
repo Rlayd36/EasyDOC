@@ -25,9 +25,19 @@ app.add_middleware(
 # OCR 엔진 로딩
 ocr_engine = EasyDocOCR()
 
-# AWS S3 연결 설정
-s3_client = boto3.client('s3', region_name='ap-northeast-2')
-BUCKET_NAME = "easydoc-upload-list"
+# .env 파일에서 AWS 설정값 불러오기
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
+BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "easydoc-upload-list")
+
+# 가져온 키를 사용하여 AWS S3 연결 설정
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_REGION
+)
 
 # 프론트엔드 요청에 맞게 GET 방식으로 주소 변경
 @app.get("/ocr/s3/{filename}")
@@ -62,4 +72,4 @@ def run_ocr(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
