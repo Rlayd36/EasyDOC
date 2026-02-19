@@ -13,9 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 
 
-
-
-
 @RestController
 @CrossOrigin(origins="http://localhost:5173")
 @RequestMapping("/api/users")
@@ -79,8 +76,8 @@ public class UserController {
     }
 
     /*계정 삭제*/
-    @DeleteMapping("/{email}")
-    public ResponseEntity<?> deleteUser(@PathVariable String email){
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteUser(@RequestParam("email") String email){
         User user=userRepository.findByEmail(email).orElse(null);
 
         if(user==null){
@@ -91,8 +88,8 @@ public class UserController {
     }
 
     /*사용자정보 조회*/
-    @GetMapping("/{email}")
-    public ResponseEntity<?> getUserInfo(@PathVariable String email){
+    @GetMapping("/info")
+    public ResponseEntity<?> getUserInfo(@RequestParam("email") String email){
         Optional<User> userOptional = userRepository.findByEmail(email);
         if(userOptional.isPresent()){
             User user = userOptional.get();
