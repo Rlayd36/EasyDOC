@@ -7,6 +7,7 @@
 - `EasyDOC-frontend/` - React + Vite 프론트엔드
 - `EasyDOC-frontend/easydoc-parser/` - FastAPI 파싱 서버 (Python)
 - `backend-spring/` - Spring Boot 백엔드
+- `backend-OCR/` - FastAPI  OCR 서버 (Python, Google Cloud Vision API)
 
 ---
 
@@ -56,6 +57,24 @@ cd backend-spring
 
 ---
 
+### 4. OCR 서버 실행 (Python)
+
+```bash
+cd backend-OCR
+python -m venv venv
+.\venv\Scripts\activate (맥은 source venv/bin/activate)
+pip install -r requirements.txt
+python ocr_server.py
+```
+
+접속 주소: http://0.0.0.0:8001
+
+**필요 사항:**
+- 프로젝트 최상위 폴더(`EasyDOC`)에 `.env` 파일 필요 (AWS 키 포함)
+- backend-OCR 폴더 내 `google-key.json` 키 파일 필요
+
+---
+
 ## 환경 변수 설정
 
 프로젝트 최상위 폴더(`EasyDOC`)에 `.env` 파일 생성:
@@ -76,5 +95,4 @@ S3_BUCKET_NAME=your_bucket_name_here
 - PDF, HWP 문서 업로드 및 텍스트 추출
 - S3를 통한 파일 저장
 - 사용자 인증 및 회원가입
-- 문서 파싱 및 변환
-
+- 문서 파싱/OCR 및 변환
