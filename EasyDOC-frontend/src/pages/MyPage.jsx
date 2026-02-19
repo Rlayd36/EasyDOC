@@ -642,8 +642,6 @@ function SettingsContent({userEmail,onLogout}) {
       return;
     }
 
-    const token=localStorage.getItem("token");
-
     try {
       const response = await fetch("http://localhost:8080/api/users/password", {
         method: "PUT",
@@ -675,7 +673,7 @@ function SettingsContent({userEmail,onLogout}) {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/users/${userEmail}`, {
+      const response = await fetch(`http://localhost:8080/api/users/delete?email=${userEmail}`, {
         method: "DELETE",
       });
 
@@ -822,9 +820,15 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
 
   React.useEffect(() => {
     if(userEmail){
-
-      fetch(`http://localhost:8080/api/users/${userEmail}`)
-        .then(res => res.json())
+      fetch(`http://localhost:8080/api/users/info?email=${userEmail}`)
+        .then(async res => {
+           if(!res.ok)
+           {
+              const errorText=await res.text();
+              throw new Error(`서버 에러(${res.status}): ${errorText}`);
+           }
+           return res.json();
+        })
         .then(data => {
           //날짜 포맷팅
           const formattedDate = data.joinDate 
@@ -837,9 +841,10 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
 
           setUserData(prev => ({
             ...prev,
-            name: data.name,
+            name: data.name||"이름 없음",
             email: data.email,
-            joinDate: formattedDate
+            joinDate: formattedDate,
+            stats:prev.stats //추후 수정예정
           }));
         })
         .catch(err => {
