@@ -9,6 +9,7 @@ export default function Upload({onNavigateToMyPage}) {
   const [showViewer, setShowViewer] = useState(false);
   const [parseResult, setParseResult] = useState(null);
   const [parsedText, setParsedText] = useState("");
+  const [ocrResult, setOcrResult] = useState(null); // OCR 상태
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
@@ -52,28 +53,43 @@ export default function Upload({onNavigateToMyPage}) {
 
       console.log("4. 업로드 성공!");
 
-      // 👇 파싱 요청 추가
-      console.log("5. 파싱 요청 중...");
-      const parseResponse = await axios.get(
-      `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
-      );
-      console.log("6. 파싱 완료!", parseResponse.data);
-      
-      const extractedText = parseResponse.data.text;
-      setParsedText(extractedText);
-      
-      // 👇 난이도 분석 추가
-      console.log("7. 난이도 분석 요청 중...");
-      const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
-        text: extractedText,
-        min_level: 3
-      });
-      console.log("8. 난이도 분석 완료!", analyzeResponse.data);
-      
-      setParseResult({
-        ...parseResponse.data,
-        difficultWords: analyzeResponse.data.difficult_words || []
-      });
+      // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
+      if (selectedFile.type.startsWith("image/")) {
+        // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
+        console.log("5. OCR 서버에 분석 요청...");
+        const ocrResponse = await axios.get(
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(selectedFile.name)}`
+        );
+        console.log("6. OCR 결과 도착!", ocrResponse.data);
+        setOcrResult(ocrResponse.data); // 결과 저장
+        setParseResult(null);           // 파싱 데이터는 비움
+        setParsedText("");
+      } else {
+        // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
+        console.log("5. 파싱 요청 중...");
+        const parseResponse = await axios.get(
+          `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
+        );
+        console.log("6. 파싱 완료!", parseResponse.data);
+        
+        const extractedText = parseResponse.data.text;
+        setParsedText(extractedText);
+        
+        // 난이도 분석 추가
+        console.log("7. 난이도 분석 요청 중...");
+        const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
+          text: extractedText,
+          min_level: 3
+        });
+        console.log("8. 난이도 분석 완료!", analyzeResponse.data);
+        
+        setParseResult({
+          ...parseResponse.data,
+          difficultWords: analyzeResponse.data.difficult_words || []
+        });
+        setOcrResult(null);  // OCR 데이터는 비움
+      }
+
       setShowViewer(true);
 
       // S3에 업로드된 파일 파싱 (파싱 서버가 있는 경우)
@@ -134,7 +150,8 @@ export default function Upload({onNavigateToMyPage}) {
     return "default";
   };
   if (showViewer) {
-    return <Viewer parsedData={parseResult} />;
+    // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
+    return <Viewer parsedData={parseResult} ocrData={ocrResult} />;
   }
 
   return (
