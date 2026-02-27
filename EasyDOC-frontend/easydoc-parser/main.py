@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
 import olefile
 import zlib
+import google.generativeai as genai
 import io
 import boto3
 import os
@@ -31,6 +32,9 @@ s3 = boto3.client(
     region_name=os.getenv("AWS_DEFAULT_REGION"),
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-2.0-flash')
 
 # 형태소 분석기
 okt = Okt()
@@ -198,3 +202,42 @@ async def analyze_text(data: dict):
         "total_nouns": len(unique_nouns),
         "difficult_words": result
     }
+@app.post("/explain")
+async def explain_word(data: dict):
+    """어려운 단어를 쉽게 설명"""
+    word = data.get("word", "")
+    context = data.get("context", "")  # 문맥 (선택)
+    
+    # 먼저 데이터셋에서 찾기
+    if word in word_dict:
+        easy = easy_dict.get(word, "")
+        if pd.notna(easy) and easy:
+            return {
+                "word": word,
+                "explanation": easy,
+                "source": "dictionary"
+            }
+    
+    # 없으면 Gemini한테 물어보기
+    prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
+    
+용어: {word}
+{"문맥: " + context if context else ""}
+
+설명:"""
+    
+    try:
+        response = gemini_model.generate_content(prompt)
+        explanation = response.text.strip()
+        
+        return {
+            "word": word,
+            "explanation": explanation,
+            "source": "gemini"
+        }
+    except Exception as e:
+        return {
+            "word": word,
+            "error": str(e),
+            "source": "error"
+        }
