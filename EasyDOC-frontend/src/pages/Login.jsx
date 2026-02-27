@@ -39,6 +39,7 @@ export default function Login() {
 
   //로그아웃
   const handleLogout = () => {
+    localStorage.removeItem("token");
     setUserEmail("");
     setPassword("");
     setEmailInput("");
@@ -66,7 +67,8 @@ export default function Login() {
       if (response.ok) {
         const data=await response.json(); //응답을 JSON으로 받기
         alert("로그인 성공!");
-
+        
+        localStorage.setItem("token",data.token);
         setUserEmail(data.email);
         setCurrentView("upload");
       } else {

@@ -3,6 +3,7 @@ package com.easydoc.controller;
 
 import com.easydoc.entity.User;
 import com.easydoc.repository.UserRepository;
+import com.easydoc.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,8 @@ public class UserController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /*회원가입*/
     @PostMapping("/signup")
@@ -50,8 +53,9 @@ public class UserController {
         if(user==null || !passwordEncoder.matches(password, user.getPassword())){
             return ResponseEntity.status(401).body("이메일 또는 비밀번호가 잘못되었습니다.");
         }
-
+        String token=jwtUtil.generateToken(user.getEmail());
         return ResponseEntity.ok(Map.of(
+            "token",token,
             "email", user.getEmail(),
             "name", user.getName()
         ));
@@ -105,6 +109,3 @@ public class UserController {
         }
     }
 }
-
-
-
