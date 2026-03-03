@@ -3,27 +3,22 @@ import axios from "axios";
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
 
-// 텍스트 하이라이트 컴포넌트
-function HighlightedText({ text, difficultWords, onWordClick }) {
+// 텍스트 하이라이트 컴포넌트 (나무위키 호버 말풍선)
+function HighlightedText({ text, difficultWords }) {
   if (!text) return null;
 
-  // 어려운 단어를 Map으로 변환 (빠른 검색을 위해)
   const wordMap = new Map();
   difficultWords.forEach(item => {
     wordMap.set(item.word, item);
   });
 
-  // 단어별로 분리하여 하이라이트 처리
   const lines = text.split('\n');
   
   return (
     <div className="highlighted-text">
       {lines.map((line, lineIdx) => {
-        // 각 라인을 단어로 분리
         const parts = [];
         let currentPos = 0;
-        
-        // 정규식으로 한글, 영문, 숫자 등을 단어로 추출
         const regex = /[\uAC00-\uD7A3]+|[a-zA-Z]+|[0-9]+/g;
         let match;
         
@@ -31,22 +26,20 @@ function HighlightedText({ text, difficultWords, onWordClick }) {
           const word = match[0];
           const startPos = match.index;
           
-          // 단어 이전의 텍스트 추가
           if (startPos > currentPos) {
             parts.push(line.substring(currentPos, startPos));
           }
           
-          // 단어가 어려운 단어 목록에 있는지 확인
           if (wordMap.has(word)) {
             const wordInfo = wordMap.get(word);
+            const wordKey = `${lineIdx}-${startPos}`;
             parts.push(
-              <span 
-                key={`${lineIdx}-${startPos}`}
-                className={`difficult-word level-${wordInfo.level}`}
-                onClick={() => onWordClick(wordInfo)}
-                title={wordInfo.easy_expression || `난이도: ${wordInfo.level}`}
-              >
+              <span key={wordKey} className={`difficult-word level-${wordInfo.level}`}>
                 {word}
+                <span className="word-bubble">
+                  <strong>{word}</strong>
+                  <span className="word-bubble-desc">{wordInfo.easy_expression || `난이도 ${wordInfo.level} 단어`}</span>
+                </span>
               </span>
             );
           } else {
@@ -56,7 +49,6 @@ function HighlightedText({ text, difficultWords, onWordClick }) {
           currentPos = startPos + word.length;
         }
         
-        // 라인 끝까지 남은 텍스트 추가
         if (currentPos < line.length) {
           parts.push(line.substring(currentPos));
         }
@@ -118,7 +110,6 @@ export default function Viewer({ parsedData, ocrData }) {
 
     // 난이도 분석 관련 상태
     const [difficultWords, setDifficultWords] = useState(parsedData?.difficultWords || []);
-    const [selectedWord, setSelectedWord] = useState(null);
 
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
@@ -308,7 +299,6 @@ const handleFileChange = async (e) => {
                 <HighlightedText 
                   text={parsedText} 
                   difficultWords={difficultWords}
-                  onWordClick={setSelectedWord}
                 />
               )}
             </div>
@@ -344,7 +334,7 @@ const handleFileChange = async (e) => {
         </div>
       </main>
 
-      {/* 3. 오른쪽 사이드바 (설명문) */}
+      {/* 3. 오른쪽 사이드바 (문서 작업 플로우) */}
       <aside className="sidebar sidebar-right">
         {/* 우측 상단 유저 프로필 */}
         <div className="user-profile-area">
@@ -353,26 +343,64 @@ const handleFileChange = async (e) => {
           </div>
         </div>
 
-        {/* 설명문 섹션 */}
+        {/* 플로우 섹션 */}
         <div className="section-title" style={{ fontSize: '18px', color: '#111827', marginBottom: '24px' }}>
           <FileText size={18} color="#3f4b92" style={{marginRight: '8px'}} />
-          <span style={{fontWeight: '700'}}>설명문</span>
+          <span style={{fontWeight: '700'}}>문서 작업 가이드</span>
         </div>
 
-        <ul className="explanation-list">
-          <li>
-            <span className="step-num">1.</span>
-            <span>(단계화된 설명) 문서의 주요 정의를 확인하세요.</span>
+        <ul className="flow-list">
+          <li className="flow-step">
+            <div className="flow-step-number">1</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">문서 업로드</span>
+              <span className="flow-step-desc">PDF 또는 HWP 파일을 업로드하여 문서를 불러옵니다.</span>
+            </div>
           </li>
-          <li>
-            <span className="step-num">2.</span>
-            <span>관리처분계획이란 분양 설계 및 권리 배분 계획입니다.</span>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">2</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">난이도 분석</span>
+              <span className="flow-step-desc">텍스트에서 어려운 행정·법률 용어를 AI가 자동으로 찾아냅니다.</span>
+            </div>
           </li>
-          <li>
-            <span className="step-num">3.</span>
-            <span>조합 설립 인가 절차를 확인해야 합니다.</span>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">3</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">단어 확인</span>
+              <span className="flow-step-desc">노란색으로 표시된 단어를 클릭하면 나무위키 각주처럼 설명이 나타납니다.</span>
+            </div>
+          </li>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">4</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">요약 확인</span>
+              <span className="flow-step-desc">문서 위의 요약 박스에서 핵심 내용을 빠르게 파악할 수 있습니다.</span>
+            </div>
           </li>
         </ul>
+
+        {/* 어려운 단어 통계 */}
+        {difficultWords.length > 0 && (
+          <div className="flow-stats">
+            <div className="flow-stats-title">분석 결과</div>
+            <div className="flow-stats-row">
+              <span>발견된 어려운 단어</span>
+              <strong>{difficultWords.length}개</strong>
+            </div>
+            <div className="flow-stats-row">
+              <span>난이도 4 (매우 어려움)</span>
+              <strong>{difficultWords.filter(w => w.level >= 4).length}개</strong>
+            </div>
+            <div className="flow-stats-row">
+              <span>난이도 3 (어려움)</span>
+              <strong>{difficultWords.filter(w => w.level === 3).length}개</strong>
+            </div>
+          </div>
+        )}
       </aside>
     </div>
   );

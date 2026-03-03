@@ -1,12 +1,14 @@
 import React, { useState, useRef } from "react";
 import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
+import Loading from "./Loading";
 import "./Upload.css";
 
 export default function Upload({onNavigateToMyPage}) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showViewer, setShowViewer] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const [parseResult, setParseResult] = useState(null);
   const [parsedText, setParsedText] = useState("");
   const [ocrResult, setOcrResult] = useState(null); // OCR 상태
@@ -77,19 +79,50 @@ export default function Upload({onNavigateToMyPage}) {
         
         // 난이도 분석 추가
         console.log("7. 난이도 분석 요청 중...");
+        setShowLoading(true);  // 로딩 화면 표시
         const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
           text: extractedText,
           min_level: 3
         });
         console.log("8. 난이도 분석 완료!", analyzeResponse.data);
-        
+
+        const difficultWords = analyzeResponse.data.difficult_words || [];
+
+        // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
+        const needExplanation = difficultWords.filter(
+          w => w.source === "model" || !w.easy_expression
+        );
+
+        if (needExplanation.length > 0) {
+          console.log("9. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
+          try {
+            const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
+              words: needExplanation.map(w => ({ word: w.word }))
+            });
+            // 설명을 단어 목록에 병합
+            const explanationMap = new Map();
+            (explainResponse.data.results || []).forEach(r => {
+              explanationMap.set(r.word, r.explanation);
+            });
+            difficultWords.forEach(w => {
+              if (explanationMap.has(w.word)) {
+                w.easy_expression = explanationMap.get(w.word);
+              }
+            });
+            console.log("10. Gemini 설명 생성 완료!");
+          } catch (explainErr) {
+            console.error("Gemini 설명 생성 오류:", explainErr);
+          }
+        }
+
         setParseResult({
           ...parseResponse.data,
-          difficultWords: analyzeResponse.data.difficult_words || []
+          difficultWords: difficultWords
         });
         setOcrResult(null);  // OCR 데이터는 비움
       }
 
+      setShowLoading(false);
       setShowViewer(true);
 
       // S3에 업로드된 파일 파싱 (파싱 서버가 있는 경우)
@@ -149,6 +182,10 @@ export default function Upload({onNavigateToMyPage}) {
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) return "image";
     return "default";
   };
+  if (showLoading) {
+    return <Loading />;
+  }
+
   if (showViewer) {
     // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
     return <Viewer parsedData={parseResult} ocrData={ocrResult} />;

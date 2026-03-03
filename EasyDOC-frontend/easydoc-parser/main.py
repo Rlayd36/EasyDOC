@@ -34,7 +34,7 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
 # 형태소 분석기
 okt = Okt()
@@ -253,3 +253,50 @@ async def explain_word(data: dict):
             "error": str(e),
             "source": "error"
         }
+
+
+@app.post("/explain/batch")
+async def explain_words_batch(data: dict):
+    """여러 어려운 단어를 한꺼번에 Gemini로 설명 생성"""
+    words = data.get("words", [])
+    
+    if not words:
+        return {"results": []}
+    
+    results = []
+    
+    for word_info in words:
+        word = word_info.get("word", "")
+        
+        # 사전에 설명이 있으면 사전 우선
+        if word in word_dict:
+            easy = easy_dict.get(word, "")
+            if pd.notna(easy) and easy:
+                results.append({
+                    "word": word,
+                    "explanation": easy,
+                    "source": "dictionary"
+                })
+                continue
+        
+        # 없으면 Gemini에게 요청
+        prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
+용어: {word}
+설명:"""
+        
+        try:
+            response = gemini_model.generate_content(prompt)
+            explanation = response.text.strip()
+            results.append({
+                "word": word,
+                "explanation": explanation,
+                "source": "gemini"
+            })
+        except Exception as e:
+            results.append({
+                "word": word,
+                "explanation": f"설명을 가져올 수 없습니다: {str(e)}",
+                "source": "error"
+            })
+    
+    return {"results": results}
