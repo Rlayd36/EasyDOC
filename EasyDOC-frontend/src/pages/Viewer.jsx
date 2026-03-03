@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
@@ -28,47 +28,65 @@ function LogoIcon() {
 }
 
 export default function Viewer({ parsedData, ocrData }) {
-    // 요약 박스 표시 여부 상태 (기본값: true)
-    const [showSummary, setShowSummary] = useState(true);
+    // ================= 상태 관리 =================
+    // 1. UI 관련 상태
+    const [showSummary, setShowSummary] = useState(true); // 요약 박스 표시 여부 상태 (기본값: true)
+    const [pdfUrl, setPdfUrl] = useState("/sample.pdf");  // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
 
-    // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
-    const [pdfUrl, setPdfUrl] = useState("/sample.pdf");
+    // 2. 데이터 관련 상태 (백엔드 연동)
+    const [documents, setDocuments] = useState([]);       // 사이드바 문서 목록
+    const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
+    const [loading, setIsLoading] = useState(false);        // 로딩 상태
 
-    // 최근 문서 목록 상태
-    const [recentDocs, setRecentDocs] = useState([
-        {id: 1, title: '행정기본법.pdf', date: '2024.11.14'},
-        {id: 2, title: '조세특례제한법.pdf', date: '2024.11.13'},
-        {id: 3, title: '도시및주거환경지정비법.pdf', date: '2024.11.13'},
-        {id: 4, title: '건축법시행령.pdf', date: '2024.11.12'},
-    ]);
-
-    // 파일 선택을 위한 ref
+    // 3. 파일 업로드 관련 Refs
     const fileInputRef = useRef(null);
+    const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url"; // AWS API Gateway 주소
 
-    // AWS API Gateway 주소
-    const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+    // ================= API 연동 =================
+    // 1. 화면이 켜지면 DB에서 문서 목록 가져오기
+    useEffect(() => {
+      fetchDocuments();
+    }, []);
 
-    // 버튼 클릭 시 숨겨진 input 실행
+    const fetchDocuments = async () => {
+        try {
+            const response = await axios.get('http://localhost:8001/api/documents');
+            setDocuments(response.data);
+        } catch (error) {
+            console.error("문서 목록 로딩 실패:", error);
+        }
+    };
+
+    // 2. 사이드바에서 문서 클릭 시 상세 내용 가져오기
+    const handleDocClick = async (id) => {
+        try {
+            setIsLoading(true);
+            const response = await axios.get(`http://localhost:8001/api/documents/${id}`);
+            setSelectedDoc(response.data); // 선택된 문서 상태 업데이트
+            setPdfUrl(null); // 텍스트를 보여주기 위해 PDF 뷰어는 숨김 처리
+        } catch (error) {
+            console.error("문서 상세 로딩 실패:", error);
+            alert("문서 내용을 불러올 수 없습니다.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 3. 파일 선택 버튼 핸들러
     const handleUploadBtnClick = () => {
       console.log("버튼 클릭됨! fileInputRef 상태:", fileInputRef.current); //디버깅용
       fileInputRef.current?.click();
     };
     
-    // 파일 선택 시 업로드 로직
-// 상단에 state 추가 (기존 state들 근처에)
-const [parsedText, setParsedText] = useState(parsedData?.text || "");
-const [ocrText, setOcrText] = useState(ocrData ? (ocrData.text || ocrData) : ""); // OCR
-const [isLoading, setIsLoading] = useState(false);
-
-
-// handleFileChange 수정
+// 4. 파일 업로드 및 처리 로직
 const handleFileChange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
   const objectUrl = URL.createObjectURL(file);
   setPdfUrl(objectUrl);
-  setIsLoading(true);  // 로딩 시작
+  setSelectedDoc(null); // 기존 선택된 텍스트 초기화
+  setIsLoading(true);   // 로딩 시작
 
   try {
     // AWS Lambda에 업로드 URL 요청
@@ -93,44 +111,37 @@ const handleFileChange = async (e) => {
     console.log("4. 업로드 성공!");
 
     // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
-
+    let resultData = null;
     if (file.type.startsWith("image/")) {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
       console.log("5. OCR 서버에 분석 요청...");
-      const ocrResponse = await axios.get(
+      const response = await axios.get(
         `http://localhost:8001/ocr/s3/${encodeURIComponent(file.name)}`
       );
-      console.log("6. OCR 결과 도착!", ocrResponse.data);
-      setOcrText(ocrResponse.data.text || ocrResponse.data);
-      setParsedText("");  // 문서 파싱 결과는 비움
+      console.log("6. OCR 결과 도착!", response.data);
+      resultData = response.data;
       } else {
 
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       // 👇 파싱 요청 추가
       console.log("5. 파싱 요청 중...");
-      const parseResponse = await axios.get(
+      const response = await axios.get(
         `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
       );
-      console.log("6. 파싱 완료!", parseResponse.data);
-      setParsedText(parseResponse.data.text);  // 파싱 결과 저장
-      setOcrText("");     // OCR 결과는 비움
+      console.log("6. 파싱 완료!", response.data);
+      resultData = response.data;
     }
 
-    // 최근 문서 목록 업데이트
-    const newDoc = {
-      id: Date.now(),
-      title: file.name,
-      date: new Date().toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month:"2-digit",
-        day: "2-digit",
-      })
-      .replace(/\. /g, ".")
-      .replace(".", "")
-    };
+    // 결과 표시
+    // 백엔드에서 받은 {id, text} 형식을 selectedDoc 상태에 맞춰서 넣음
+    setSelectedDoc({
+      id: resultData.id,
+      file_name: file.name,
+      text: resultData.text
+    });
 
-    const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
-    setRecentDocs([newDoc, ...filteredDocs].slice(0, 10));
+    // 목록 새로고침 (방금 올린 파일을 최근 문서 목록에 등록)
+    fetchDocuments();
 
   } catch (error) {
     console.error("파일 처리 오류:", error);
@@ -142,6 +153,12 @@ const handleFileChange = async (e) => {
     }
   }
 };
+
+    // 날짜 형식 변환 함수 (2024-11-14 -> 2024.11.14)
+    const formatDate = (dateString) => {
+      if (!dateString) return "";
+      return dateString.substring(0, 10).replace(/-/g, '.');
+    };
 
     return (
     <div className="viewer-page">
@@ -168,22 +185,26 @@ const handleFileChange = async (e) => {
           <span>문서 업로드</span>
         </button>
 
-        {/* 최근 문서 목록 */}
+        {/* 최근 문서 목록 (DB 데이터 연동 수정) */}
         <div className="recent-section">
           <div className="section-title">
             <Clock size={16} />
             <span>최근 문서</span>
           </div>
           <ul className="doc-list">
-            {recentDocs.map((doc) => (
-              <li key={doc.id} className="doc-item">
+            {documents.map((doc) => (
+              <li 
+                key={doc.id} 
+                className={`doc-item ${selectedDoc && selectedDoc.id === doc.id ? "active" : ""}`}
+                onClick={() => handleDocClick(doc.id)}
+              >
                 <div className="doc-info">
                   <div className="doc-icon-box">
                     <FileText size={18} />
                   </div>
                   <div className="doc-text">
-                    <span className="doc-title">{doc.title}</span>
-                    <span className="doc-date">{doc.date}</span>
+                    <span className="doc-title">{doc.file_name}</span>
+                    <span className="doc-date">{formatDate(doc.created_at)}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} color="#9ca3af" />
@@ -211,11 +232,11 @@ const handleFileChange = async (e) => {
           </span>
         </div>
 
-        <div className="pdf-container">
+         <div className="pdf-container">
           {/* 텍스트가 있으면 표시, 없으면 PDF 표시 */}
-          {(ocrText || parsedText) ? (
+          {selectedDoc ? (
             <div className="parsed-content">
-              <pre>{ocrText ? ocrText: parsedText}</pre>
+              <pre>{selectedDoc.text}</pre>
             </div>
           ) : (
             <iframe
@@ -224,6 +245,7 @@ const handleFileChange = async (e) => {
               title="Document Viewer"
             />
           )}
+
 
           {/* 플로팅 요약 박스 */}
           {showSummary && (

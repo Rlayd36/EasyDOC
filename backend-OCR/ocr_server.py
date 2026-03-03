@@ -14,14 +14,10 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 from database_document.database import get_db, Document
-from sqlalchemy.orm import Session
 
 load_dotenv()
 
 app = FastAPI()
-
-# Google Cloud 인증 키 위치 지정
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json"
 
 # CORS 설정
 app.add_middleware(
@@ -32,7 +28,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OCR 엔진 로딩
+# 설정 및 연결
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json" # Google Cloud 인증 키 위치 지정   
 ocr_engine = EasyDocOCR()
 
 # .env 파일에서 AWS 설정값 불러오기
@@ -105,6 +102,35 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
         # 임시 파일 삭제
         if os.path.exists(local_path):
             os.remove(local_path)
+
+# ==========================================================
+# 프론트엔드 목록 및 상세 조회 API
+# ==========================================================
+
+# 전체 문서 목록 조회 (최근 문서 목록 사이드바)
+@app.get("/api/documents")
+def get_document_list(db: Session = Depends(get_db)):
+    # 최신순 정렬
+    docs = db.query(Document.id, Document.file_name, Document.created_at)\
+            .order_by(Document.id.desc())\
+            .all()
+
+    result = [{"id": doc.id, "file_name": doc.file_name, "created_at": doc.created_at} for doc in docs]
+    return result
+
+# 특정 문서 상세 조회 (본문 뷰어용)
+@app.get("/api/documents/{doc_id}")
+def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
+    return {
+        "id": doc.id,
+        "file_name": doc.file_name,
+        "text": doc.extracted_text
+    }
 
 if __name__ == "__main__":
     import uvicorn
