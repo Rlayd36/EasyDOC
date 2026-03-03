@@ -42,49 +42,66 @@ export default function Upload({onNavigateToMyPage}) {
         }
       });
 
-      const {uploadUrl} = response.data;
+      const {uploadUrl, key} = response.data;
       console.log("2. URL 발급 완료:", uploadUrl);
+      console.log("   Lambda 응답 전체:", response.data);
+
+      // Lambda가 반환한 key를 사용하거나, 없으면 URL에서 추출
+      let s3Key;
+      if (key) {
+        s3Key = key;
+        console.log("3. S3 키 (Lambda 제공):", s3Key);
+      } else {
+        // uploadUrl에서 경로 부분만 추출
+        const urlObj = new URL(uploadUrl);
+        s3Key = decodeURIComponent(urlObj.pathname.substring(1)); // 맨 앞 '/' 제거 후 디코딩
+        console.log("3. S3 키 (URL 추출):", s3Key);
+      }
 
       // 발급받은 URL을 이용해 S3에 파일 직접 업로드
-      console.log("3. S3로 파일 전송 중...");
+      console.log("4. S3로 파일 전송 중...");
       await axios.put(uploadUrl, selectedFile, {
         headers: {
           "Content-Type": selectedFile.type,
         }
       });
 
-      console.log("4. 업로드 성공!");
+      console.log("5. 업로드 성공!");
+
+      // S3 업로드 완료를 위한 대기 (eventual consistency)
+      console.log("대기 중... (3초)");
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
       if (selectedFile.type.startsWith("image/")) {
         // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
-        console.log("5. OCR 서버에 분석 요청...");
+        console.log("6. OCR 서버에 분석 요청...");
         const ocrResponse = await axios.get(
-          `http://localhost:8001/ocr/s3/${encodeURIComponent(selectedFile.name)}`
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
         );
-        console.log("6. OCR 결과 도착!", ocrResponse.data);
+        console.log("7. OCR 결과 도착!", ocrResponse.data);
         setOcrResult(ocrResponse.data); // 결과 저장
         setParseResult(null);           // 파싱 데이터는 비움
         setParsedText("");
       } else {
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
-        console.log("5. 파싱 요청 중...");
+        console.log("6. 파싱 요청 중..., S3 키:", s3Key);
         const parseResponse = await axios.get(
-          `http://localhost:8000/parse/s3/${encodeURIComponent(selectedFile.name)}`
+          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
         );
-        console.log("6. 파싱 완료!", parseResponse.data);
+        console.log("7. 파싱 완료!", parseResponse.data);
         
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         
         // 난이도 분석 추가
-        console.log("7. 난이도 분석 요청 중...");
+        console.log("8. 난이도 분석 요청 중...");
         setShowLoading(true);  // 로딩 화면 표시
         const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
           text: extractedText,
           min_level: 3
         });
-        console.log("8. 난이도 분석 완료!", analyzeResponse.data);
+        console.log("9. 난이도 분석 완료!", analyzeResponse.data);
 
         const difficultWords = analyzeResponse.data.difficult_words || [];
 
@@ -94,7 +111,7 @@ export default function Upload({onNavigateToMyPage}) {
         );
 
         if (needExplanation.length > 0) {
-          console.log("9. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
+          console.log("10. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
           try {
             const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
               words: needExplanation.map(w => ({ word: w.word }))
@@ -109,7 +126,7 @@ export default function Upload({onNavigateToMyPage}) {
                 w.easy_expression = explanationMap.get(w.word);
               }
             });
-            console.log("10. Gemini 설명 생성 완료!");
+            console.log("11. Gemini 설명 생성 완료!");
           } catch (explainErr) {
             console.error("Gemini 설명 생성 오류:", explainErr);
           }

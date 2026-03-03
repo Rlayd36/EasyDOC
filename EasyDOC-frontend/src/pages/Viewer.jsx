@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
@@ -109,7 +109,25 @@ export default function Viewer({ parsedData, ocrData }) {
     const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
 
     // 난이도 분석 관련 상태
-    const [difficultWords, setDifficultWords] = useState(parsedData?.difficultWords || []);
+    const [difficultWords, setDifficultWords] = useState([]);
+    const [parsedText, setParsedText] = useState("");
+    const [ocrText, setOcrText] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
+    useEffect(() => {
+        if (parsedData) {
+            console.log("Viewer가 받은 parsedData:", parsedData);
+            setParsedText(parsedData.text || "");
+            setDifficultWords(parsedData.difficultWords || []);
+            setOcrText("");  // 파싱 데이터가 있으면 OCR은 비움
+        } else if (ocrData) {
+            console.log("Viewer가 받은 ocrData:", ocrData);
+            setOcrText(ocrData.text || ocrData || "");
+            setParsedText("");  // OCR 데이터가 있으면 파싱은 비움
+            setDifficultWords([]);
+        }
+    }, [parsedData, ocrData]);
 
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
@@ -117,11 +135,6 @@ export default function Viewer({ parsedData, ocrData }) {
       fileInputRef.current?.click();
     };
     
-    // 파일 선택 시 업로드 로직
-const [parsedText, setParsedText] = useState(parsedData?.text || "");
-const [ocrText, setOcrText] = useState(ocrData ? (ocrData.text || ocrData) : ""); // OCR
-const [isLoading, setIsLoading] = useState(false);
-
 // 난이도 분석 함수
 const analyzeText = async (text) => {
   try {
@@ -131,7 +144,37 @@ const analyzeText = async (text) => {
       min_level: 3  // 3단계 이상만
     });
     console.log("난이도 분석 완료:", response.data);
-    setDifficultWords(response.data.difficult_words || []);
+    
+    const difficultWords = response.data.difficult_words || [];
+
+    // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
+    const needExplanation = difficultWords.filter(
+      w => w.source === "model" || !w.easy_expression
+    );
+
+    if (needExplanation.length > 0) {
+      console.log("Gemini 설명 생성 요청 중...", needExplanation.length, "개");
+      try {
+        const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
+          words: needExplanation.map(w => ({ word: w.word }))
+        });
+        // 설명을 단어 목록에 병합
+        const explanationMap = new Map();
+        (explainResponse.data.results || []).forEach(r => {
+          explanationMap.set(r.word, r.explanation);
+        });
+        difficultWords.forEach(w => {
+          if (explanationMap.has(w.word)) {
+            w.easy_expression = explanationMap.get(w.word);
+          }
+        });
+        console.log("Gemini 설명 생성 완료!");
+      } catch (explainErr) {
+        console.error("Gemini 설명 생성 오류:", explainErr);
+      }
+    }
+
+    setDifficultWords(difficultWords);
   } catch (error) {
     console.error("난이도 분석 오류:", error);
   }
@@ -157,35 +200,51 @@ const handleFileChange = async (e) => {
       }
     });
 
-    const {uploadUrl} = response.data;
+    const {uploadUrl, key} = response.data;
     console.log("2. URL 발급 완료:", uploadUrl);
+    console.log("   Lambda 응답 전체:", response.data);
+
+    // Lambda가 반환한 key를 사용하거나, 없으면 URL에서 추출
+    let s3Key;
+    if (key) {
+      s3Key = key;
+      console.log("3. S3 키 (Lambda 제공):", s3Key);
+    } else {
+      // uploadUrl에서 경로 부분만 추출
+      const urlObj = new URL(uploadUrl);
+      s3Key = decodeURIComponent(urlObj.pathname.substring(1)); // 맨 앞 '/' 제거 후 디코딩
+      console.log("3. S3 키 (URL 추출):", s3Key);
+    }
 
     // S3로 파일 업로드
-    console.log("3. S3로 파일 전송 중...");
+    console.log("4. S3로 파일 전송 중...");
     await axios.put(uploadUrl, file, {
       headers: {
         "Content-Type": file.type,
       },
     });
-    console.log("4. 업로드 성공!");
+    console.log("5. 업로드 성공!");
+
+    // S3 업로드 완료를 위한 짧은 대기
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
     if (file.type.startsWith("image/")) {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
-      console.log("5. OCR 서버에 분석 요청...");
+      console.log("6. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(file.name)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
       );
-      console.log("6. OCR 결과 도착!", ocrResponse.data);
+      console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
     } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
-      console.log("5. 파싱 요청 중...");
+      console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
       );
-      console.log("6. 파싱 완료!", parseResponse.data);
+      console.log("7. 파싱 완료!", parseResponse.data);
       const extractedText = parseResponse.data.text;
       setParsedText(extractedText);  // 파싱 결과 저장
 

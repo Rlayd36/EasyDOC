@@ -66,6 +66,28 @@ def root():
     return {"message": "EasyDOC Parser API 작동 중!"}
 
 
+@app.get("/debug/s3-list")
+async def list_s3_objects():
+    """S3 버킷의 모든 객체 목록 확인 (디버깅용)"""
+    try:
+        response = s3.list_objects_v2(Bucket=BUCKET_NAME)
+        objects = []
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                objects.append({
+                    'key': obj['Key'],
+                    'size': obj['Size'],
+                    'last_modified': str(obj['LastModified'])
+                })
+        return {
+            "bucket": BUCKET_NAME,
+            "count": len(objects),
+            "objects": objects
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/parse/pdf")
 async def parse_pdf(file: UploadFile = File(...)):
     """PDF 파일에서 텍스트 추출"""
@@ -120,9 +142,13 @@ async def parse_hwp(file: UploadFile = File(...)):
 @app.get("/parse/s3/{file_key:path}")
 async def parse_from_s3(file_key: str):
     """S3에서 파일 가져와서 파싱"""
+    print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
+    print(f"[DEBUG] 버킷: {BUCKET_NAME}")
     try:
         # S3에서 파일 다운로드
+        print(f"[DEBUG] S3 GetObject 시도 중...")
         response = s3.get_object(Bucket=BUCKET_NAME, Key=file_key)
+        print(f"[DEBUG] S3에서 파일 다운로드 성공!")
         contents = response["Body"].read()
         filename = file_key.split("/")[-1]
         ext = filename.split(".")[-1].lower()
