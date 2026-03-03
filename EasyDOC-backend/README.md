@@ -13,7 +13,7 @@
 예 (bash):
 ```bash
 export DB_PASSWORD=비밀번호
-export JWT_SECRET=your-secret-key-at-least-32-characters-long
+export JWT_SECRET=a1b2c3d4e5f6g7h8i9j1k2l3m4n5o6p7
 ./gradlew bootRun
 ```
 
