@@ -1,7 +1,67 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import "./viewer.css";
+
+// 텍스트 하이라이트 컴포넌트 (나무위키 호버 말풍선)
+function HighlightedText({ text, difficultWords }) {
+  if (!text) return null;
+
+  const wordMap = new Map();
+  difficultWords.forEach(item => {
+    wordMap.set(item.word, item);
+  });
+
+  const lines = text.split('\n');
+  
+  return (
+    <div className="highlighted-text">
+      {lines.map((line, lineIdx) => {
+        const parts = [];
+        let currentPos = 0;
+        const regex = /[\uAC00-\uD7A3]+|[a-zA-Z]+|[0-9]+/g;
+        let match;
+        
+        while ((match = regex.exec(line)) !== null) {
+          const word = match[0];
+          const startPos = match.index;
+          
+          if (startPos > currentPos) {
+            parts.push(line.substring(currentPos, startPos));
+          }
+          
+          if (wordMap.has(word)) {
+            const wordInfo = wordMap.get(word);
+            const wordKey = `${lineIdx}-${startPos}`;
+            parts.push(
+              <span key={wordKey} className={`difficult-word level-${wordInfo.level}`}>
+                {word}
+                <span className="word-bubble">
+                  <strong>{word}</strong>
+                  <span className="word-bubble-desc">{wordInfo.easy_expression || `난이도 ${wordInfo.level} 단어`}</span>
+                </span>
+              </span>
+            );
+          } else {
+            parts.push(word);
+          }
+          
+          currentPos = startPos + word.length;
+        }
+        
+        if (currentPos < line.length) {
+          parts.push(line.substring(currentPos));
+        }
+        
+        return (
+          <div key={lineIdx}>
+            {parts}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // 로고 아이콘 (Login 페이지의 DocumentIcon 재사용 및 크기 조정)
 function LogoIcon() {
@@ -48,17 +108,77 @@ export default function Viewer({ parsedData, ocrData }) {
     // AWS API Gateway 주소
     const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
 
+    // 난이도 분석 관련 상태
+    const [difficultWords, setDifficultWords] = useState([]);
+    const [parsedText, setParsedText] = useState("");
+    const [ocrText, setOcrText] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
+    useEffect(() => {
+        if (parsedData) {
+            console.log("Viewer가 받은 parsedData:", parsedData);
+            setParsedText(parsedData.text || "");
+            setDifficultWords(parsedData.difficultWords || []);
+            setOcrText("");  // 파싱 데이터가 있으면 OCR은 비움
+        } else if (ocrData) {
+            console.log("Viewer가 받은 ocrData:", ocrData);
+            setOcrText(ocrData.text || ocrData || "");
+            setParsedText("");  // OCR 데이터가 있으면 파싱은 비움
+            setDifficultWords([]);
+        }
+    }, [parsedData, ocrData]);
+
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
       console.log("버튼 클릭됨! fileInputRef 상태:", fileInputRef.current); //디버깅용
       fileInputRef.current?.click();
     };
     
-    // 파일 선택 시 업로드 로직
-// 상단에 state 추가 (기존 state들 근처에)
-const [parsedText, setParsedText] = useState(parsedData?.text || "");
-const [ocrText, setOcrText] = useState(ocrData ? (ocrData.text || ocrData) : ""); // OCR
-const [isLoading, setIsLoading] = useState(false);
+// 난이도 분석 함수
+const analyzeText = async (text) => {
+  try {
+    console.log("난이도 분석 요청 중...");
+    const response = await axios.post("http://localhost:8000/analyze", {
+      text: text,
+      min_level: 3  // 3단계 이상만
+    });
+    console.log("난이도 분석 완료:", response.data);
+    
+    const difficultWords = response.data.difficult_words || [];
+
+    // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
+    const needExplanation = difficultWords.filter(
+      w => w.source === "model" || !w.easy_expression
+    );
+
+    if (needExplanation.length > 0) {
+      console.log("Gemini 설명 생성 요청 중...", needExplanation.length, "개");
+      try {
+        const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
+          words: needExplanation.map(w => ({ word: w.word }))
+        });
+        // 설명을 단어 목록에 병합
+        const explanationMap = new Map();
+        (explainResponse.data.results || []).forEach(r => {
+          explanationMap.set(r.word, r.explanation);
+        });
+        difficultWords.forEach(w => {
+          if (explanationMap.has(w.word)) {
+            w.easy_expression = explanationMap.get(w.word);
+          }
+        });
+        console.log("Gemini 설명 생성 완료!");
+      } catch (explainErr) {
+        console.error("Gemini 설명 생성 오류:", explainErr);
+      }
+    }
+
+    setDifficultWords(difficultWords);
+  } catch (error) {
+    console.error("난이도 분석 오류:", error);
+  }
+};
 
 
 // handleFileChange 수정
@@ -80,40 +200,57 @@ const handleFileChange = async (e) => {
       }
     });
 
-    const {uploadUrl} = response.data;
+    const {uploadUrl, key} = response.data;
     console.log("2. URL 발급 완료:", uploadUrl);
+    console.log("   Lambda 응답 전체:", response.data);
+
+    // Lambda가 반환한 key를 사용하거나, 없으면 URL에서 추출
+    let s3Key;
+    if (key) {
+      s3Key = key;
+      console.log("3. S3 키 (Lambda 제공):", s3Key);
+    } else {
+      // uploadUrl에서 경로 부분만 추출
+      const urlObj = new URL(uploadUrl);
+      s3Key = decodeURIComponent(urlObj.pathname.substring(1)); // 맨 앞 '/' 제거 후 디코딩
+      console.log("3. S3 키 (URL 추출):", s3Key);
+    }
 
     // S3로 파일 업로드
-    console.log("3. S3로 파일 전송 중...");
+    console.log("4. S3로 파일 전송 중...");
     await axios.put(uploadUrl, file, {
       headers: {
         "Content-Type": file.type,
       },
     });
-    console.log("4. 업로드 성공!");
+    console.log("5. 업로드 성공!");
+
+    // S3 업로드 완료를 위한 짧은 대기
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
-
     if (file.type.startsWith("image/")) {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
-      console.log("5. OCR 서버에 분석 요청...");
+      console.log("6. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(file.name)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
       );
-      console.log("6. OCR 결과 도착!", ocrResponse.data);
+      console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
-      } else {
-
+    } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
-      // 👇 파싱 요청 추가
-      console.log("5. 파싱 요청 중...");
+      console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(file.name)}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
       );
-      console.log("6. 파싱 완료!", parseResponse.data);
-      setParsedText(parseResponse.data.text);  // 파싱 결과 저장
-      setOcrText("");     // OCR 결과는 비움
+      console.log("7. 파싱 완료!", parseResponse.data);
+      const extractedText = parseResponse.data.text;
+      setParsedText(extractedText);  // 파싱 결과 저장
+
+      // 난이도 분석 추가
+      await analyzeText(extractedText);
+      setOcrText("");  // OCR 결과는 비움
     }
 
     // 최근 문서 목록 업데이트
@@ -215,7 +352,14 @@ const handleFileChange = async (e) => {
           {/* 텍스트가 있으면 표시, 없으면 PDF 표시 */}
           {(ocrText || parsedText) ? (
             <div className="parsed-content">
-              <pre>{ocrText ? ocrText: parsedText}</pre>
+              {ocrText ? (
+                <pre>{ocrText}</pre>
+              ) : (
+                <HighlightedText 
+                  text={parsedText} 
+                  difficultWords={difficultWords}
+                />
+              )}
             </div>
           ) : (
             <iframe
@@ -249,7 +393,7 @@ const handleFileChange = async (e) => {
         </div>
       </main>
 
-      {/* 3. 오른쪽 사이드바 (설명문) */}
+      {/* 3. 오른쪽 사이드바 (문서 작업 플로우) */}
       <aside className="sidebar sidebar-right">
         {/* 우측 상단 유저 프로필 */}
         <div className="user-profile-area">
@@ -258,26 +402,64 @@ const handleFileChange = async (e) => {
           </div>
         </div>
 
-        {/* 설명문 섹션 */}
+        {/* 플로우 섹션 */}
         <div className="section-title" style={{ fontSize: '18px', color: '#111827', marginBottom: '24px' }}>
           <FileText size={18} color="#3f4b92" style={{marginRight: '8px'}} />
-          <span style={{fontWeight: '700'}}>설명문</span>
+          <span style={{fontWeight: '700'}}>문서 작업 가이드</span>
         </div>
 
-        <ul className="explanation-list">
-          <li>
-            <span className="step-num">1.</span>
-            <span>(단계화된 설명) 문서의 주요 정의를 확인하세요.</span>
+        <ul className="flow-list">
+          <li className="flow-step">
+            <div className="flow-step-number">1</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">문서 업로드</span>
+              <span className="flow-step-desc">PDF 또는 HWP 파일을 업로드하여 문서를 불러옵니다.</span>
+            </div>
           </li>
-          <li>
-            <span className="step-num">2.</span>
-            <span>관리처분계획이란 분양 설계 및 권리 배분 계획입니다.</span>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">2</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">난이도 분석</span>
+              <span className="flow-step-desc">텍스트에서 어려운 행정·법률 용어를 AI가 자동으로 찾아냅니다.</span>
+            </div>
           </li>
-          <li>
-            <span className="step-num">3.</span>
-            <span>조합 설립 인가 절차를 확인해야 합니다.</span>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">3</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">단어 확인</span>
+              <span className="flow-step-desc">노란색으로 표시된 단어를 클릭하면 나무위키 각주처럼 설명이 나타납니다.</span>
+            </div>
+          </li>
+          <li className="flow-connector" />
+          <li className="flow-step">
+            <div className="flow-step-number">4</div>
+            <div className="flow-step-body">
+              <span className="flow-step-title">요약 확인</span>
+              <span className="flow-step-desc">문서 위의 요약 박스에서 핵심 내용을 빠르게 파악할 수 있습니다.</span>
+            </div>
           </li>
         </ul>
+
+        {/* 어려운 단어 통계 */}
+        {difficultWords.length > 0 && (
+          <div className="flow-stats">
+            <div className="flow-stats-title">분석 결과</div>
+            <div className="flow-stats-row">
+              <span>발견된 어려운 단어</span>
+              <strong>{difficultWords.length}개</strong>
+            </div>
+            <div className="flow-stats-row">
+              <span>난이도 4 (매우 어려움)</span>
+              <strong>{difficultWords.filter(w => w.level >= 4).length}개</strong>
+            </div>
+            <div className="flow-stats-row">
+              <span>난이도 3 (어려움)</span>
+              <strong>{difficultWords.filter(w => w.level === 3).length}개</strong>
+            </div>
+          </div>
+        )}
       </aside>
     </div>
   );

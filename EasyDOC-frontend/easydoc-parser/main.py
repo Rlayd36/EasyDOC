@@ -3,15 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
 import olefile
 import zlib
+import google.generativeai as genai
 import io
 import boto3
 import os
 from dotenv import load_dotenv
-from pathlib import Path
+import pandas as pd
+from konlpy.tag import Okt
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# 프로젝트 최상위 폴더(EasyDOC)의 .env 파일 로드
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 app = FastAPI()
 
@@ -31,10 +33,59 @@ s3 = boto3.client(
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
+
+# 형태소 분석기
+okt = Okt()
+
+# 단어 난이도 사전 로드
+word_df = pd.read_csv("word_difficulty_dataset.csv")
+word_dict = dict(zip(word_df['단어'], word_df['난이도']))
+easy_dict = dict(zip(word_df['단어'], word_df['쉬운표현']))
+
+# 어려운 단어로 판정하지 않을 제외 사전 로드
+_exclusion_path = "word_exclusion_list.csv"
+if os.path.exists(_exclusion_path):
+    exclusion_df = pd.read_csv(_exclusion_path)
+    exclusion_set = set(exclusion_df['단어'].dropna().tolist())
+else:
+    exclusion_set = set()
+
+# 난이도 분류 모델 로드
+MODEL_PATH = "word_difficulty_model"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+diff_model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+diff_model.to(device)
+diff_model.eval()
+
 
 @app.get("/")
 def root():
     return {"message": "EasyDOC Parser API 작동 중!"}
+
+
+@app.get("/debug/s3-list")
+async def list_s3_objects():
+    """S3 버킷의 모든 객체 목록 확인 (디버깅용)"""
+    try:
+        response = s3.list_objects_v2(Bucket=BUCKET_NAME)
+        objects = []
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                objects.append({
+                    'key': obj['Key'],
+                    'size': obj['Size'],
+                    'last_modified': str(obj['LastModified'])
+                })
+        return {
+            "bucket": BUCKET_NAME,
+            "count": len(objects),
+            "objects": objects
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.post("/parse/pdf")
@@ -91,9 +142,13 @@ async def parse_hwp(file: UploadFile = File(...)):
 @app.get("/parse/s3/{file_key:path}")
 async def parse_from_s3(file_key: str):
     """S3에서 파일 가져와서 파싱"""
+    print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
+    print(f"[DEBUG] 버킷: {BUCKET_NAME}")
     try:
         # S3에서 파일 다운로드
+        print(f"[DEBUG] S3 GetObject 시도 중...")
         response = s3.get_object(Bucket=BUCKET_NAME, Key=file_key)
+        print(f"[DEBUG] S3에서 파일 다운로드 성공!")
         contents = response["Body"].read()
         filename = file_key.split("/")[-1]
         ext = filename.split(".")[-1].lower()
@@ -123,3 +178,151 @@ async def parse_from_s3(file_key: str):
     
     except Exception as e:
         return {"error": str(e)}
+
+
+def predict_difficulty(word):
+    """모델로 난이도 예측"""
+    inputs = tokenizer(word, return_tensors="pt", padding=True, truncation=True, max_length=32)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    with torch.no_grad():
+        outputs = diff_model(**inputs)
+        pred = torch.argmax(outputs.logits, dim=1).item() + 1
+    
+    return pred
+
+
+@app.post("/analyze")
+async def analyze_text(data: dict):
+    """텍스트에서 어려운 단어 분석"""
+    text = data.get("text", "")
+    min_level = data.get("min_level", 3)  # 기본값: 3단계 이상만
+    
+    # 명사 추출
+    nouns = okt.nouns(text)
+    
+    # 중복 제거
+    unique_nouns = list(set(nouns))
+    
+    result = []
+    for noun in unique_nouns:
+        if len(noun) < 2:  # 한 글자는 스킵
+            continue
+
+        # 제외 사전에 있으면 어려운 단어로 판정하지 않음
+        if noun in exclusion_set:
+            continue
+            
+        # 데이터셋에 있으면 저장된 난이도 사용
+        if noun in word_dict:
+            level = word_dict[noun]
+            easy = easy_dict.get(noun, "")
+            source = "dictionary"
+        else:
+            # 없으면 모델로 예측
+            level = predict_difficulty(noun)
+            easy = ""
+            source = "model"
+        
+        # 지정 난이도 이상만 반환
+        if level >= min_level:
+            result.append({
+                "word": noun,
+                "level": int(level),
+                "easy_expression": easy if pd.notna(easy) else "",
+                "source": source
+            })
+    
+    # 난이도 높은 순 정렬
+    result.sort(key=lambda x: x["level"], reverse=True)
+    
+    return {
+        "total_nouns": len(unique_nouns),
+        "difficult_words": result
+    }
+@app.post("/explain")
+async def explain_word(data: dict):
+    """어려운 단어를 쉽게 설명"""
+    word = data.get("word", "")
+    context = data.get("context", "")  # 문맥 (선택)
+    
+    # 먼저 데이터셋에서 찾기
+    if word in word_dict:
+        easy = easy_dict.get(word, "")
+        if pd.notna(easy) and easy:
+            return {
+                "word": word,
+                "explanation": easy,
+                "source": "dictionary"
+            }
+    
+    # 없으면 Gemini한테 물어보기
+    prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
+    
+용어: {word}
+{"문맥: " + context if context else ""}
+
+설명:"""
+    
+    try:
+        response = gemini_model.generate_content(prompt)
+        explanation = response.text.strip()
+        
+        return {
+            "word": word,
+            "explanation": explanation,
+            "source": "gemini"
+        }
+    except Exception as e:
+        return {
+            "word": word,
+            "error": str(e),
+            "source": "error"
+        }
+
+
+@app.post("/explain/batch")
+async def explain_words_batch(data: dict):
+    """여러 어려운 단어를 한꺼번에 Gemini로 설명 생성"""
+    words = data.get("words", [])
+    
+    if not words:
+        return {"results": []}
+    
+    results = []
+    
+    for word_info in words:
+        word = word_info.get("word", "")
+        
+        # 사전에 설명이 있으면 사전 우선
+        if word in word_dict:
+            easy = easy_dict.get(word, "")
+            if pd.notna(easy) and easy:
+                results.append({
+                    "word": word,
+                    "explanation": easy,
+                    "source": "dictionary"
+                })
+                continue
+        
+        # 없으면 Gemini에게 요청
+        prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
+용어: {word}
+설명:"""
+        
+        try:
+            response = gemini_model.generate_content(prompt)
+            explanation = response.text.strip()
+            results.append({
+                "word": word,
+                "explanation": explanation,
+                "source": "gemini"
+            })
+        except Exception as e:
+            results.append({
+                "word": word,
+                "explanation": f"설명을 가져올 수 없습니다: {str(e)}",
+                "source": "error"
+            })
+    
+    return {"results": results}

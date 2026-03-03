@@ -340,3 +340,193 @@
   font-size: 18px;
   color: #6b7280;
 }
+
+/* ===============================
+   하이라이트 텍스트 스타일
+   =============================== */
+.highlighted-text {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #374151;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.difficult-word {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+/* 난이도별 색상 */
+.difficult-word.level-3 {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.difficult-word.level-4 {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.difficult-word.level-5 {
+  background-color: #fecaca;
+  color: #991b1b;
+}
+
+.difficult-word:hover {
+  transform: scale(1.02);
+}
+
+/* ===============================
+   나무위키 호버 말풍선
+   =============================== */
+.difficult-word {
+  position: relative;
+  cursor: help;
+}
+
+/* 말풍선 본체 */
+.word-bubble {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px 14px;
+  border-radius: 8px;
+  width: max-content;
+  max-width: 320px;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-break: keep-all;
+}
+
+/* 말풍선 꼬리 (삼각형) */
+.word-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #1e293b;
+}
+
+/* 호버 시 말풍선 표시 */
+.difficult-word:hover .word-bubble {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.word-bubble strong {
+  color: #93c5fd;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.word-bubble-desc {
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+/* ===============================
+   오른쪽 사이드바 – 문서 작업 플로우
+   =============================== */
+.flow-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.flow-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.flow-step-number {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: #3D4B90;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 3px;
+}
+
+.flow-step-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.flow-step-desc {
+  font-size: 12.5px;
+  color: #6b7280;
+  line-height: 1.55;
+}
+
+.flow-connector {
+  list-style: none;
+  width: 2px;
+  height: 18px;
+  background: #d1d5db;
+  margin: 4px 0 4px 13px;
+  border-radius: 2px;
+}
+
+/* 분석 결과 통계 */
+.flow-stats {
+  margin-top: 28px;
+  padding: 16px;
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.flow-stats-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.flow-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #6b7280;
+  padding: 5px 0;
+}
+
+.flow-stats-row strong {
+  color: #111827;
+  font-weight: 700;
+}
