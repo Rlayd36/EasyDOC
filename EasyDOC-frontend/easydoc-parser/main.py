@@ -44,6 +44,14 @@ word_df = pd.read_csv("word_difficulty_dataset.csv")
 word_dict = dict(zip(word_df['단어'], word_df['난이도']))
 easy_dict = dict(zip(word_df['단어'], word_df['쉬운표현']))
 
+# 어려운 단어로 판정하지 않을 제외 사전 로드
+_exclusion_path = "word_exclusion_list.csv"
+if os.path.exists(_exclusion_path):
+    exclusion_df = pd.read_csv(_exclusion_path)
+    exclusion_set = set(exclusion_df['단어'].dropna().tolist())
+else:
+    exclusion_set = set()
+
 # 난이도 분류 모델 로드
 MODEL_PATH = "word_difficulty_model"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -173,6 +181,10 @@ async def analyze_text(data: dict):
     result = []
     for noun in unique_nouns:
         if len(noun) < 2:  # 한 글자는 스킵
+            continue
+
+        # 제외 사전에 있으면 어려운 단어로 판정하지 않음
+        if noun in exclusion_set:
             continue
             
         # 데이터셋에 있으면 저장된 난이도 사용
