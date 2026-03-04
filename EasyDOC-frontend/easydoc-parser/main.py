@@ -33,8 +33,19 @@ s3 = boto3.client(
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
+# Gemini 설정 (API 키가 없으면 None으로 설정)
+gemini_model = None
+try:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key and api_key != "your_gemini_api_key":
+        genai.configure(api_key=api_key)
+        gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        print("✓ Gemini API 초기화 성공")
+    else:
+        print("⚠ Gemini API 키가 설정되지 않음 - 사전 기반 설명만 사용")
+except Exception as e:
+    print(f"⚠ Gemini API 초기화 실패: {e} - 사전 기반 설명만 사용")
+    gemini_model = None
 
 # 형태소 분석기
 okt = Okt()
@@ -257,6 +268,13 @@ async def explain_word(data: dict):
             }
     
     # 없으면 Gemini한테 물어보기
+    if gemini_model is None:
+        return {
+            "word": word,
+            "explanation": "Gemini API 키 받아오기 실패...",
+            "source": "error"
+        }
+
     prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
     
 용어: {word}
@@ -276,7 +294,7 @@ async def explain_word(data: dict):
     except Exception as e:
         return {
             "word": word,
-            "error": str(e),
+            "explanation": "Gemini API 오류...",
             "source": "error"
         }
 
@@ -306,6 +324,14 @@ async def explain_words_batch(data: dict):
                 continue
         
         # 없으면 Gemini에게 요청
+        if gemini_model is None:
+            results.append({
+                "word": word,
+                "explanation": "Gemini API 키 받아오기 실패...",
+                "source": "error"
+            })
+            continue
+
         prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
 용어: {word}
 설명:"""
@@ -321,7 +347,7 @@ async def explain_words_batch(data: dict):
         except Exception as e:
             results.append({
                 "word": word,
-                "explanation": f"설명을 가져올 수 없습니다: {str(e)}",
+                "explanation": "Gemini API 오류...",
                 "source": "error"
             })
     
