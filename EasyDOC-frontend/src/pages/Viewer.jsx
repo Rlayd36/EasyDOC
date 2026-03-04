@@ -107,12 +107,19 @@ export default function Viewer({ parsedData, ocrData }) {
 
     // AWS API Gateway 주소
     const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+    
+    // S3 URL 구성용 상수
+    const S3_BUCKET = "easydoc-upload-list";
+    const S3_REGION = "ap-northeast-2";
 
     // 난이도 분석 관련 상태
     const [difficultWords, setDifficultWords] = useState([]);
     const [parsedText, setParsedText] = useState("");
     const [ocrText, setOcrText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
+    // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
+    const [viewMode, setViewMode] = useState("parsed");
 
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
@@ -187,7 +194,7 @@ const handleFileChange = async (e) => {
   if (!file) return;
 
   const objectUrl = URL.createObjectURL(file);
-  setPdfUrl(objectUrl);
+  setPdfUrl(objectUrl);  // 임시로 로컬 URL 설정
   setIsLoading(true);  // 로딩 시작
 
   try {
@@ -224,6 +231,11 @@ const handleFileChange = async (e) => {
       },
     });
     console.log("5. 업로드 성공!");
+    
+    // S3 공개 URL 생성 및 저장
+    const s3Url = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${encodeURIComponent(s3Key)}`;
+    setPdfUrl(s3Url);  // S3 URL로 업데이트
+    console.log("원본 문서 URL:", s3Url);
 
     // S3 업로드 완료를 위한 짧은 대기
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -338,27 +350,73 @@ const handleFileChange = async (e) => {
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
           </div>
+          
+          {/* 힌트 배너 - 우측 */}
+          {viewMode === 'parsed' && (
+            <div className="hint-banner-right">
+              <Lightbulb size={16} color="#f49e0b" />
+              <span>
+                <span className="hint-highlight">하이라이트된 단어</span>에 마우스를 대 보세요
+              </span>
+            </div>
+          )}
         </div>
 
-        {/*힌트 배너 */}
-        <div className="hint-banner">
-          <Lightbulb size={18} className="text-yellow-500" color="#f49e0b" />
-          <span>
-            <span className="hint-highlight">노란색 단어</span>를 눌러보세요
+        {/* 색상 범례 - 파싱 모드일 때만 */}
+        {viewMode === 'parsed' && (
+        <div className="color-legend">
+          <span className="legend-item">
+            <span className="legend-box" style={{backgroundColor: '#dbeafe', color: '#1e40af'}}>1단계</span>
+            <span className="legend-label">청색</span>
           </span>
+          <span className="legend-item">
+            <span className="legend-box" style={{backgroundColor: '#fef3c7', color: '#92400e'}}>2단계</span>
+            <span className="legend-label">노란색</span>
+          </span>
+          <span className="legend-item">
+            <span className="legend-box" style={{backgroundColor: '#fed7aa', color: '#9a3412'}}>3단계</span>
+            <span className="legend-label">주황색</span>
+          </span>
+          <span className="legend-item">
+            <span className="legend-box" style={{backgroundColor: '#fecaca', color: '#991b1b'}}>4단계</span>
+            <span className="legend-label">적색</span>
+          </span>
+        </div>
+        )}
+
+        {/* 뷰 모드 전환 버튼 */}
+        <div className="view-mode-buttons-container">
+          <div className="view-mode-buttons">
+            <button 
+              className={`view-mode-btn ${viewMode === 'parsed' ? 'active' : ''}`}
+              onClick={() => setViewMode('parsed')}
+            >
+              DOC
+            </button>
+            <button 
+              className={`view-mode-btn ${viewMode === 'original' ? 'active' : ''}`}
+              onClick={() => setViewMode('original')}
+            >
+              원본
+            </button>
+          </div>
         </div>
 
         <div className="pdf-container">
-          {/* 텍스트가 있으면 표시, 없으면 PDF 표시 */}
-          {(ocrText || parsedText) ? (
+          {/* 뷰 모드에 따라 문서 표시 */}
+          {viewMode === 'parsed' ? (
             <div className="parsed-content">
               {ocrText ? (
                 <pre>{ocrText}</pre>
-              ) : (
+              ) : parsedText ? (
                 <HighlightedText 
                   text={parsedText} 
                   difficultWords={difficultWords}
                 />
+              ) : (
+                <div className="no-content">
+                  <p>파일을 업로드하면 파싱된 문서가 여기에 표시됩니다.</p>
+                </div>
               )}
             </div>
           ) : (
@@ -429,7 +487,7 @@ const handleFileChange = async (e) => {
             <div className="flow-step-number">3</div>
             <div className="flow-step-body">
               <span className="flow-step-title">단어 확인</span>
-              <span className="flow-step-desc">노란색으로 표시된 단어를 클릭하면 나무위키 각주처럼 설명이 나타납니다.</span>
+              <span className="flow-step-desc">하이라이트된 단어에 마우스를 대면 나무위키 각주처럼 설명이 나타납니다.</span>
             </div>
           </li>
           <li className="flow-connector" />
