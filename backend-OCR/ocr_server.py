@@ -13,9 +13,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from database_document.database import get_db, Document
+from database_document.database import get_db, Document, engine, Base
 
 load_dotenv()
+
+# 정의된 모델을 바탕으로 docsinfos 테이블이 없으면 자동으로 생성
+# 이미 테이블이 존재하면 아무 작업도 하지 않음
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
