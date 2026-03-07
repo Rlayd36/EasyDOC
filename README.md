@@ -6,7 +6,7 @@
 
 - `EasyDOC-frontend/` - React + Vite 프론트엔드
 - `EasyDOC-frontend/easydoc-parser/` - FastAPI 파싱 서버 (Python)
-- `backend-spring/` - Spring Boot 백엔드
+- `EasyDOC-backend/` - Spring Boot 백엔드 (로그인·회원가입·JWT·비밀번호 찾기 등 통합)
 - `backend-OCR/` - FastAPI  OCR 서버 (Python, Google Cloud Vision API)
 
 ---
@@ -49,11 +49,16 @@ API 문서: http://localhost:8000/docs
 ### 3. 백엔드 서버 실행 (Spring Boot)
 
 ```bash
-cd backend-spring
+cd EasyDOC-backend
+export DB_PASSWORD=비밀번호
+export JWT_SECRET=32자이상의시크릿문자열
 ./gradlew bootRun
 ```
 
 접속 주소: http://localhost:8080
+
+**필요 사항:** MySQL 스키마 `easydoc`, 환경 변수 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`  
+자세한 내용은 [EasyDOC-backend README](EasyDOC-backend/README.md) 참고
 
 ---
 

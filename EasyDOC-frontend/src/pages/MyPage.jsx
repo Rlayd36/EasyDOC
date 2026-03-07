@@ -645,7 +645,8 @@ function SettingsContent({userEmail,onLogout}) {
     try {
       const response = await fetch("http://localhost:8080/api/users/password", {
         method: "PUT",
-        headers: { "Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json","Authorization":`Bearer ${localStorage.getItem("token")}`
+      },
         body: JSON.stringify({
           email: userEmail,
           currentPassword: pwForm.currentPassword,
@@ -675,6 +676,9 @@ function SettingsContent({userEmail,onLogout}) {
     try {
       const response = await fetch(`http://localhost:8080/api/users/delete?email=${userEmail}`, {
         method: "DELETE",
+        headers:{
+          "Authorization":`Bearer ${localStorage.getItem("token")}`
+        }
       });
 
       if (response.ok) {
@@ -820,7 +824,14 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
 
   React.useEffect(() => {
     if(userEmail){
-      fetch(`http://localhost:8080/api/users/info?email=${userEmail}`)
+      const token=localStorage.getItem("token");
+      fetch(`http://localhost:8080/api/users/info?email=${userEmail}`,{
+        method:"GET",
+        headers:{
+          "Authorization":`Bearer ${token}`,
+          "Content-Type":"application/json"
+        }
+      })
         .then(async res => {
            if(!res.ok)
            {
