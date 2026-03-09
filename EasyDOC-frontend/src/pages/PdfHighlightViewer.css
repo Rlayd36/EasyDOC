@@ -1,0 +1,94 @@
+/* ===============================
+   PDF 하이라이트 뷰어
+   =============================== */
+.pdf-highlight-viewer {
+  width: 100%;
+  max-width: 900px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* 개별 페이지 래퍼 */
+.pdf-page-wrapper {
+  position: relative;
+  margin: 0 auto 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: #fff;
+  line-height: 0;       /* 캔버스 아래 여백 제거 */
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pdf-page-wrapper canvas {
+  display: block;
+}
+
+/* ===============================
+   하이라이트 오버레이 (PDF 원본 위)
+   =============================== */
+.pdf-word-highlight {
+  position: absolute;
+  cursor: help;
+  border-radius: 2px;
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+
+.pdf-word-highlight:hover {
+  opacity: 0.6;
+}
+
+/* 난이도별 색상 (1=청, 2=노, 3=주, 4=적) */
+.pdf-word-highlight.level-1 {
+  background-color: #60a5fa;
+}
+
+.pdf-word-highlight.level-2 {
+  background-color: #fbbf24;
+}
+
+.pdf-word-highlight.level-3 {
+  background-color: #f97316;
+}
+
+.pdf-word-highlight.level-4 {
+  background-color: #ef4444;
+}
+
+/* ===============================
+   말풍선 호버 트리거
+   (말풍선 본체 스타일은 viewer.css 에서 상속)
+   =============================== */
+.pdf-word-highlight:hover .word-bubble {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===============================
+   상태 메시지 (로딩 / 에러)
+   =============================== */
+.pdf-status-msg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+/* 텍스트 레이어 없음 안내 배지 */
+.pdf-no-text-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
