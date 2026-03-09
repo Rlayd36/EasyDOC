@@ -92,3 +92,176 @@
   pointer-events: none;
   z-index: 2;
 }
+
+/* ===============================
+   메모 툴바
+   =============================== */
+.pdf-memo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.memo-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.memo-tool-btn:hover {
+  background: #f3f4f6;
+}
+
+.memo-tool-btn.active {
+  background: #3D4B90;
+  color: #fff;
+  border-color: #3D4B90;
+}
+
+.memo-count {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* 메모 모드일 때 커서 변경 */
+.pdf-page-wrapper.memo-mode {
+  cursor: crosshair;
+}
+
+/* ===============================
+   텍스트 메모 박스
+   =============================== */
+.pdf-memo {
+  position: absolute;
+  z-index: 10;
+  min-width: 180px;
+  max-width: 280px;
+  background: #fffde7;
+  border: 1px solid #e0d97e;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  animation: memoFadeIn 0.15s ease-out;
+}
+
+@keyframes memoFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.memo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background: #f9f3c2;
+  border-bottom: 1px solid #e0d97e;
+  border-radius: 6px 6px 0 0;
+}
+
+.memo-grip {
+  cursor: grab;
+  color: #a89f5a;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.memo-grip:active {
+  cursor: grabbing;
+}
+
+.memo-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #b0a050;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.memo-delete-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.memo-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: vertical;
+  padding: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  background: transparent;
+  color: #374151;
+  min-height: 60px;
+}
+
+.memo-textarea::placeholder {
+  color: #b0a050;
+}
+
+/* ===============================
+   우클릭 컨텍스트 메뉴
+   =============================== */
+.pdf-context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+  min-width: 140px;
+  animation: ctx-fade-in 0.12s ease-out;
+}
+
+@keyframes ctx-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.pdf-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+
+.pdf-context-menu-item:hover {
+  background: #f3f4f6;
+  color: #1d4ed8;
+}
