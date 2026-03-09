@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
 import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
+import PdfHighlightViewer from "./PdfHighlightViewer";
 import "./viewer.css";
 
 // 텍스트 하이라이트 컴포넌트 (나무위키 호버 말풍선)
@@ -87,12 +88,15 @@ function LogoIcon() {
   );
 }
 
-export default function Viewer({ parsedData, ocrData }) {
+export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
     // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
     const [pdfUrl, setPdfUrl] = useState("/sample.pdf");
+
+    // PDF 원본 렌더링 모드 여부
+    const [isPdf, setIsPdf] = useState(false);
 
     // 최근 문서 목록 상태
     const [recentDocs, setRecentDocs] = useState([
@@ -134,7 +138,13 @@ export default function Viewer({ parsedData, ocrData }) {
             setParsedText("");  // OCR 데이터가 있으면 파싱은 비움
             setDifficultWords([]);
         }
-    }, [parsedData, ocrData]);
+
+        // Upload에서 전달받은 PDF URL 설정
+        if (pdfFileUrl) {
+            setPdfUrl(pdfFileUrl);
+            setIsPdf(true);
+        }
+    }, [parsedData, ocrData, pdfFileUrl]);
 
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
@@ -194,7 +204,10 @@ const handleFileChange = async (e) => {
   if (!file) return;
 
   const objectUrl = URL.createObjectURL(file);
-  setPdfUrl(objectUrl);  // 임시로 로컬 URL 설정
+  setPdfUrl(objectUrl);
+  // PDF 여부에 따라 렌더링 모드 결정
+  const fileIsPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  setIsPdf(fileIsPdf);
   setIsLoading(true);  // 로딩 시작
 
   try {
@@ -405,6 +418,7 @@ const handleFileChange = async (e) => {
         <div className="pdf-container">
           {/* 뷰 모드에 따라 문서 표시 */}
           {viewMode === 'parsed' ? (
+            /* DOC 탭: 파싱된 텍스트 + 하이라이트 */
             <div className="parsed-content">
               {ocrText ? (
                 <pre>{ocrText}</pre>
@@ -420,11 +434,19 @@ const handleFileChange = async (e) => {
               )}
             </div>
           ) : (
-            <iframe
-              src={pdfUrl}
-              className="pdf-frame"
-              title="Document Viewer"
-            />
+            /* 원본 탭: PDF 원본 이미지 + 하이라이트 오버레이 */
+            isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
+              <PdfHighlightViewer
+                pdfUrl={pdfUrl}
+                difficultWords={difficultWords}
+              />
+            ) : (
+              <iframe
+                src={pdfUrl}
+                className="pdf-frame"
+                title="Document Viewer"
+              />
+            )
           )}
 
           {/* 플로팅 요약 박스 */}
