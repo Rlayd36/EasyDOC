@@ -4,6 +4,7 @@ import com.easydoc.entity.User;
 import com.easydoc.repository.UserRepository;
 import com.easydoc.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,10 +55,12 @@ public class UserController {
 	}
 
 	@PutMapping("/password")
-	public ResponseEntity<?> updatePassword(@RequestBody Map<String, String> data) {
-		String email = data.get("email");
+	public ResponseEntity<?> updatePassword(@RequestBody Map<String, String> data,Authentication authentication) {
+		String email = authentication.getName();
+
 		String currentPassword = data.get("currentPassword");
 		String newPassword = data.get("newPassword");
+		
 		User user = userRepository.findByEmail(email).orElse(null);
 		if (user == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
 			return ResponseEntity.status(401).body("현재 비밀번호가 일치하지 않습니다.");
@@ -68,7 +71,8 @@ public class UserController {
 	}
 
 	@DeleteMapping("/delete")
-	public ResponseEntity<?> deleteUser(@RequestParam("email") String email) {
+	public ResponseEntity<?> deleteUser(Authentication authentication) {
+		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElse(null);
 		if (user == null) {
 			return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
@@ -78,7 +82,8 @@ public class UserController {
 	}
 
 	@GetMapping("/info")
-	public ResponseEntity<?> getUserInfo(@RequestParam("email") String email) {
+	public ResponseEntity<?> getUserInfo(Authentication authentication) {
+		String email = authentication.getName();
 		Optional<User> userOptional = userRepository.findByEmail(email);
 		if (userOptional.isPresent()) {
 			User user = userOptional.get();

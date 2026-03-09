@@ -44,3 +44,8 @@ out/
 
 ### Spring Boot 로컬 설정 (비밀번호 등) ###
 **/application-local.properties
+
+### Python ###
+venv/
+.venv/
+__pycache__/
