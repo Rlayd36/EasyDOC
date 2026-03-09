@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { MessageSquarePlus, GripVertical, Trash2, Type } from "lucide-react";
+import { jsPDF } from "jspdf";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download } from "lucide-react";
 import "./PdfHighlightViewer.css";
 
 // PDF.js 워커 설정 (로컬 번들)
@@ -10,7 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링 + 하이라이트
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload }) {
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
   const [highlights, setHighlights] = useState([]);
@@ -361,6 +362,11 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
             <MessageSquarePlus size={14} />
             메모 추가
           </button>
+          <div className="pdf-context-menu-divider" />
+          <button className="pdf-context-menu-item" onMouseDown={(e) => { e.stopPropagation(); setContextMenu(null); onDownload?.(); }}>
+            <Download size={14} />
+            PDF 다운로드
+          </button>
         </div>
       )}
     </div>
@@ -485,6 +491,131 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
     setMemos((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
+  // PDF + 메모 다운로드
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!pdfDoc || downloading) return;
+    setDownloading(true);
+
+    try {
+      const pageCanvases = containerRef.current?.querySelectorAll(".pdf-page-wrapper");
+      if (!pageCanvases?.length) return;
+
+      let pdf = null;
+
+      for (let i = 0; i < numPages; i++) {
+        const wrapper = pageCanvases[i];
+        const srcCanvas = wrapper.querySelector("canvas");
+        if (!srcCanvas) continue;
+
+        const cw = srcCanvas.width;
+        const ch = srcCanvas.height;
+
+        // 합성 캔버스 생성 (원본 + 메모)
+        const comp = document.createElement("canvas");
+        comp.width = cw;
+        comp.height = ch;
+        const ctx = comp.getContext("2d");
+
+        // 1) 원본 캔버스 복사
+        ctx.drawImage(srcCanvas, 0, 0);
+
+        // 2) 해당 페이지 메모 그리기
+        const pageMemos = memos.filter((m) => m.pageNum === i + 1);
+        const dpr = window.devicePixelRatio || 1;
+
+        for (const memo of pageMemos) {
+          if (!memo.text?.trim()) continue;
+
+          const mx = memo.x * dpr;
+          const my = memo.y * dpr;
+          const memoW = 180 * dpr;
+          const fontSize = 12 * dpr;
+          const pad = 8 * dpr;
+          const lineHeight = fontSize * 1.4;
+
+          // 텍스트 줄바꿈 계산
+          ctx.font = `${fontSize}px sans-serif`;
+          const words = memo.text.split("");
+          const lines = [];
+          let currentLine = "";
+          for (const ch of words) {
+            const testLine = currentLine + ch;
+            if (ctx.measureText(testLine).width > memoW - pad * 2) {
+              lines.push(currentLine);
+              currentLine = ch;
+            } else {
+              currentLine = testLine;
+            }
+          }
+          if (currentLine) lines.push(currentLine);
+
+          const headerH = 20 * dpr;
+          const memoH = headerH + pad + lines.length * lineHeight + pad;
+
+          // 그림자
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.15)";
+          ctx.shadowBlur = 6 * dpr;
+          ctx.shadowOffsetY = 2 * dpr;
+
+          // 메모 배경
+          ctx.fillStyle = "#fef9c3";
+          ctx.beginPath();
+          const r = 4 * dpr;
+          ctx.roundRect(mx, my, memoW, memoH, r);
+          ctx.fill();
+          ctx.restore();
+
+          // 헤더
+          ctx.fillStyle = "#fde047";
+          ctx.beginPath();
+          ctx.roundRect(mx, my, memoW, headerH, [r, r, 0, 0]);
+          ctx.fill();
+
+          // 테두리
+          ctx.strokeStyle = "#d4a800";
+          ctx.lineWidth = 1 * dpr;
+          ctx.beginPath();
+          ctx.roundRect(mx, my, memoW, memoH, r);
+          ctx.stroke();
+
+          // 텍스트
+          ctx.fillStyle = "#374151";
+          ctx.font = `${fontSize}px sans-serif`;
+          lines.forEach((line, li) => {
+            ctx.fillText(line, mx + pad, my + headerH + pad + (li + 1) * lineHeight - fontSize * 0.3);
+          });
+        }
+
+        // jsPDF 페이지 추가
+        const orientation = cw > ch ? "l" : "p";
+        const pxToMm = (px) => (px * 25.4) / 96 / dpr;
+        const wMm = pxToMm(cw);
+        const hMm = pxToMm(ch);
+
+        if (i === 0) {
+          pdf = new jsPDF({ orientation, unit: "mm", format: [wMm, hMm] });
+        } else {
+          pdf.addPage([wMm, hMm], orientation);
+        }
+
+        const imgData = comp.toDataURL("image/jpeg", 0.92);
+        pdf.addImage(imgData, "JPEG", 0, 0, wMm, hMm);
+      }
+
+      if (pdf) {
+        pdf.save("EasyDOC_메모.pdf");
+      }
+    } catch (err) {
+      console.error("PDF 다운로드 실패:", err);
+      alert("PDF 다운로드에 실패했습니다.");
+    } finally {
+      setDownloading(false);
+    }
+  }, [pdfDoc, numPages, memos, downloading]);
+
   // 컨테이너 너비 자동 추적 (리사이즈 대응)
   useEffect(() => {
     const el = containerRef.current;
@@ -564,6 +695,16 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
         {memos.length > 0 && (
           <span className="memo-count">{memos.length}개</span>
         )}
+
+        <button
+          className="memo-tool-btn download-btn"
+          onClick={handleDownloadPdf}
+          disabled={downloading}
+          title="메모 포함 PDF 다운로드"
+        >
+          <Download size={16} />
+          <span>{downloading ? "저장 중..." : "다운로드"}</span>
+        </button>
       </div>
 
       {containerWidth > 0 &&
@@ -581,6 +722,7 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
               onAddMemo={handleAddMemo}
               onUpdateMemo={handleUpdateMemo}
               onDeleteMemo={handleDeleteMemo}
+              onDownload={handleDownloadPdf}
             />
           );
         })}

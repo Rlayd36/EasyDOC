@@ -142,6 +142,22 @@
   font-weight: 500;
 }
 
+.memo-tool-btn.download-btn {
+  margin-left: auto;
+  background: #3D4B90;
+  color: #fff;
+  border-color: #3D4B90;
+}
+
+.memo-tool-btn.download-btn:hover {
+  background: #2e3a70;
+}
+
+.memo-tool-btn.download-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* 메모 모드일 때 커서 변경 */
 .pdf-page-wrapper.memo-mode {
   cursor: crosshair;
@@ -264,4 +280,10 @@
 .pdf-context-menu-item:hover {
   background: #f3f4f6;
   color: #1d4ed8;
+}
+
+.pdf-context-menu-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
 }
