@@ -51,17 +51,20 @@ except Exception as e:
 okt = Okt()
 
 # 단어 난이도 사전 로드
-word_df = pd.read_csv("word_difficulty_dataset.csv")
+word_df = pd.read_csv("word_difficulty_dataset.csv", encoding='utf-8')
 word_dict = dict(zip(word_df['단어'], word_df['난이도']))
 easy_dict = dict(zip(word_df['단어'], word_df['쉬운표현']))
 
 # 어려운 단어로 판정하지 않을 제외 사전 로드
 _exclusion_path = "word_exclusion_list.csv"
 if os.path.exists(_exclusion_path):
-    exclusion_df = pd.read_csv(_exclusion_path)
+    exclusion_df = pd.read_csv(_exclusion_path, encoding='utf-8')
     exclusion_set = set(exclusion_df['단어'].dropna().tolist())
+    print(f"✓ 제외 사전 로드 완료: {len(exclusion_set)}개 단어")
+    print(f"  예시: {list(exclusion_set)[:5]}")
 else:
     exclusion_set = set()
+    print("⚠ 제외 사전 파일을 찾을 수 없습니다.")
 
 # 난이도 분류 모델 로드
 MODEL_PATH = "word_difficulty_model"
@@ -207,7 +210,7 @@ def predict_difficulty(word):
 async def analyze_text(data: dict):
     """텍스트에서 어려운 단어 분석"""
     text = data.get("text", "")
-    min_level = data.get("min_level", 3)  # 기본값: 3단계 이상만
+    min_level = data.get("min_level", 3)  # 기본값: 3단계 이상만 (추후 사용자 DB 연동 예정)
     
     # 명사 추출
     nouns = okt.nouns(text)
@@ -216,12 +219,15 @@ async def analyze_text(data: dict):
     unique_nouns = list(set(nouns))
     
     result = []
+    excluded_words = []
     for noun in unique_nouns:
         if len(noun) < 2:  # 한 글자는 스킵
             continue
 
         # 제외 사전에 있으면 어려운 단어로 판정하지 않음
         if noun in exclusion_set:
+            excluded_words.append(noun)
+            print(f"  [제외됨] {noun}")
             continue
             
         # 데이터셋에 있으면 저장된 난이도 사용
@@ -229,26 +235,40 @@ async def analyze_text(data: dict):
             level = word_dict[noun]
             easy = easy_dict.get(noun, "")
             source = "dictionary"
-        else:
-            # 없으면 모델로 예측
-            level = predict_difficulty(noun)
-            easy = ""
-            source = "model"
-        
-        # 지정 난이도 이상만 반환
-        if level >= min_level:
+            # 데이터셋에 있는 단어는 난이도 상관없이 무조건 포함
             result.append({
                 "word": noun,
                 "level": int(level),
                 "easy_expression": easy if pd.notna(easy) else "",
                 "source": source
             })
+        else:
+            # 없으면 모델로 예측
+            level = predict_difficulty(noun)
+            easy = ""
+            source = "model"
+            
+            # 모델 예측 단어는 지정 난이도 이상만 반환
+            if level >= min_level:
+                result.append({
+                    "word": noun,
+                    "level": int(level),
+                    "easy_expression": easy if pd.notna(easy) else "",
+                    "source": source
+                })
     
     # 난이도 높은 순 정렬
     result.sort(key=lambda x: x["level"], reverse=True)
     
+    # 제외된 단어들도 정렬
+    excluded_words.sort()
+    
+    print(f"[분석 완료] 전체 명사: {len(unique_nouns)}, 제외됨: {len(excluded_words)}, 어려운 단어: {len(result)}")
+    
     return {
         "total_nouns": len(unique_nouns),
+        "excluded_count": len(excluded_words),
+        "excluded_words": excluded_words,
         "difficult_words": result
     }
 @app.post("/explain")

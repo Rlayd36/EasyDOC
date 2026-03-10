@@ -12,6 +12,7 @@ export default function Upload({onNavigateToMyPage}) {
   const [parseResult, setParseResult] = useState(null);
   const [parsedText, setParsedText] = useState("");
   const [ocrResult, setOcrResult] = useState(null); // OCR 상태
+  const [pdfFileUrl, setPdfFileUrl] = useState(null); // PDF 원본 렌더링용 블롭 URL
   const fileInputRef = useRef(null);
 
   // AWS API Gateway 주소
@@ -30,6 +31,13 @@ export default function Upload({onNavigateToMyPage}) {
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
+    }
+
+    // PDF 파일이면 원본 렌더링을 위해 블롭 URL 저장
+    if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
+      setPdfFileUrl(URL.createObjectURL(selectedFile));
+    } else {
+      setPdfFileUrl(null);
     }
 
     try {
@@ -205,7 +213,7 @@ export default function Upload({onNavigateToMyPage}) {
 
   if (showViewer) {
     // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
-    return <Viewer parsedData={parseResult} ocrData={ocrResult} />;
+    return <Viewer parsedData={parseResult} ocrData={ocrResult} pdfFileUrl={pdfFileUrl} />;
   }
 
   return (

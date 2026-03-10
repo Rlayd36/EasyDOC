@@ -169,6 +169,10 @@
   padding: 16px 24px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
 .header-title {
   font-size: 20px;
@@ -177,6 +181,62 @@
   align-items: center;
   gap: 10px;
   color: #000000;
+}
+
+/* 힌트 배너 - 우측 */
+.hint-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+
+/* 뷰 모드 전환 버튼 컨테이너 */
+.view-mode-buttons-container {
+  padding: 12px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+/* 뷰 모드 전환 버튼 */
+.view-mode-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.view-mode-btn {
+  padding: 8px 20px;
+  border: 2px solid #3D4B90;
+  background: #ffffff;
+  color: #3D4B90;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-mode-btn:hover {
+  background: #f0f2f9;
+}
+
+.view-mode-btn.active {
+  background: #3D4B90;
+  color: #ffffff;
+}
+
+/* 힌트 배너 - 우측 */
+.hint-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  flex: 0 0 auto;
 }
 
 .hint-banner {
@@ -194,6 +254,35 @@
     padding: 2px 6px;
     border-radius: 4px;
     font-weight: 600;
+}
+
+/* 색상 범례 */
+.color-legend {
+    padding: 12px 24px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background-color: #fafafa;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.legend-box {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.legend-label {
+    color: #6b7280;
+    font-weight: 500;
 }
 
 /* PDF 뷰어 영역 */
@@ -333,6 +422,15 @@
   color: #374151;
 }
 
+.no-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 16px;
+}
+
 .loading-message {
   display: flex;
   align-items: center;
@@ -362,17 +460,22 @@
 }
 
 /* 난이도별 색상 */
-.difficult-word.level-3 {
+.difficult-word.level-1 {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.difficult-word.level-2 {
   background-color: #fef3c7;
   color: #92400e;
 }
 
-.difficult-word.level-4 {
+.difficult-word.level-3 {
   background-color: #fed7aa;
   color: #9a3412;
 }
 
-.difficult-word.level-5 {
+.difficult-word.level-4 {
   background-color: #fecaca;
   color: #991b1b;
 }
