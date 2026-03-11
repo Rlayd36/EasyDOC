@@ -5,15 +5,29 @@ import olefile
 import zlib
 import google.generativeai as genai
 import io
+import re
 import boto3
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import pandas as pd
 from konlpy.tag import Okt
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-load_dotenv()
+# .env 파일 탐색: 로컬 .env → 상위 .env 순으로 모두 로드 (상위가 우선)
+_search = Path(__file__).resolve().parent
+_env_files = []
+for _ in range(5):
+    _candidate = _search / ".env"
+    if _candidate.exists():
+        _env_files.append(_candidate)
+    _search = _search.parent
+# 상위(루트) .env를 나중에 로드하면 같은 키를 덮어쓰므로 루트 값이 우선됨
+for _ef in _env_files:
+    load_dotenv(dotenv_path=_ef, override=True)
+if _env_files:
+    print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
 
 app = FastAPI()
 
@@ -39,7 +53,7 @@ try:
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key and api_key != "your_gemini_api_key":
         genai.configure(api_key=api_key)
-        gemini_model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        gemini_model = genai.GenerativeModel('gemini-3-flash-preview')
         print("✓ Gemini API 초기화 성공")
     else:
         print("⚠ Gemini API 키가 설정되지 않음 - 사전 기반 설명만 사용")
@@ -321,13 +335,14 @@ async def explain_word(data: dict):
 
 @app.post("/explain/batch")
 async def explain_words_batch(data: dict):
-    """여러 어려운 단어를 한꺼번에 Gemini로 설명 생성"""
+    """여러 어려운 단어를 한꺼번에 Gemini로 설명 생성 (단일 API 호출)"""
     words = data.get("words", [])
     
     if not words:
         return {"results": []}
     
     results = []
+    gemini_words = []
     
     for word_info in words:
         word = word_info.get("word", "")
@@ -343,32 +358,100 @@ async def explain_words_batch(data: dict):
                 })
                 continue
         
-        # 없으면 Gemini에게 요청
-        if gemini_model is None:
+        # Gemini 요청 대상으로 모아두기
+        gemini_words.append(word)
+    
+    # Gemini에 청크 단위로 요청 (30개씩)
+    CHUNK_SIZE = 30
+    total_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "chunks": 0}
+    
+    if gemini_words and gemini_model is not None:
+        for chunk_start in range(0, len(gemini_words), CHUNK_SIZE):
+            chunk = gemini_words[chunk_start:chunk_start + CHUNK_SIZE]
+            word_list_str = "\n".join(f"{i+1}. {w}" for i, w in enumerate(chunk))
+            prompt = f"""다음 행정/법률 용어들을 각각 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
+반드시 아래 형식을 지켜서 답변해주세요. 각 줄은 "번호. 용어: 설명" 형식이어야 합니다.
+
+{word_list_str}
+
+답변 형식:
+1. 용어: 설명
+2. 용어: 설명
+..."""
+            
+            try:
+                response = gemini_model.generate_content(prompt)
+                response_text = response.text.strip()
+                
+                # 토큰 사용량 집계
+                if hasattr(response, 'usage_metadata'):
+                    um = response.usage_metadata
+                    p_tok = getattr(um, 'prompt_token_count', 0) or 0
+                    c_tok = getattr(um, 'candidates_token_count', 0) or 0
+                    t_tok = getattr(um, 'total_token_count', 0) or 0
+                    total_token_usage["prompt_tokens"] += p_tok
+                    total_token_usage["completion_tokens"] += c_tok
+                    total_token_usage["total_tokens"] += t_tok
+                    total_token_usage["chunks"] += 1
+                    print(f"[Gemini 토큰] 청크 {total_token_usage['chunks']}: 입력={p_tok}, 출력={c_tok}, 합계={t_tok}")
+                
+                # 응답 파싱: "번호. 용어: 설명" 형식
+                explanations = {}
+                for line in response_text.split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    match = re.match(r'^\d+\.\s*(.+?)[\s]*[:：\-]\s*(.+)$', line)
+                    if match:
+                        parsed_word = match.group(1).strip()
+                        parsed_explanation = match.group(2).strip()
+                        explanations[parsed_word] = parsed_explanation
+                
+                for word in chunk:
+                    if word in explanations:
+                        results.append({
+                            "word": word,
+                            "explanation": explanations[word],
+                            "source": "gemini"
+                        })
+                    else:
+                        found = False
+                        for parsed_word, explanation in explanations.items():
+                            if word in parsed_word or parsed_word in word:
+                                results.append({
+                                    "word": word,
+                                    "explanation": explanation,
+                                    "source": "gemini"
+                                })
+                                found = True
+                                break
+                        if not found:
+                            results.append({
+                                "word": word,
+                                "explanation": "설명을 파싱하지 못했습니다.",
+                                "source": "error"
+                            })
+            except Exception as e:
+                print(f"[Gemini 배치 오류] {e}")
+                for word in chunk:
+                    results.append({
+                        "word": word,
+                        "explanation": "Gemini API 오류...",
+                        "source": "error"
+                    })
+    elif gemini_words:
+        for word in gemini_words:
             results.append({
                 "word": word,
                 "explanation": "Gemini API 키 받아오기 실패...",
                 "source": "error"
             })
-            continue
-
-        prompt = f"""다음 행정/법률 용어를 초등학생도 이해할 수 있게 한 문장으로 쉽게 설명해주세요.
-용어: {word}
-설명:"""
-        
-        try:
-            response = gemini_model.generate_content(prompt)
-            explanation = response.text.strip()
-            results.append({
-                "word": word,
-                "explanation": explanation,
-                "source": "gemini"
-            })
-        except Exception as e:
-            results.append({
-                "word": word,
-                "explanation": "Gemini API 오류...",
-                "source": "error"
-            })
     
-    return {"results": results}
+    print(f"[Gemini 토큰 합계] 사전={len(results) - len(gemini_words)}개, Gemini={len(gemini_words)}개, "
+          f"입력토큰={total_token_usage['prompt_tokens']}, 출력토큰={total_token_usage['completion_tokens']}, "
+          f"총토큰={total_token_usage['total_tokens']}, API호출={total_token_usage['chunks']}회")
+    
+    return {
+        "results": results,
+        "token_usage": total_token_usage
+    }
