@@ -102,42 +102,28 @@ export default function Upload({onNavigateToMyPage}) {
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         
-        // 난이도 분석 추가
-        console.log("8. 난이도 분석 요청 중...");
-        setShowLoading(true);  // 로딩 화면 표시
-        const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
-          text: extractedText,
-          min_level: 3
+        // Gemini 통합 분석: 어려운 단어 추출 + 설명 생성
+        console.log("8. Gemini 통합 분석 요청 중...");
+        setShowLoading(true);
+        const analyzeResponse = await axios.post("http://localhost:8000/analyze-with-gemini", {
+          text: extractedText
         });
-        console.log("9. 난이도 분석 완료!", analyzeResponse.data);
+        console.log("9. Gemini 분석 완료!", analyzeResponse.data);
 
         const difficultWords = analyzeResponse.data.difficult_words || [];
 
-        // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
-        const needExplanation = difficultWords.filter(
-          w => w.source === "model" || !w.easy_expression
-        );
-
-        if (needExplanation.length > 0) {
-          console.log("10. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
-          try {
-            const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
-              words: needExplanation.map(w => ({ word: w.word }))
-            });
-            // 설명을 단어 목록에 병합
-            const explanationMap = new Map();
-            (explainResponse.data.results || []).forEach(r => {
-              explanationMap.set(r.word, r.explanation);
-            });
-            difficultWords.forEach(w => {
-              if (explanationMap.has(w.word)) {
-                w.easy_expression = explanationMap.get(w.word);
-              }
-            });
-            console.log("11. Gemini 설명 생성 완료!");
-          } catch (explainErr) {
-            console.error("Gemini 설명 생성 오류:", explainErr);
-          }
+        // 토큰 사용량 로그
+        if (analyzeResponse.data.token_usage) {
+          const t = analyzeResponse.data.token_usage;
+          const fc = analyzeResponse.data.from_cache || 0;
+          const fg = analyzeResponse.data.from_gemini || 0;
+          console.log(
+            `%c[Gemini 토큰 사용량] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | 캐시: ${fc}개 | 신규: ${fg}개`,
+            "color: #4CAF50; font-weight: bold; font-size: 12px;"
+          );
+        }
+        if (analyzeResponse.data.error) {
+          console.warn("Gemini 분석 경고:", analyzeResponse.data.error);
         }
 
         setParseResult({
