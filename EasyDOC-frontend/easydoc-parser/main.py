@@ -436,7 +436,7 @@ async def explain_words_batch(data: dict):
 
 @app.post("/analyze-with-gemini")
 async def analyze_with_gemini(data: dict):
-    """Gemini가 텍스트를 받아 어려운 단어 추출 + 설명을 한 번에 처리 (캐시 우선)"""
+    """Gemini가 텍스트를 받아 어려운 단어 추출 + 설명을 한 번에 처리 (캐시 우선, 청크 분할)"""
     text = data.get("text", "")
     
     if not text:
@@ -445,14 +445,10 @@ async def analyze_with_gemini(data: dict):
     if gemini_model is None:
         return {"difficult_words": [], "error": "Gemini API 키가 설정되지 않았습니다."}
     
-    # 텍스트가 너무 길면 앞부분만 사용 (Gemini 입력 제한)
-    max_chars = 15000
-    truncated = text[:max_chars] if len(text) > max_chars else text
-    
     # 1단계: 캐시에서 이미 아는 단어 찾기
     cached_words = []
     for word, info in gemini_cache.items():
-        if word in truncated and info["level"] >= 3:
+        if word in text:
             cached_words.append({
                 "word": word,
                 "level": info["level"],
@@ -463,102 +459,121 @@ async def analyze_with_gemini(data: dict):
     cached_word_set = {w["word"] for w in cached_words}
     print(f"[캐시 히트] {len(cached_words)}개 단어 캐시에서 발견")
     
-    # 2단계: Gemini에게 문서 분석 요청 (캐시된 단어 제외 지시)
+    # 2단계: 텍스트를 청크로 분할 (3000자씩)
+    CHUNK_SIZE = 3000
+    chunks = []
+    for i in range(0, len(text), CHUNK_SIZE):
+        chunk = text[i:i + CHUNK_SIZE]
+        if chunk.strip():
+            chunks.append(chunk)
+    
+    print(f"[청크 분할] 전체 {len(text)}자 → {len(chunks)}개 청크")
+    
+    # 캐시 제외 힌트
     cache_exclude_hint = ""
     if cached_word_set:
         cache_exclude_hint = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(cached_word_set)}"
     
-    prompt = f"""## 역할
+    total_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    new_gemini_words = []
+    seen_words = set(cached_word_set)  # 중복 방지
+    
+    # 3단계: 각 청크별로 Gemini 호출
+    for idx, chunk in enumerate(chunks):
+        # 이미 이 청크 이전에 발견된 단어도 제외
+        current_exclude = ""
+        if seen_words:
+            current_exclude = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(seen_words)}"
+        
+        prompt = f"""## 역할
 당신은 행정/법률 문서를 쉽게 풀어주는 전문가입니다.
 
 ## 작업
-아래 문서에서 일반인이 이해하기 어려운 행정/법률 용어를 찾아 초등학생도 이해할 수 있게 설명해주세요.
+아래 문서 조각에서 일반인이 이해하기 어려운 행정/법률 용어를 **빠짐없이 모두** 찾아 설명해주세요.
+
+## 난이도 기준
+- 1단계: 일상 용어 (신청, 제출, 확인 등)
+- 2단계: 기본 행정 용어 (증명서, 민원, 위임장 등)
+- 3단계: 전문 행정 용어 (시행령, 행정심판, 사업타당성 등)
+- 4단계: 고급 법률 용어 (준용, 질권, 의거 처분 등)
 
 ## 규칙
-- 너무 쉽거나 일상적인 단어(예: 신청, 제출, 서류, 주소, 이름, 전화, 번호, 금액, 기간, 변경, 등록, 확인 등)는 **제외**하세요.
 - 한 글자 단어는 제외하세요.
-- 아래 난이도 기준에 따라 각 단어를 평가해주세요:
-  - 1단계: 일상 용어 (신청, 제출, 확인 등) → 제외
-  - 2단계: 기본 행정 용어 (증명서, 민원, 위임장 등) → 제외
-  - 3단계: 전문 행정 용어 (시행령, 행정심판, 사업타당성 등)
-  - 4단계: 고급 법률 용어 (준용, 질권, 의거 처분 등)
-- 난이도 3 이상인 단어만 포함하세요.
-- 설명은 한 문장으로 짧게 해주세요.{cache_exclude_hint}
+- 문서에 등장하는 행정/법률 용어를 **빠짐없이 모두** 찾아주세요. 개수 제한 없습니다.
+- 난이도 1~4단계 모두 판정해주세요.
+- 설명은 한 문장으로 짧게 해주세요.{current_exclude}
 
 ## 출력 형식 (반드시 이 형식을 지키세요)
 각 줄에 하나씩, 구분자로 `|||`를 사용:
 단어|||난이도|||설명
 
 예시:
-의거 처분|||4|||법을 어긴 사람에게 벌을 주는 것을 말해요.
-존속 기간|||3|||어떤 규칙이 유지되는 기간을 말해요.
+기부채납|||4|||개인 소유의 토지나 건물을 나라나 지방자치단체에 무상으로 주는 거예요.
 사업타당성|||3|||사업을 해도 괜찮은지 돈이나 효과를 미리 따져보는 거예요.
+증명서|||2|||어떤 사실이 맞다는 것을 보여주는 공식 문서예요.
+접수|||1|||서류나 신청서를 받아들이는 것을 말해요.
 
-## 문서 내용
-{truncated}
+## 문서 조각 ({idx + 1}/{len(chunks)})
+{chunk}
 """
+        
+        try:
+            response = gemini_model.generate_content(prompt)
+            response_text = response.text.strip()
+            
+            # 토큰 사용량 집계
+            if hasattr(response, 'usage_metadata'):
+                um = response.usage_metadata
+                p_tok = getattr(um, 'prompt_token_count', 0) or 0
+                c_tok = getattr(um, 'candidates_token_count', 0) or 0
+                t_tok = getattr(um, 'total_token_count', 0) or 0
+                total_token_usage["prompt_tokens"] += p_tok
+                total_token_usage["completion_tokens"] += c_tok
+                total_token_usage["total_tokens"] += t_tok
+                print(f"[Gemini 토큰] 청크 {idx + 1}/{len(chunks)}: 입력={p_tok}, 출력={c_tok}, 합계={t_tok}")
+            
+            # 응답 파싱
+            for line in response_text.split("\n"):
+                line = line.strip()
+                if not line or "|||" not in line:
+                    continue
+                parts = line.split("|||")
+                if len(parts) >= 3:
+                    word = parts[0].strip()
+                    try:
+                        level = int(parts[1].strip())
+                    except ValueError:
+                        level = 3
+                    explanation = parts[2].strip()
+                    
+                    if word and explanation and word not in seen_words:
+                        new_gemini_words.append({
+                            "word": word,
+                            "level": level,
+                            "easy_expression": explanation,
+                            "source": "gemini"
+                        })
+                        seen_words.add(word)
+            
+        except Exception as e:
+            print(f"[Gemini 청크 {idx + 1} 오류] {e}")
     
-    total_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-    new_gemini_words = []
-    
-    try:
-        response = gemini_model.generate_content(prompt)
-        response_text = response.text.strip()
-        
-        # 토큰 사용량 집계
-        if hasattr(response, 'usage_metadata'):
-            um = response.usage_metadata
-            total_token_usage["prompt_tokens"] = getattr(um, 'prompt_token_count', 0) or 0
-            total_token_usage["completion_tokens"] = getattr(um, 'candidates_token_count', 0) or 0
-            total_token_usage["total_tokens"] = getattr(um, 'total_token_count', 0) or 0
-            print(f"[Gemini 토큰] 입력={total_token_usage['prompt_tokens']}, "
-                  f"출력={total_token_usage['completion_tokens']}, "
-                  f"합계={total_token_usage['total_tokens']}")
-        
-        # 응답 파싱: "단어|||난이도|||설명" 형식
-        for line in response_text.split("\n"):
-            line = line.strip()
-            if not line or "|||" not in line:
-                continue
-            parts = line.split("|||")
-            if len(parts) >= 3:
-                word = parts[0].strip()
-                try:
-                    level = int(parts[1].strip())
-                except ValueError:
-                    level = 3
-                explanation = parts[2].strip()
-                
-                if word and explanation and word not in cached_word_set:
-                    new_gemini_words.append({
-                        "word": word,
-                        "level": level,
-                        "easy_expression": explanation,
-                        "source": "gemini"
-                    })
-        
-        # 3단계: 새 단어를 CSV 캐시에 저장
-        if new_gemini_words:
-            save_to_gemini_cache(new_gemini_words)
-        
-    except Exception as e:
-        print(f"[Gemini 분석 오류] {e}")
-        return {
-            "difficult_words": cached_words,
-            "error": str(e),
-            "token_usage": total_token_usage
-        }
+    # 4단계: 새 단어를 CSV 캐시에 저장
+    if new_gemini_words:
+        save_to_gemini_cache(new_gemini_words)
     
     # 캐시 + Gemini 신규 결과 병합
     all_words = cached_words + new_gemini_words
     all_words.sort(key=lambda x: x["level"], reverse=True)
     
-    print(f"[Gemini 분석 완료] 캐시={len(cached_words)}개, 신규={len(new_gemini_words)}개, 전체={len(all_words)}개")
+    print(f"[Gemini 분석 완료] 캐시={len(cached_words)}개, 신규={len(new_gemini_words)}개, "
+          f"전체={len(all_words)}개, 청크={len(chunks)}개")
     
     return {
         "difficult_words": all_words,
         "total_found": len(all_words),
         "from_cache": len(cached_words),
         "from_gemini": len(new_gemini_words),
+        "chunks_processed": len(chunks),
         "token_usage": total_token_usage
     }

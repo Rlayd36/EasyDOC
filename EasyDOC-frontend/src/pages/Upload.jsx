@@ -117,8 +117,9 @@ export default function Upload({onNavigateToMyPage}) {
           const t = analyzeResponse.data.token_usage;
           const fc = analyzeResponse.data.from_cache || 0;
           const fg = analyzeResponse.data.from_gemini || 0;
+          const chunks = analyzeResponse.data.chunks_processed || 1;
           console.log(
-            `%c[Gemini 토큰 사용량] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | 캐시: ${fc}개 | 신규: ${fg}개`,
+            `%c[Gemini 분석] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | 캐시: ${fc}개 | 신규: ${fg}개 | 청크: ${chunks}개`,
             "color: #4CAF50; font-weight: bold; font-size: 12px;"
           );
         }
