@@ -365,18 +365,15 @@ const handleFileChange = async (e) => {
           </div>
           
           {/* 힌트 배너 - 우측 */}
-          {viewMode === 'parsed' && (
-            <div className="hint-banner-right">
+          <div className="hint-banner-right">
               <Lightbulb size={16} color="#f49e0b" />
               <span>
                 <span className="hint-highlight">하이라이트된 단어</span>에 마우스를 대 보세요
               </span>
             </div>
-          )}
         </div>
 
-        {/* 색상 범례 - 파싱 모드일 때만 */}
-        {viewMode === 'parsed' && (
+        {/* 색상 범례 */}
         <div className="color-legend">
           <span className="legend-item">
             <span className="legend-box" style={{backgroundColor: '#dbeafe', color: '#1e40af'}}>1단계</span>
@@ -395,7 +392,6 @@ const handleFileChange = async (e) => {
             <span className="legend-label">적색</span>
           </span>
         </div>
-        )}
 
         {/* 뷰 모드 전환 버튼 */}
         <div className="view-mode-buttons-container">

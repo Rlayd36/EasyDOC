@@ -2,16 +2,33 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
-import { MessageSquarePlus, GripVertical, Trash2, Type, Download } from "lucide-react";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus } from "lucide-react";
 import "./PdfHighlightViewer.css";
 
 // PDF.js 워커 설정 (로컬 번들)
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+/* ── 스티커 목록 (SVG path) ── */
+const STICKERS = [
+  { id: "thumbsup",  label: "👍", emoji: "👍" },
+  { id: "thumbsdown",label: "👎", emoji: "👎" },
+  { id: "star",      label: "⭐", emoji: "⭐" },
+  { id: "heart",     label: "❤️", emoji: "❤️" },
+  { id: "check",     label: "✅", emoji: "✅" },
+  { id: "cross",     label: "❌", emoji: "❌" },
+  { id: "arrow_r",   label: "➡️", emoji: "➡️" },
+  { id: "arrow_d",   label: "⬇️", emoji: "⬇️" },
+  { id: "fire",      label: "🔥", emoji: "🔥" },
+  { id: "question",  label: "❓", emoji: "❓" },
+  { id: "bulb",      label: "💡", emoji: "💡" },
+  { id: "warning",   label: "⚠️", emoji: "⚠️" },
+];
+
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링 + 하이라이트
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage }) {
+  const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
   const [highlights, setHighlights] = useState([]);
@@ -287,6 +304,70 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
     setContextMenu(null);
   }, [contextMenu, pageNum, onAddMemo]);
 
+  // 스티커 서브메뉴 토글
+  const [showStickerSub, setShowStickerSub] = useState(false);
+
+  const handleAddStickerFromMenu = useCallback((stickerId) => {
+    if (!contextMenu) return;
+    onAddSticker?.({
+      id: `stk-${pageNum}-${Date.now()}`,
+      pageNum,
+      x: contextMenu.pdfX,
+      y: contextMenu.pdfY,
+      stickerId,
+      size: 48,
+    });
+    setShowStickerSub(false);
+    setContextMenu(null);
+  }, [contextMenu, pageNum, onAddSticker]);
+
+  // 우클릭 메뉴에서 이미지 업로드
+  const imgPosRef = useRef({ x: 100, y: 100 });
+
+  const handleContextImageUpload = useCallback(() => {
+    if (!contextMenu) return;
+    imgPosRef.current = { x: contextMenu.pdfX, y: contextMenu.pdfY };
+    imgInputRef.current?.click();
+    setContextMenu(null);
+  }, [contextMenu]);
+
+  const handleImageFileChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      // 원본 이미지 크기를 파악한 후 페이지에 맞게 스케일링
+      const img = new Image();
+      img.onload = () => {
+        const maxW = Math.max(pageSize.width * 0.5, 80);
+        const maxH = Math.max(pageSize.height * 0.5, 80);
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > maxW) { h = h * (maxW / w); w = maxW; }
+        if (h > maxH) { w = w * (maxH / h); h = maxH; }
+        w = Math.max(40, Math.round(w));
+        h = Math.max(40, Math.round(h));
+
+        const pos = imgPosRef.current;
+        onAddImage?.({
+          id: `img-${pageNum}-${Date.now()}`,
+          pageNum,
+          x: pos.x,
+          y: pos.y,
+          width: w,
+          height: h,
+          src: reader.result,
+        });
+      };
+      img.onerror = () => {
+        alert("이미지를 읽을 수 없습니다.");
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }, [pageNum, pageSize, onAddImage]);
+
   // 외부 클릭 시 컨텍스트 메뉴 닫기
   useEffect(() => {
     if (!contextMenu) return;
@@ -350,6 +431,35 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         />
       ))}
 
+      {/* 스티커 */}
+      {stickers.map((stk) => (
+        <StickerBox
+          key={stk.id}
+          sticker={stk}
+          onUpdate={onUpdateSticker}
+          onDelete={onDeleteSticker}
+        />
+      ))}
+
+      {/* 사용자 이미지 */}
+      {images.map((img) => (
+        <ImageBox
+          key={img.id}
+          image={img}
+          onUpdate={onUpdateImage}
+          onDelete={onDeleteImage}
+        />
+      ))}
+
+      {/* 숨겨진 file input (우클릭 메뉴용) */}
+      <input
+        ref={imgInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleImageFileChange}
+      />
+
       {/* 우클릭 컨텍스트 메뉴 */}
       {contextMenu && (
         <div
@@ -361,6 +471,28 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
           <button className="pdf-context-menu-item" onMouseDown={(e) => { e.stopPropagation(); handleContextAddMemo(); }}>
             <MessageSquarePlus size={14} />
             메모 추가
+          </button>
+          <button className="pdf-context-menu-item" onMouseDown={(e) => { e.stopPropagation(); setShowStickerSub((v) => !v); }}>
+            <Sticker size={14} />
+            스티커 추가 ▸
+          </button>
+          {showStickerSub && (
+            <div className="pdf-sticker-submenu" onMouseDown={(e) => e.stopPropagation()}>
+              {STICKERS.map((s) => (
+                <button
+                  key={s.id}
+                  className="pdf-sticker-pick"
+                  title={s.label}
+                  onMouseDown={(e) => { e.stopPropagation(); handleAddStickerFromMenu(s.id); }}
+                >
+                  {s.emoji}
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="pdf-context-menu-item" onMouseDown={(e) => { e.stopPropagation(); handleContextImageUpload(); }}>
+            <ImagePlus size={14} />
+            이미지 추가
           </button>
           <div className="pdf-context-menu-divider" />
           <button className="pdf-context-menu-item" onMouseDown={(e) => { e.stopPropagation(); setContextMenu(null); onDownload?.(); }}>
@@ -463,6 +595,276 @@ function MemoBox({ memo, onUpdate, onDelete }) {
 }
 
 /* ─────────────────────────────────────────
+   StickerToolbar: 툴바 내 스티커 선택 드롭다운
+   ───────────────────────────────────────── */
+function StickerToolbar({ onAddSticker }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const raf = requestAnimationFrame(() => {
+      document.addEventListener("mousedown", close);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("mousedown", close);
+    };
+  }, [open]);
+
+  const handlePick = (stickerId) => {
+    // 첫 번째 페이지 wrapper의 중앙에 배치
+    const wrapper = document.querySelector(".pdf-page-wrapper");
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    // 페이지 번호 추출
+    const allWrappers = document.querySelectorAll(".pdf-page-wrapper");
+    let pNum = 1;
+    allWrappers.forEach((w, idx) => { if (w === wrapper) pNum = idx + 1; });
+
+    onAddSticker?.({
+      id: `stk-${pNum}-${Date.now()}`,
+      pageNum: pNum,
+      x: rect.width / 2 - 24,
+      y: rect.height / 3,
+      stickerId,
+      size: 48,
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div className="sticker-toolbar-wrapper" ref={ref}>
+      <button
+        className={`memo-tool-btn ${open ? "active" : ""}`}
+        onClick={() => setOpen(!open)}
+        title="스티커 추가"
+      >
+        <Sticker size={16} />
+        <span>스티커</span>
+      </button>
+      {open && (
+        <div className="sticker-toolbar-dropdown">
+          {STICKERS.map((s) => (
+            <button
+              key={s.id}
+              className="pdf-sticker-pick"
+              title={s.label}
+              onClick={() => handlePick(s.id)}
+            >
+              {s.emoji}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   StickerBox: 드래그 가능 + 리사이즈 스티커
+   ───────────────────────────────────────── */
+function StickerBox({ sticker, onUpdate, onDelete }) {
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  const stickerMeta = STICKERS.find((s) => s.id === sticker.stickerId);
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest(".sticker-delete-btn") || e.target.closest(".sticker-resize")) return;
+    e.preventDefault();
+    const wrapper = e.currentTarget.closest(".pdf-page-wrapper");
+    const wrapperRect = wrapper.getBoundingClientRect();
+    setDragging(true);
+    setOffset({
+      x: e.clientX - wrapperRect.left - sticker.x,
+      y: e.clientY - wrapperRect.top - sticker.y,
+    });
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const handleMouseMove = (e) => {
+      const wrappers = document.querySelectorAll(".pdf-page-wrapper");
+      for (const w of wrappers) {
+        const rect = w.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          onUpdate?.(sticker.id, {
+            x: Math.max(0, e.clientX - rect.left - offset.x),
+            y: Math.max(0, e.clientY - rect.top - offset.y),
+          });
+          break;
+        }
+      }
+    };
+    const handleMouseUp = () => setDragging(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging, sticker.id, offset, onUpdate]);
+
+  // 리사이즈 핸들
+  const [resizing, setResizing] = useState(false);
+  const resizeStart = useRef({ mouseX: 0, initSize: 0 });
+
+  const handleResizeDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(true);
+    resizeStart.current = { mouseX: e.clientX, initSize: sticker.size };
+  };
+
+  useEffect(() => {
+    if (!resizing) return;
+    const handleMouseMove = (e) => {
+      const delta = e.clientX - resizeStart.current.mouseX;
+      const newSize = Math.max(24, Math.min(200, resizeStart.current.initSize + delta));
+      onUpdate?.(sticker.id, { size: newSize });
+    };
+    const handleMouseUp = () => setResizing(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [resizing, sticker.id, onUpdate]);
+
+  return (
+    <div
+      className="pdf-sticker"
+      style={{
+        left: `${sticker.x}px`,
+        top: `${sticker.y}px`,
+        width: `${sticker.size}px`,
+        height: `${sticker.size}px`,
+        fontSize: `${sticker.size * 0.75}px`,
+      }}
+      onMouseDown={handleMouseDown}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="sticker-emoji">{stickerMeta?.emoji || "❓"}</span>
+      <button
+        className="sticker-delete-btn"
+        onClick={() => onDelete?.(sticker.id)}
+        title="스티커 삭제"
+      >
+        <Trash2 size={11} />
+      </button>
+      <div className="sticker-resize" onMouseDown={handleResizeDown} />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   ImageBox: 드래그 + 비율 리사이즈 이미지
+   ───────────────────────────────────────── */
+function ImageBox({ image, onUpdate, onDelete }) {
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest(".img-delete-btn") || e.target.closest(".img-resize")) return;
+    e.preventDefault();
+    const wrapper = e.currentTarget.closest(".pdf-page-wrapper");
+    const wrapperRect = wrapper.getBoundingClientRect();
+    setDragging(true);
+    setOffset({
+      x: e.clientX - wrapperRect.left - image.x,
+      y: e.clientY - wrapperRect.top - image.y,
+    });
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const handleMouseMove = (e) => {
+      const wrappers = document.querySelectorAll(".pdf-page-wrapper");
+      for (const w of wrappers) {
+        const rect = w.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          onUpdate?.(image.id, {
+            x: Math.max(0, e.clientX - rect.left - offset.x),
+            y: Math.max(0, e.clientY - rect.top - offset.y),
+          });
+          break;
+        }
+      }
+    };
+    const handleMouseUp = () => setDragging(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging, image.id, offset, onUpdate]);
+
+  // 우하단 리사이즈 (비율 유지)
+  const [resizing, setResizing] = useState(false);
+  const resizeStart = useRef({ mouseX: 0, initW: 0, initH: 0 });
+
+  const handleResizeDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(true);
+    resizeStart.current = {
+      mouseX: e.clientX,
+      initW: image.width,
+      initH: image.height,
+    };
+  };
+
+  useEffect(() => {
+    if (!resizing) return;
+    const handleMouseMove = (e) => {
+      const dx = e.clientX - resizeStart.current.mouseX;
+      const ratio = resizeStart.current.initW / resizeStart.current.initH;
+      const newW = Math.max(40, resizeStart.current.initW + dx);
+      const newH = Math.max(40, newW / ratio);
+      onUpdate?.(image.id, { width: Math.round(newW), height: Math.round(newH) });
+    };
+    const handleMouseUp = () => setResizing(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [resizing, image.id, onUpdate]);
+
+  return (
+    <div
+      className="pdf-user-image"
+      style={{
+        left: `${image.x}px`,
+        top: `${image.y}px`,
+        width: `${image.width}px`,
+        height: `${image.height}px`,
+      }}
+      onMouseDown={handleMouseDown}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <img src={image.src} alt="user" draggable={false} />
+      <button
+        className="img-delete-btn"
+        onClick={() => onDelete?.(image.id)}
+        title="이미지 삭제"
+      >
+        <Trash2 size={11} />
+      </button>
+      <div className="img-resize" onMouseDown={handleResizeDown} />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
 export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
@@ -491,7 +893,77 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
     setMemos((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  // PDF + 메모 다운로드
+  // 스티커 관련 상태
+  const [stickers, setStickers] = useState([]);   // { id, pageNum, x, y, stickerId, size }
+
+  const handleAddSticker = useCallback((stk) => {
+    setStickers((prev) => [...prev, stk]);
+  }, []);
+
+  const handleUpdateSticker = useCallback((id, updates) => {
+    setStickers((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+  }, []);
+
+  const handleDeleteSticker = useCallback((id) => {
+    setStickers((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  // 이미지 관련 상태
+  const [images, setImages] = useState([]);   // { id, pageNum, x, y, width, height, src }
+  const toolbarImgInputRef = useRef(null);
+
+  const handleAddImage = useCallback((img) => {
+    setImages((prev) => [...prev, img]);
+  }, []);
+
+  const handleUpdateImage = useCallback((id, updates) => {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, ...updates } : img))
+    );
+  }, []);
+
+  const handleDeleteImage = useCallback((id) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
+  const handleToolbarImageUpload = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // 첫 페이지 기준으로 스케일링
+        const wrapper = document.querySelector(".pdf-page-wrapper");
+        const maxW = wrapper ? wrapper.clientWidth * 0.5 : 300;
+        const maxH = wrapper ? wrapper.clientHeight * 0.5 : 400;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > maxW) { h = h * (maxW / w); w = maxW; }
+        if (h > maxH) { w = w * (maxH / h); h = maxH; }
+        w = Math.max(40, Math.round(w));
+        h = Math.max(40, Math.round(h));
+
+        handleAddImage({
+          id: `img-1-${Date.now()}`,
+          pageNum: 1,
+          x: 100,
+          y: 100,
+          width: w,
+          height: h,
+          src: reader.result,
+        });
+      };
+      img.onerror = () => alert("이미지를 읽을 수 없습니다.");
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }, [handleAddImage]);
+
+  // PDF + 메모 + 스티커 + 이미지 다운로드
   const [downloading, setDownloading] = useState(false);
 
   const handleDownloadPdf = useCallback(async () => {
@@ -589,6 +1061,45 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
           });
         }
 
+        // 3) 해당 페이지 스티커 그리기
+        const pageStickers = stickers.filter((s) => s.pageNum === i + 1);
+
+        for (const stk of pageStickers) {
+          const stickerMeta = STICKERS.find((s) => s.id === stk.stickerId);
+          if (!stickerMeta) continue;
+
+          const sx = stk.x * dpr;
+          const sy = stk.y * dpr;
+          const sSize = stk.size * dpr;
+
+          ctx.save();
+          ctx.font = `${sSize * 0.75}px sans-serif`;
+          ctx.textBaseline = "top";
+          ctx.fillText(stickerMeta.emoji, sx + sSize * 0.1, sy + sSize * 0.1);
+          ctx.restore();
+        }
+
+        // 4) 해당 페이지 이미지 그리기
+        const pageImages = images.filter((img) => img.pageNum === i + 1);
+
+        for (const img of pageImages) {
+          await new Promise((resolve) => {
+            const imgEl = new Image();
+            imgEl.onload = () => {
+              ctx.drawImage(
+                imgEl,
+                img.x * dpr,
+                img.y * dpr,
+                img.width * dpr,
+                img.height * dpr
+              );
+              resolve();
+            };
+            imgEl.onerror = resolve;
+            imgEl.src = img.src;
+          });
+        }
+
         // jsPDF 페이지 추가
         const orientation = cw > ch ? "l" : "p";
         const pxToMm = (px) => (px * 25.4) / 96 / dpr;
@@ -614,7 +1125,7 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
     } finally {
       setDownloading(false);
     }
-  }, [pdfDoc, numPages, memos, downloading]);
+  }, [pdfDoc, numPages, memos, stickers, images, downloading]);
 
   // 컨테이너 너비 자동 추적 (리사이즈 대응)
   useEffect(() => {
@@ -696,6 +1207,30 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
           <span className="memo-count">{memos.length}개</span>
         )}
 
+        <StickerToolbar onAddSticker={handleAddSticker} />
+        {stickers.length > 0 && (
+          <span className="memo-count">🌟 {stickers.length}</span>
+        )}
+
+        <button
+          className="memo-tool-btn"
+          onClick={() => toolbarImgInputRef.current?.click()}
+          title="이미지 추가"
+        >
+          <ImagePlus size={16} />
+          <span>이미지</span>
+        </button>
+        <input
+          ref={toolbarImgInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleToolbarImageUpload}
+        />
+        {images.length > 0 && (
+          <span className="memo-count">🖼️ {images.length}</span>
+        )}
+
         <button
           className="memo-tool-btn download-btn"
           onClick={handleDownloadPdf}
@@ -723,6 +1258,14 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
               onUpdateMemo={handleUpdateMemo}
               onDeleteMemo={handleDeleteMemo}
               onDownload={handleDownloadPdf}
+              stickers={stickers.filter((s) => s.pageNum === pageNum)}
+              onAddSticker={handleAddSticker}
+              onUpdateSticker={handleUpdateSticker}
+              onDeleteSticker={handleDeleteSticker}
+              images={images.filter((img) => img.pageNum === pageNum)}
+              onAddImage={handleAddImage}
+              onUpdateImage={handleUpdateImage}
+              onDeleteImage={handleDeleteImage}
             />
           );
         })}

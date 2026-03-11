@@ -122,7 +122,7 @@ export default function Upload({onNavigateToMyPage}) {
           console.log("10. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
           try {
             const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
-              words: needExplanation.map(w => ({ word: w.word }))
+              words: needExplanation.map(w => ({ word: w.word, level: w.level }))
             });
             // 설명을 단어 목록에 병합
             const explanationMap = new Map();
@@ -135,6 +135,14 @@ export default function Upload({onNavigateToMyPage}) {
               }
             });
             console.log("11. Gemini 설명 생성 완료!");
+            // 토큰 사용량 로그
+            if (explainResponse.data.token_usage) {
+              const t = explainResponse.data.token_usage;
+              console.log(
+                `%c[Gemini 토큰 사용량] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | API 호출: ${t.chunks}회`,
+                "color: #4CAF50; font-weight: bold; font-size: 12px;"
+              );
+            }
           } catch (explainErr) {
             console.error("Gemini 설명 생성 오류:", explainErr);
           }
