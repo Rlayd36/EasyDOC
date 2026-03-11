@@ -4,11 +4,12 @@ import boto3
 import os
 import sys
 from urllib.parse import unquote
+from pydantic import BaseModel 
 from ocr_logic import EasyDocOCR
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-# 현재 파일의 상위 폴더(EasyDOC)를 경로를 추가하여 database 폴더에 접근 가능하게 함
+# DB 접근을 위한 경로 설정 및 모듈 임포트
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
@@ -111,6 +112,9 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
 # 프론트엔드 목록 및 상세 조회 API
 # ==========================================================
 
+class DifficultWordsUpdate(BaseModel):
+    difficult_words: list
+
 # 전체 문서 목록 조회 (최근 문서 목록 사이드바)
 @app.get("/api/documents")
 def get_document_list(db: Session = Depends(get_db)):
@@ -133,8 +137,22 @@ def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
     return {
         "id": doc.id,
         "file_name": doc.file_name,
-        "text": doc.extracted_text
+        "text": doc.extracted_text,
+        "difficult_words": doc.difficult_words or [] 
     }
+
+# 문서 분석 완료 후 어려운 단어를 DB에 저장
+@app.put("/api/documents/{doc_id}/words")
+def update_difficult_words(doc_id: int, data: DifficultWordsUpdate, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
+    doc.difficult_words = data.difficult_words
+    db.commit()
+
+    return {"message": "어려운 단어 업데이트 성공"}
 
 if __name__ == "__main__":
     import uvicorn

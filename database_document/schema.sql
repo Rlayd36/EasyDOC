@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS docsinfos (
     file_type VARCHAR(50),							-- 확장자 (예: pdf, png)
     s3_url VARCHAR(1000),							-- S3에 저장된 경로
     extracted_text LONGTEXT,						-- 추출된 아주 긴 텍스트
+    difficult_words JSON,                           -- 어려운 단어 목록 (JSON 형식)        
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP	-- 업로드된 시간 (자동 기록)
 );

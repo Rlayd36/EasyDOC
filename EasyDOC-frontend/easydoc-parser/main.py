@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
 import olefile
@@ -7,11 +7,23 @@ import google.generativeai as genai
 import io
 import boto3
 import os
+import sys
+from urllib.parse import unquote
 from dotenv import load_dotenv
 import pandas as pd
 from konlpy.tag import Okt
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sqlalchemy.orm import Session
+
+# DB 접근을 위한 경로 설정 및 모듈 임포트
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+root_dir = os.path.dirname(parent_dir)
+sys.path.append(parent_dir)
+sys.path.append(root_dir)
+
+from database_document.database import get_db, Document
 
 load_dotenv()
 
@@ -152,19 +164,24 @@ async def parse_hwp(file: UploadFile = File(...)):
         "text": text.strip()
     }
 
-
+#S3 문서 파싱 및 데이터베이스 저장 API
 @app.get("/parse/s3/{file_key:path}")
-async def parse_from_s3(file_key: str):
+async def parse_from_s3(file_key: str, db: Session = Depends(get_db)): # db 파라미터 추가
     """S3에서 파일 가져와서 파싱"""
-    print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
-    print(f"[DEBUG] 버킷: {BUCKET_NAME}")
+
+    # URL 인코딩된 파일명(예: %ED%95...)을 원래 한글 파일명으로 디코딩
+    decoded_file_key = unquote(file_key)
+
+    print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {decoded_file_key}")
+    #print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
+    #print(f"[DEBUG] 버킷: {BUCKET_NAME}")
     try:
         # S3에서 파일 다운로드
         print(f"[DEBUG] S3 GetObject 시도 중...")
-        response = s3.get_object(Bucket=BUCKET_NAME, Key=file_key)
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=decoded_file_key)
         print(f"[DEBUG] S3에서 파일 다운로드 성공!")
         contents = response["Body"].read()
-        filename = file_key.split("/")[-1]
+        filename = decoded_file_key.split("/")[-1]
         ext = filename.split(".")[-1].lower()
         
         # 확장자에 따라 파싱
@@ -175,7 +192,7 @@ async def parse_from_s3(file_key: str):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
-            return {"filename": filename, "text": text}
+            #return {"filename": filename, "text": text}
         
         elif ext == "hwp":
             ole = olefile.OleFileIO(io.BytesIO(contents))
@@ -185,11 +202,35 @@ async def parse_from_s3(file_key: str):
             else:
                 text = "텍스트를 추출할 수 없습니다."
             ole.close()
-            return {"filename": filename, "text": text.strip()}
+            text = text.strip()
+            #return {"filename": filename, "text": text.strip()}
         
         else:
             return {"error": "지원하지 않는 파일 형식입니다."}
-    
+        
+        # DB 저장 로직
+        AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
+        s3_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{file_key}"
+
+        new_doc = Document(
+            file_name = filename,
+            file_type = ext,
+            s3_url = s3_url,
+            extracted_text=text
+        )
+
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc) # 생성된 고유 id 가져오기
+        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id})")
+
+        # 프론트엔드(Viewer.jsx)가 요구하는 형태로 반환
+        return {
+            "id": new_doc.id,
+            "filename": filename,
+            "text": text
+        }
+
     except Exception as e:
         return {"error": str(e)}
 

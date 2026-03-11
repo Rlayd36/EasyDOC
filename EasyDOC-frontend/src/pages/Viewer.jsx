@@ -147,8 +147,11 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
             setParsedText(docData.text || "");
             setOcrText("");
 
+            // DB에 저장된 difficultWords(어려운 단어 데이터) 호출
+            setDifficultWords(docData.difficult_words || []);
+
             // 추후 DB에 저장된 difficultWords(어려운 단어 데이터)가 있다면 호출
-            setDifficultWords([]); // 현재는 빈 배열로 초기화 (이전 문서의 하이라이트 제거)
+            //setDifficultWords([]); // 현재는 빈 배열로 초기화 (이전 문서의 하이라이트 제거)
 
         } catch (error) {
             console.error("문서 상세 로딩 실패:", error);
@@ -157,6 +160,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
             setIsLoading(false);
         }
     };
+    
     // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
     const [viewMode, setViewMode] = useState("parsed");
 
@@ -188,7 +192,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     };
     
 // 난이도 분석 함수
-const analyzeText = async (text) => {
+const analyzeText = async (text, docId = null) => {
   try {
     console.log("난이도 분석 요청 중...");
     const response = await axios.post("http://localhost:8000/analyze", {
@@ -227,6 +231,19 @@ const analyzeText = async (text) => {
     }
 
     setDifficultWords(difficultWords);
+
+    // DB에 분석된 하이라이트 단어들 전송 및 저장
+    if (docId) {
+      try {
+        await axios.put(`http://localhost:8001/api/documents/${docId}/words`, {
+          difficult_words: difficultWords
+        });
+        console.log("DB에 하이라이트 단어 저장 완료!")
+      } catch (dbErr) {
+        console.error("DB 하이라이트 단어 저장 오류:", dbErr);
+      }
+    }
+
   } catch (error) {
     console.error("난이도 분석 오류:", error);
   }
@@ -313,7 +330,8 @@ const handleFileChange = async (e) => {
       resultData = parseResponse.data;
 
       // 난이도 분석 추가
-      await analyzeText(extractedText);
+      await analyzeText(extractedText, resultData.id);
+      //await analyzeText(extractedText);
       setOcrText("");  // OCR 결과는 비움
     }
 

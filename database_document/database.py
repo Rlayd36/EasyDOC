@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, TIMESTAMP
+from sqlalchemy import create_engine, Column, Integer, String, Text, TIMESTAMP, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.dialects.mysql import LONGTEXT
 from datetime import datetime
@@ -32,6 +32,7 @@ class Document(Base):
     file_type = Column(String(50))
     s3_url = Column(String(1000))
     extracted_text = Column(LONGTEXT)
+    difficult_words = Column(JSON)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
 
 # DB 연결 세션을 가져오는 함수 (FastAPI에서 사용)
