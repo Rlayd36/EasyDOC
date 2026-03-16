@@ -156,41 +156,12 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
 const analyzeText = async (text) => {
   try {
     console.log("난이도 분석 요청 중...");
-    const response = await axios.post("http://localhost:8000/analyze", {
-      text: text,
-      min_level: 3  // 3단계 이상만
+    const response = await axios.post("http://localhost:8000/analyze-with-gemini", {
+      text: text
     });
     console.log("난이도 분석 완료:", response.data);
     
     const difficultWords = response.data.difficult_words || [];
-
-    // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
-    const needExplanation = difficultWords.filter(
-      w => w.source === "model" || !w.easy_expression
-    );
-
-    if (needExplanation.length > 0) {
-      console.log("Gemini 설명 생성 요청 중...", needExplanation.length, "개");
-      try {
-        const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
-          words: needExplanation.map(w => ({ word: w.word }))
-        });
-        // 설명을 단어 목록에 병합
-        const explanationMap = new Map();
-        (explainResponse.data.results || []).forEach(r => {
-          explanationMap.set(r.word, r.explanation);
-        });
-        difficultWords.forEach(w => {
-          if (explanationMap.has(w.word)) {
-            w.easy_expression = explanationMap.get(w.word);
-          }
-        });
-        console.log("Gemini 설명 생성 완료!");
-      } catch (explainErr) {
-        console.error("Gemini 설명 생성 오류:", explainErr);
-      }
-    }
-
     setDifficultWords(difficultWords);
   } catch (error) {
     console.error("난이도 분석 오류:", error);
