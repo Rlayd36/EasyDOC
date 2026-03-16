@@ -346,8 +346,7 @@ const handleFileChange = async (e) => {
           )}
         </div>
 
-        {/* 색상 범례 - 파싱 모드일 때만 */}
-        {viewMode === 'parsed' && (
+        {/* 색상 범례 - 항상 표시 */}
         <div className="color-legend">
           <span className="legend-item">
             <span className="legend-box" style={{backgroundColor: '#dbeafe', color: '#1e40af'}}>1단계</span>
@@ -366,7 +365,6 @@ const handleFileChange = async (e) => {
             <span className="legend-label">적색</span>
           </span>
         </div>
-        )}
 
         {/* 뷰 모드 전환 버튼 */}
         <div className="view-mode-buttons-container">

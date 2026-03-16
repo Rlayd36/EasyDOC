@@ -287,3 +287,194 @@
   background: #e5e7eb;
   margin: 4px 0;
 }
+
+/* ===============================
+   ?ㅽ떚而??쒕툕硫붾돱 / ?쇱빱 (而⑦뀓?ㅽ듃 硫붾돱 ??
+   =============================== */
+.pdf-sticker-submenu {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 6px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pdf-sticker-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+}
+
+.pdf-sticker-pick:hover {
+  background: #f3f4f6;
+  transform: scale(1.2);
+}
+
+/* ===============================
+   StickerToolbar ?쒕∼?ㅼ슫
+   =============================== */
+.sticker-toolbar-wrapper {
+  position: relative;
+}
+
+.sticker-toolbar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  animation: ctx-fade-in 0.12s ease-out;
+  margin-top: 4px;
+}
+
+/* ===============================
+   ?ㅽ떚而?諛뺤뒪 (?섏씠吏 ??
+   =============================== */
+.pdf-sticker {
+  position: absolute;
+  z-index: 10;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: filter 0.15s;
+}
+
+.pdf-sticker:hover {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+}
+
+.pdf-sticker:active {
+  cursor: grabbing;
+}
+
+.sticker-emoji {
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sticker-delete-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pdf-sticker:hover .sticker-delete-btn {
+  opacity: 1;
+}
+
+.sticker-resize {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #9ca3af;
+  border-bottom: 2px solid #9ca3af;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pdf-sticker:hover .sticker-resize {
+  opacity: 1;
+}
+
+/* ===============================
+   ?ъ슜???대?吏 諛뺤뒪
+   =============================== */
+.pdf-user-image {
+  position: absolute;
+  z-index: 10;
+  cursor: grab;
+  user-select: none;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.pdf-user-image:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.pdf-user-image:active {
+  cursor: grabbing;
+}
+
+.pdf-user-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+.img-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+
+.pdf-user-image:hover .img-delete-btn {
+  opacity: 1;
+}
+
+.img-resize {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid #3b82f6;
+  border-bottom: 2px solid #3b82f6;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pdf-user-image:hover .img-resize {
+  opacity: 1;
+}
