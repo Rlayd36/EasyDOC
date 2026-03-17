@@ -8,8 +8,10 @@ import zlib
 import google.generativeai as genai
 import io
 import re
+import json
 import boto3
 import os
+import urllib.request
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -465,3 +467,169 @@ async def chat(req: ChatRequest):
     except Exception as e:
         print(f"[Chat 오류] {e}")
         return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona, "token_usage": None}
+
+
+# ============================================================
+# PDF 표 셀 좌표 추출
+# ============================================================
+
+class TableCellsRequest(BaseModel):
+    url: str
+
+
+def _extract_table_cells(pdf_bytes: bytes) -> dict:
+    """pdfplumber로 표 셀 좌표 추출 (공통 로직)"""
+    pages_data = []
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page_idx, page in enumerate(pdf.pages):
+            page_info = {
+                "page": page_idx + 1,
+                "page_width": float(page.width),
+                "page_height": float(page.height),
+                "cells": [],
+            }
+            tables = page.find_tables()
+            for t_idx, table in enumerate(tables):
+                try:
+                    text_grid = table.extract() or []
+                    cell_bboxes = table.cells
+                    flat_texts = [
+                        (text or "").strip()
+                        for row in text_grid
+                        for text in row
+                    ]
+                    for i, bbox in enumerate(cell_bboxes):
+                        text = flat_texts[i] if i < len(flat_texts) else ""
+                        n_cols = len(text_grid[0]) if text_grid else 1
+                        row_idx = i // n_cols
+                        col_idx = i % n_cols
+                        x0, top, x1, bottom = (float(v) for v in bbox)
+                        page_info["cells"].append({
+                            "id": f"p{page_idx+1}-t{t_idx}-c{i}",
+                            "table_idx": t_idx,
+                            "row": row_idx,
+                            "col": col_idx,
+                            "x0": x0,
+                            "top": top,
+                            "x1": x1,
+                            "bottom": bottom,
+                            "text": text,
+                            "is_empty": not bool(text),
+                        })
+                except Exception as e:
+                    print(f"[테이블 파싱 오류] 페이지 {page_idx+1}, 테이블 {t_idx}: {e}")
+            pages_data.append(page_info)
+    return pages_data
+
+
+@app.post("/parse/table-cells")
+async def parse_table_cells(req: TableCellsRequest):
+    """PDF URL에서 표 셀 좌표 추출"""
+    try:
+        with urllib.request.urlopen(req.url, timeout=30) as resp:
+            pdf_bytes = resp.read()
+    except Exception as e:
+        return {"error": f"PDF 다운로드 실패: {str(e)}", "pages": []}
+
+    try:
+        pages_data = _extract_table_cells(pdf_bytes)
+    except Exception as e:
+        return {"error": f"PDF 파싱 실패: {str(e)}", "pages": []}
+
+    print(f"[parse/table-cells] {len(pages_data)}페이지, "
+          f"전체 셀 수={sum(len(p['cells']) for p in pages_data)}")
+    return {"pages": pages_data}
+
+
+@app.post("/parse/table-cells-file")
+async def parse_table_cells_file(file: UploadFile = File(...)):
+    """PDF 파일 직접 업로드로 표 셀 좌표 추출 (blob URL 등 로컬 파일 지원)"""
+    try:
+        pdf_bytes = await file.read()
+        pages_data = _extract_table_cells(pdf_bytes)
+    except Exception as e:
+        return {"error": f"PDF 파싱 실패: {str(e)}", "pages": []}
+
+    print(f"[parse/table-cells-file] {len(pages_data)}페이지, "
+          f"전체 셀 수={sum(len(p['cells']) for p in pages_data)}")
+    return {"pages": pages_data}
+
+
+# ============================================================
+# AI 자동 양식 채우기
+# ============================================================
+
+class FillCellsRequest(BaseModel):
+    cells: list
+    document_context: Optional[str] = ""
+    persona: str = "default"
+
+
+@app.post("/chat/fill-cells")
+async def fill_cells(req: FillCellsRequest):
+    """AI가 빈 표 셀 내용을 자동으로 제안"""
+    if gemini_model is None:
+        return {"error": "AI 서비스 비활성화", "suggestions": []}
+
+    filled = [c for c in req.cells if not c.get("is_empty", True) and c.get("text")]
+    empty  = [c for c in req.cells if c.get("is_empty", True) or not c.get("text")]
+
+    if not empty:
+        return {"suggestions": [], "message": "채울 빈 셀이 없습니다."}
+
+    filled_summary = "\n".join(
+        f"  - 행{c['row']+1}/열{c['col']+1}: {c['text']}"
+        for c in filled[:30]
+    )
+    empty_summary = "\n".join(
+        f"  - ID={c['id']}, 행{c['row']+1}/열{c['col']+1}"
+        for c in empty[:40]
+    )
+
+    prompt = f"""당신은 행정 문서 양식 작성 전문가입니다.
+아래 문서와 표의 기존 내용을 참고하여, 비어 있는 셀에 들어갈 적절한 내용을 제안해 주세요.
+
+## 문서 내용 (참고):
+{(req.document_context or '')[:3000]}
+
+## 이미 채워진 셀:
+{filled_summary or '(없음)'}
+
+## 비어 있는 셀 (채워야 할 항목):
+{empty_summary}
+
+## 지시사항:
+- 문서 내용과 채워진 셀을 참고하여 빈 셀에 적합한 내용을 제안하세요.
+- 확실하지 않은 셀은 빈 문자열("")로 반환하세요.
+- 반드시 아래 JSON 형식으로만 응답하세요.
+
+[FILL_CELLS]
+{{
+  "suggestions": [
+    {{"cell_id": "셀ID", "value": "제안값"}},
+    ...
+  ],
+  "message": "채우기 완료 요약 메시지"
+}}
+[/FILL_CELLS]"""
+
+    try:
+        fill_model = genai.GenerativeModel('gemini-3-flash-preview')
+        response = fill_model.generate_content(prompt)
+        reply = response.text.strip()
+
+        match = re.search(r'\[FILL_CELLS\](.*?)\[/FILL_CELLS\]', reply, re.DOTALL)
+        if match:
+            data = json.loads(match.group(1).strip())
+            # 빈 value 제거
+            data["suggestions"] = [
+                s for s in data.get("suggestions", []) if s.get("value")
+            ]
+            print(f"[fill-cells] 제안 {len(data['suggestions'])}개")
+            return data
+        else:
+            print(f"[fill-cells] JSON 파싱 실패. 응답: {reply[:200]}")
+            return {"suggestions": [], "message": "AI 응답 파싱에 실패했습니다."}
+    except Exception as e:
+        print(f"[fill-cells 오류] {e}")
+        return {"error": str(e), "suggestions": []}

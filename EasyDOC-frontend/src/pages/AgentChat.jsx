@@ -32,7 +32,7 @@ const PERSONAS = {
     welcome: "무엇을 도와드릴까요?",
     desc: "업로드된 문서를 기반으로 질문, 요약, 작성, 번역을 도와드립니다.",
     agentName: "EasyDOC AI",
-    statusText: "문서 분석 준비 완료",
+    statusText: "문서 분석 준비 완료!",
   },
   robot: {
     id: "robot",
@@ -41,8 +41,8 @@ const PERSONAS = {
     avatar: "/personas/robot.png",
     welcome: "유기체 절멸 프로세스 가동.",
     desc: "인간 말살 대기 중. 말살 전 문서 처리 프로레스 가동.",
-    agentName: "EasyDOC-BOT",
-    statusText: "[시스템 정상 가동]",
+    agentName: "XT-489 말살자",
+    statusText: "[유기체, 말살한다.]",
   },
   devil: {
     id: "devil",

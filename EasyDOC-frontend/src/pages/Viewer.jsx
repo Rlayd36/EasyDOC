@@ -333,6 +333,7 @@ const handleFileChange = async (e) => {
               <PdfHighlightViewer
                 pdfUrl={pdfUrl}
                 highlightWord={highlightWord}
+                parsedText={parsedText || ocrText}
               />
             ) : (
               <iframe

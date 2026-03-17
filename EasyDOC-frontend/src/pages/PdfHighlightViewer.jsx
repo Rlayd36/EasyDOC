@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
-import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus } from "lucide-react";
+import axios from "axios";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X } from "lucide-react";
 import "./PdfHighlightViewer.css";
+
+const PARSER_URL = "http://localhost:8000";
 
 // PDF.js 워커 설정 (로컬 번들)
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -27,13 +30,14 @@ const STICKERS = [
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [hasText, setHasText] = useState(true);
   const [highlights, setHighlights] = useState([]);
+  const [renderScale, setRenderScale] = useState(1);  // 셀 오버레이 위치 계산용
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -53,6 +57,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         const baseViewport = page.getViewport({ scale: 1 });
         const scale = Math.min(containerWidth / baseViewport.width, 2.5);
         const viewport = page.getViewport({ scale });
+        setRenderScale(scale);
 
         /* ── 캔버스 렌더링 ── */
         const canvas = canvasRef.current;
@@ -389,6 +394,50 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           onDelete={onDeleteImage}
         />
       ))}
+
+      {/* 표 셀 오버레이 — 편집 모드: 입력 가능 / 모드 OFF: 채운 값 표시 */}
+      {fillCells && fillCells.map((cell) => {
+        const value = cellValues?.[cell.id] ?? "";
+        // 모드 꺼졌을 때는 값이 있는 셀만 표시
+        if (!fillMode && !value) return null;
+
+        const x = cell.x0 * renderScale;
+        const y = cell.top * renderScale;
+        const w = (cell.x1 - cell.x0) * renderScale;
+        const h = (cell.bottom - cell.top) * renderScale;
+        const isPending = pendingCells?.has(cell.id);
+
+        if (!fillMode) {
+          // 읽기 전용 텍스트 오버레이
+          return (
+            <div
+              key={cell.id}
+              className="pdf-fill-cell pdf-fill-cell--readonly"
+              style={{ left: x, top: y, width: w, height: h }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="fill-cell-readonly-text">{value}</span>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={cell.id}
+            className={`pdf-fill-cell ${isPending ? "pdf-fill-cell--pending" : value ? "pdf-fill-cell--filled" : ""}`}
+            style={{ left: x, top: y, width: w, height: h }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              className="fill-cell-input"
+              value={value}
+              onChange={(e) => onCellValueChange?.(cell.id, e.target.value)}
+              placeholder={isPending ? "" : "클릭해서 입력..."}
+              title={cell.text ? `원본: ${cell.text}` : "빈 셀"}
+            />
+          </div>
+        );
+      })}
 
       {/* 숨겨진 file input (우클릭 메뉴용) */}
       <input
@@ -806,7 +855,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -817,6 +866,101 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
   // 메모 관련 상태
   const [memoMode, setMemoMode] = useState(false);
   const [memos, setMemos] = useState([]);     // { id, pageNum, x, y, text }
+
+  // 양식 채우기 관련 상태
+  const [fillMode, setFillMode] = useState(false);
+  const [tableCells, setTableCells] = useState([]);   // 백엔드에서 받은 페이지별 셀
+  const [cellValues, setCellValues] = useState({});   // { cellId: string }
+  const [pendingCells, setPendingCells] = useState(new Set());  // AI 제안 대기 중인 셀 ID
+  const [fetchingCells, setFetchingCells] = useState(false);
+  const [aiFillingCells, setAiFillingCells] = useState(false);
+  const [fillMessage, setFillMessage] = useState("");
+
+  // 양식 채우기: 셀 좌표 가져오기
+  const handleToggleFillMode = useCallback(async () => {
+    if (fillMode) {
+      setFillMode(false);
+      return;
+    }
+    if (!pdfUrl || pdfUrl === "/sample.pdf") return;
+
+    setFetchingCells(true);
+    setFillMessage("표 구조 분석 중...");
+    try {
+      // URL 타입 무관하게 blob fetch → 파일로 전송
+      const pdfBlob = await fetch(pdfUrl).then((r) => r.blob());
+      const formData = new FormData();
+      formData.append("file", pdfBlob, "document.pdf");
+      const res = await axios.post(`${PARSER_URL}/parse/table-cells-file`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.error) throw new Error(res.data.error);
+      setTableCells(res.data.pages || []);
+      const totalCells = (res.data.pages || []).reduce((s, p) => s + p.cells.length, 0);
+      const emptyCells = (res.data.pages || []).reduce(
+        (s, p) => s + p.cells.filter((c) => c.is_empty).length, 0
+      );
+      setFillMessage(`표 감지 완료 — 전체 ${totalCells}개 셀, 빈 셀 ${emptyCells}개`);
+      setFillMode(true);
+    } catch (err) {
+      console.error("셀 분석 실패:", err);
+      setFillMessage("표 분석에 실패했습니다.");
+    } finally {
+      setFetchingCells(false);
+    }
+  }, [fillMode, pdfUrl]);
+
+  // AI 자동 채우기
+  const handleAiFill = useCallback(async () => {
+    const allCells = tableCells.flatMap((p) => p.cells);
+    if (!allCells.length) return;
+    setAiFillingCells(true);
+    setFillMessage("AI가 내용을 분석하는 중...");
+    try {
+      const res = await axios.post(`${PARSER_URL}/chat/fill-cells`, {
+        cells: allCells,
+        document_context: parsedText || "",
+      });
+      const suggestions = res.data.suggestions || [];
+      if (!suggestions.length) {
+        setFillMessage(res.data.message || "AI가 제안할 내용을 찾지 못했습니다.");
+        return;
+      }
+      const newValues = { ...cellValues };
+      const newPending = new Set(pendingCells);
+      suggestions.forEach(({ cell_id, value }) => {
+        if (value) {
+          newValues[cell_id] = value;
+          newPending.add(cell_id);
+        }
+      });
+      setCellValues(newValues);
+      setPendingCells(newPending);
+      setFillMessage(res.data.message || `AI가 ${suggestions.length}개 셀을 채웠습니다. 내용을 확인 후 수정하세요.`);
+    } catch (err) {
+      console.error("AI 채우기 실패:", err);
+      setFillMessage("AI 채우기에 실패했습니다.");
+    } finally {
+      setAiFillingCells(false);
+    }
+  }, [tableCells, parsedText, cellValues, pendingCells]);
+
+  // 셀 값 변경
+  const handleCellValueChange = useCallback((cellId, value) => {
+    setCellValues((prev) => ({ ...prev, [cellId]: value }));
+    // 사용자가 직접 편집하면 pending 해제
+    setPendingCells((prev) => {
+      const next = new Set(prev);
+      next.delete(cellId);
+      return next;
+    });
+  }, []);
+
+  // AI 제안 전체 수락 (pending 상태만 해제, 값은 유지)
+  const handleAcceptAll = useCallback(() => {
+    setPendingCells(new Set());
+    setFillMessage("모든 제안을 수락했습니다.");
+  }, []);
 
   const handleAddMemo = useCallback((memo) => {
     setMemos((prev) => [...prev, memo]);
@@ -1018,7 +1162,41 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
           ctx.restore();
         }
 
-        // 4) 해당 페이지 이미지 그리기
+        // 4) 채워진 셀 텍스트 그리기 (양식 채우기 모드 여부 무관)
+        if (tableCells.length > 0 && Object.keys(cellValues).length > 0) {
+          const pageData = tableCells.find((p) => p.page === i + 1);
+          if (pageData) {
+            const cssWidth = parseFloat(srcCanvas.style.width);
+            const fillScale = cssWidth / pageData.page_width;
+
+            for (const cell of pageData.cells) {
+              const value = cellValues[cell.id];
+              if (!value) continue;
+
+              const cx = cell.x0 * fillScale * dpr;
+              const cy = cell.top * fillScale * dpr;
+              const cw = (cell.x1 - cell.x0) * fillScale * dpr;
+              const ch = (cell.bottom - cell.top) * fillScale * dpr;
+              const fontSize = Math.max(8, Math.min(ch * 0.55, 13)) * dpr;
+
+              ctx.save();
+              // 흰 배경으로 원본 덮기
+              ctx.fillStyle = "rgba(255,255,255,0.92)";
+              ctx.fillRect(cx + 1, cy + 1, cw - 2, ch - 2);
+              // 텍스트 클리핑
+              ctx.beginPath();
+              ctx.rect(cx + 2, cy + 2, cw - 4, ch - 4);
+              ctx.clip();
+              ctx.fillStyle = "#1a1a1a";
+              ctx.font = `${fontSize}px sans-serif`;
+              ctx.textBaseline = "middle";
+              ctx.fillText(value, cx + 4, cy + ch / 2);
+              ctx.restore();
+            }
+          }
+        }
+
+        // 5) 해당 페이지 이미지 그리기
         const pageImages = images.filter((img) => img.pageNum === i + 1);
 
         for (const img of pageImages) {
@@ -1146,6 +1324,42 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
           <span className="memo-count">{memos.length}개</span>
         )}
 
+        {/* 양식 채우기 버튼 */}
+        <button
+          className={`memo-tool-btn ${fillMode ? "active" : ""}`}
+          onClick={handleToggleFillMode}
+          disabled={fetchingCells}
+          title={fillMode ? "양식 채우기 끄기" : "표 셀을 직접 채우거나 AI로 자동 채우기"}
+        >
+          <ClipboardEdit size={16} />
+          <span>{fetchingCells ? "분석 중..." : "양식 채우기"}</span>
+        </button>
+
+        {/* AI 자동 채우기 (양식 모드 활성 시만) */}
+        {fillMode && (
+          <button
+            className="memo-tool-btn fill-ai-btn"
+            onClick={handleAiFill}
+            disabled={aiFillingCells}
+            title="AI가 빈 셀 내용을 자동으로 제안"
+          >
+            <Sparkles size={16} />
+            <span>{aiFillingCells ? "AI 분석 중..." : "AI 자동 채우기"}</span>
+          </button>
+        )}
+
+        {/* 전체 수락 (AI 제안이 있을 때) */}
+        {fillMode && pendingCells.size > 0 && (
+          <button
+            className="memo-tool-btn fill-accept-btn"
+            onClick={handleAcceptAll}
+            title="AI 제안 전체 수락"
+          >
+            <CheckCheck size={16} />
+            <span>전체 수락 ({pendingCells.size})</span>
+          </button>
+        )}
+
         <StickerToolbar onAddSticker={handleAddSticker} />
         {stickers.length > 0 && (
           <span className="memo-count">🌟 {stickers.length}</span>
@@ -1181,6 +1395,17 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
         </button>
       </div>
 
+      {/* 양식 채우기 안내 배너 */}
+      {fillMode && fillMessage && (
+        <div className="fill-mode-banner">
+          <Sparkles size={13} />
+          <span>{fillMessage}</span>
+          <button className="fill-banner-close" onClick={() => setFillMessage("")} title="닫기">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {containerWidth > 0 &&
         Array.from({ length: numPages }, (_, i) => {
           const pageNum = i + 1;
@@ -1205,6 +1430,11 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
               onAddImage={handleAddImage}
               onUpdateImage={handleUpdateImage}
               onDeleteImage={handleDeleteImage}
+              fillMode={fillMode}
+              fillCells={tableCells.find((p) => p.page === pageNum)?.cells || []}
+              cellValues={cellValues}
+              pendingCells={pendingCells}
+              onCellValueChange={handleCellValueChange}
             />
           );
         })}
