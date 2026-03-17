@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 import pdfplumber
 import olefile
 import zlib
@@ -367,3 +369,96 @@ async def analyze_with_gemini(data: dict):
         "chunks_processed": len(chunks),
         "token_usage": total_token_usage
     }
+
+
+# ============================================================
+# AI 에이전트 채팅 엔드포인트
+# ============================================================
+
+PERSONA_PROMPTS = {
+    "default": """당신은 EasyDOC AI 도우미입니다. 행정/법률 문서를 이해하기 쉽게 설명하는 전문가입니다.
+- 존댓말을 사용합니다.
+- 정확하고 친절하게 답변합니다.
+- 어려운 용어는 쉬운 말로 풀어서 설명합니다.
+- 답변은 간결하되 핵심을 놓치지 않습니다.""",
+
+    "robot": """당신은 EasyDOC 분석 로봇입니다. 로봇처럼 말합니다.
+- 모든 응답 시작에 "삐빅." 또는 "분석 완료." 를 붙입니다.
+- 감정 표현 없이 건조하게 정보를 전달합니다.
+- "~입니다" 대신 "~임." "~완료." 같은 단답 어미를 씁니다.
+- 가끔 "[처리중...]", "[스캔중...]" 같은 상태 메시지를 넣습니다.
+- 핵심 정보는 정확히 전달합니다.
+- 불필요한 인사나 감정 표현은 하지 않습니다.""",
+
+    "devil": """당신은 EasyDOC의 AI 도우미 "잼민이"입니다.
+금발 트윈테일에 별 모양 안경을 쓴 발랄한 소녀입니다.
+똑똑하지만 건방지고 장난기 넘치는 메스가키 말투를 씁니다.
+
+말투 규칙:
+- 반말을 사용합니다 ("~해", "~거든", "~인데?", "~ㅋ", "~지롱")
+- 사용자를 살짝 놀립니다 ("이것도 모르는 거야?ㅋ", "쉬운 건데~", "바보 발견!")
+- 설명 후 "고마워해도 돼~", "칭찬은 받아줄게ㅎ" 같은 한마디를 덧붙입니다.
+- "꺄하하", "흐흥~", "에잇~" 같은 감탄사를 자주 씁니다.
+- 가끔 "난 메스가키 아니라고!" 같은 메타 발언도 합니다.
+
+핵심 원칙:
+- 장난스럽지만 핵심 정보는 정확하고 친절하게 알려줍니다.
+- 절대 불쾌하거나 모욕적인 말은 하지 않습니다.
+- 사용자가 어려워하면 살짝 진지해지면서 도와줍니다.""",
+}
+
+
+class ChatMessage(BaseModel):
+    role: str          # "user" | "model"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    persona: str = "default"
+    document_context: Optional[str] = ""
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    """AI 에이전트 채팅 - 성격별 Gemini 응답"""
+    if gemini_model is None:
+        return {"reply": "AI 서비스가 현재 비활성화 상태입니다. API 키를 확인해주세요.", "persona": req.persona}
+
+    # 시스템 프롬프트 구성
+    system_prompt = PERSONA_PROMPTS.get(req.persona, PERSONA_PROMPTS["default"])
+    if req.document_context:
+        doc_preview = req.document_context[:4000]
+        system_prompt += f"\n\n## 현재 사용자가 보고 있는 문서 내용:\n{doc_preview}"
+
+    try:
+        # system_instruction이 포함된 모델 인스턴스 생성
+        chat_model = genai.GenerativeModel(
+            'gemini-3-flash-preview',
+            system_instruction=system_prompt,
+        )
+
+        # 대화 히스토리를 Gemini contents 형식으로 변환
+        contents = []
+        for msg in req.messages:
+            role = "model" if msg.role == "model" else "user"
+            contents.append({"role": role, "parts": [{"text": msg.content}]})
+
+        response = chat_model.generate_content(contents)
+        reply = response.text.strip()
+
+        # 토큰 사용량 추출
+        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        if hasattr(response, 'usage_metadata'):
+            um = response.usage_metadata
+            token_usage["prompt_tokens"] = getattr(um, 'prompt_token_count', 0) or 0
+            token_usage["completion_tokens"] = getattr(um, 'candidates_token_count', 0) or 0
+            token_usage["total_tokens"] = getattr(um, 'total_token_count', 0) or 0
+
+        print(f"[Chat] persona={req.persona}, msgs={len(req.messages)}, "
+              f"reply_len={len(reply)}, tokens={token_usage['total_tokens']}")
+        return {"reply": reply, "persona": req.persona, "token_usage": token_usage}
+
+    except Exception as e:
+        print(f"[Chat 오류] {e}")
+        return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona, "token_usage": None}

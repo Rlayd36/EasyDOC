@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
+import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
+import AgentChat from "./AgentChat";
 import "./viewer.css";
 
 // 텍스트 하이라이트 컴포넌트 (나무위키 호버 말풍선)
@@ -121,6 +122,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     const [parsedText, setParsedText] = useState("");
     const [ocrText, setOcrText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [documentName, setDocumentName] = useState("");
 
     // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
     const [viewMode, setViewMode] = useState("parsed");
@@ -179,6 +181,7 @@ const handleFileChange = async (e) => {
   // PDF 여부에 따라 렌더링 모드 결정
   const fileIsPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   setIsPdf(fileIsPdf);
+  setDocumentName(file.name);
   setIsLoading(true);  // 로딩 시작
 
   try {
@@ -442,74 +445,12 @@ const handleFileChange = async (e) => {
         </div>
       </main>
 
-      {/* 3. 오른쪽 사이드바 (문서 작업 플로우) */}
-      <aside className="sidebar sidebar-right">
-        {/* 우측 상단 유저 프로필 */}
-        <div className="user-profile-area">
-          <div className="user-avatar">
-            <User size={24} />
-          </div>
-        </div>
-
-        {/* 플로우 섹션 */}
-        <div className="section-title" style={{ fontSize: '18px', color: '#111827', marginBottom: '24px' }}>
-          <FileText size={18} color="#3f4b92" style={{marginRight: '8px'}} />
-          <span style={{fontWeight: '700'}}>문서 작업 가이드</span>
-        </div>
-
-        <ul className="flow-list">
-          <li className="flow-step">
-            <div className="flow-step-number">1</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">문서 업로드</span>
-              <span className="flow-step-desc">PDF 또는 HWP 파일을 업로드하여 문서를 불러옵니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">2</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">난이도 분석</span>
-              <span className="flow-step-desc">텍스트에서 어려운 행정·법률 용어를 AI가 자동으로 찾아냅니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">3</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">단어 확인</span>
-              <span className="flow-step-desc">하이라이트된 단어에 마우스를 대면 나무위키 각주처럼 설명이 나타납니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">4</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">요약 확인</span>
-              <span className="flow-step-desc">문서 위의 요약 박스에서 핵심 내용을 빠르게 파악할 수 있습니다.</span>
-            </div>
-          </li>
-        </ul>
-
-        {/* 어려운 단어 통계 */}
-        {difficultWords.length > 0 && (
-          <div className="flow-stats">
-            <div className="flow-stats-title">분석 결과</div>
-            <div className="flow-stats-row">
-              <span>발견된 어려운 단어</span>
-              <strong>{difficultWords.length}개</strong>
-            </div>
-            <div className="flow-stats-row">
-              <span>난이도 4 (매우 어려움)</span>
-              <strong>{difficultWords.filter(w => w.level >= 4).length}개</strong>
-            </div>
-            <div className="flow-stats-row">
-              <span>난이도 3 (어려움)</span>
-              <strong>{difficultWords.filter(w => w.level === 3).length}개</strong>
-            </div>
-          </div>
-        )}
-      </aside>
+      {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
+      <AgentChat
+        parsedText={parsedText}
+        difficultWords={difficultWords}
+        documentName={documentName}
+      />
     </div>
   );
 }
