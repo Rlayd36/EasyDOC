@@ -855,7 +855,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -895,8 +895,10 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText }
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.data.error) throw new Error(res.data.error);
-      setTableCells(res.data.pages || []);
-      const totalCells = (res.data.pages || []).reduce((s, p) => s + p.cells.length, 0);
+      const pages = res.data.pages || [];
+      setTableCells(pages);
+      onCellsFetched?.(pages);
+      const totalCells = pages.reduce((s, p) => s + p.cells.length, 0);
       const emptyCells = (res.data.pages || []).reduce(
         (s, p) => s + p.cells.filter((c) => c.is_empty).length, 0
       );
@@ -909,6 +911,29 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText }
       setFetchingCells(false);
     }
   }, [fillMode, pdfUrl]);
+
+  // 외부(에이전트 어시스트)에서 주입된 제안 적용
+  const lastExternalRef = useRef(null);
+  useEffect(() => {
+    if (!externalSuggestions || externalSuggestions === lastExternalRef.current) return;
+    lastExternalRef.current = externalSuggestions;
+    if (!externalSuggestions.length) return;
+
+    // 양식 채우기 모드가 꺼져 있으면 자동으로 켜야 하므로 cells 로드 필요
+    // (tableCells가 이미 있으면 바로 적용, 없으면 무시 - Viewer가 순서 보장)
+    const newValues = { ...cellValues };
+    const newPending = new Set(pendingCells);
+    externalSuggestions.forEach(({ cell_id, value }) => {
+      if (value) {
+        newValues[cell_id] = value;
+        newPending.add(cell_id);
+      }
+    });
+    setCellValues(newValues);
+    setPendingCells(newPending);
+    setFillMode(true);
+    setFillMessage(`에이전트가 ${externalSuggestions.length}개 셀을 채웠습니다. 확인 후 수정하세요.`);
+  }, [externalSuggestions]);
 
   // AI 자동 채우기
   const handleAiFill = useCallback(async () => {

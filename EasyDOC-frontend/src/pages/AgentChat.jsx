@@ -158,11 +158,12 @@ function PersonaConfirmModal({ targetPersona, onConfirm, onCancel }) {
 }
 
 /* ——— 메인 채팅 패널 ——— */
-export default function AgentChat({ parsedText, documentName, onHighlightWord }) {
+export default function AgentChat({ parsedText, documentName, onHighlightWord, tableCells, onAgentFill }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  const [agentAssistMode, setAgentAssistMode] = useState(false);
 
   // 성격 관련 상태
   const [persona, setPersona] = useState("default");
@@ -249,6 +250,32 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
 
   // —— Gemini API 호출 ——
   const callAgent = async (userText, prevMessages) => {
+    // 어시스트 모드: 테이블 셀 컨텍스트를 메시지에 추가
+    let messageToSend = userText;
+    if (agentAssistMode && tableCells && tableCells.length > 0) {
+      const allCells = tableCells.flatMap((p) => p.cells);
+      const filled = allCells.filter((c) => !c.is_empty && c.text);
+      const empty  = allCells.filter((c) => c.is_empty || !c.text);
+
+      const filledSummary = filled.slice(0, 20)
+        .map((c) => `  - 행${c.row + 1}/열${c.col + 1}: ${c.text}`).join("\n");
+      const emptySummary = empty.slice(0, 40)
+        .map((c) => `  - ID=${c.id}, 행${c.row + 1}/열${c.col + 1}`).join("\n");
+
+      messageToSend = `${userText}
+
+## [어시스트 모드 — 현재 양식 셀 정보]
+### 채워진 셀:
+${filledSummary || "  (없음)"}
+
+### 비어 있는 셀:
+${emptySummary || "  (없음)"}
+
+> 사용자 요청에 대해 자연스럽게 답변하면서, 채울 셀이 있으면 답변 끝에 아래 형식을 포함하세요.
+> 채울 내용이 없으면 생략하세요.
+[FILL_CELLS]{"suggestions":[{"cell_id":"셀ID","value":"값"}]}[/FILL_CELLS]`;
+    }
+
     // 대화 히스토리를 API 형식으로 변환
     const apiMessages = [
       ...prevMessages
@@ -257,7 +284,7 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
           role: m.role === "agent" ? "model" : "user",
           content: m.content,
         })),
-      { role: "user", content: userText },
+      { role: "user", content: messageToSend },
     ];
 
     const res = await axios.post(`${PARSER_URL}/chat`, {
@@ -269,12 +296,12 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
     // 토큰 사용량 추출 및 콘솔 출력, 누적
     if (res.data.token_usage) {
       const { prompt_tokens, completion_tokens, total_tokens } = res.data.token_usage;
-      
+
       // Gemini 1.5 Flash 기준 (1M 당: 입력 $0.075 / 출력 $0.3) 예상 비용
       const costPrompt = (prompt_tokens * 0.075) / 1000000;
       const costCompletion = (completion_tokens * 0.3) / 1000000;
       const totalCost = costPrompt + costCompletion;
-      
+
       console.log(
         `%c[Gemini API 사용량 및 비용] \n` +
         `• 입력 토큰: ${prompt_tokens} \n` +
@@ -288,7 +315,22 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
     }
 
     let reply = res.data.reply;
-    
+
+    // [FILL_CELLS] 파싱 — 어시스트 모드에서 에이전트가 셀 채우기 지시를 반환할 때
+    const fillMatch = reply.match(/\[FILL_CELLS\]([\s\S]*?)\[\/FILL_CELLS\]/);
+    if (fillMatch) {
+      try {
+        const data = JSON.parse(fillMatch[1].trim());
+        if (data.suggestions?.length && onAgentFill) {
+          onAgentFill(data.suggestions);
+        }
+      } catch (e) {
+        console.warn("[FILL_CELLS] 파싱 실패:", e);
+      }
+      // 사용자에게 보여지는 텍스트에서 제거
+      reply = reply.replace(/\[FILL_CELLS\][\s\S]*?\[\/FILL_CELLS\]/g, "").trim();
+    }
+
     // [HL:단어] 태그 추출 및 처리
     const hlMatch = reply.match(/\[HL:(.+?)\]/);
     if (hlMatch) {
@@ -360,7 +402,7 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
         setIsTyping(false);
       }
     },
-    [messages, parsedText, persona, isTokenLimitReached]
+    [messages, parsedText, persona, isTokenLimitReached, agentAssistMode, tableCells]
   );
 
   // Enter 전송 (Shift+Enter는 줄바꿈)
@@ -375,6 +417,11 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
   const handleQuickAction = (action) => {
     if (action.id === "explain") {
       setShowTermInput(true);
+      return;
+    }
+    if (action.id === "write") {
+      setAgentAssistMode((prev) => !prev);
+      setShowQuickActions(false);
       return;
     }
     sendMessage(action.prompt);
@@ -419,6 +466,7 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
     setShowQuickActions(true);
     setInput("");
     setSessionTokens(0);
+    setAgentAssistMode(false);
   };
 
   return (
@@ -581,6 +629,22 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
           </div>
         )}
 
+        {/* 어시스트 모드 배너 */}
+        {agentAssistMode && (
+          <div className="assist-mode-banner">
+            <PenTool size={13} />
+            <span>에이전트 어시스트 모드 활성화</span>
+            <span className="assist-mode-hint">· 양식 채우기를 도와드립니다</span>
+            <button
+              className="assist-mode-close"
+              onClick={() => setAgentAssistMode(false)}
+              title="어시스트 모드 끄기"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         {isTokenLimitReached && (
           <div className="token-limit-banner">
             대화 한도에 도달했습니다. 초기화 버튼을 눌러 새 세션을 시작해주세요.
@@ -594,7 +658,13 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord })
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isTokenLimitReached ? "대화 한도 도달 — 초기화 후 이용하세요" : "메시지를 입력하세요..."}
+            placeholder={
+              isTokenLimitReached
+                ? "대화 한도 도달 — 초기화 후 이용하세요"
+                : agentAssistMode
+                ? "어떤 항목을 채울지 알려주세요..."
+                : "메시지를 입력하세요..."
+            }
             rows={1}
             disabled={isTyping || isTokenLimitReached}
           />

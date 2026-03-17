@@ -103,6 +103,13 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
     const [viewMode, setViewMode] = useState("parsed");
 
+    // 에이전트 어시스트 ↔ PDF 뷰어 브리지
+    const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
+    const [externalFillSuggestions, setExternalFillSuggestions] = useState(null); // AgentChat → PdfHighlightViewer
+
+    const handleCellsFetched = (pages) => setSharedTableCells(pages);
+    const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
+
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
         if (parsedData) {
@@ -334,6 +341,8 @@ const handleFileChange = async (e) => {
                 pdfUrl={pdfUrl}
                 highlightWord={highlightWord}
                 parsedText={parsedText || ocrText}
+                onCellsFetched={handleCellsFetched}
+                externalSuggestions={externalFillSuggestions}
               />
             ) : (
               <iframe
@@ -351,6 +360,8 @@ const handleFileChange = async (e) => {
         parsedText={parsedText}
         documentName={documentName}
         onHighlightWord={setHighlightWord}
+        tableCells={sharedTableCells}
+        onAgentFill={handleAgentFill}
       />
     </div>
   );
