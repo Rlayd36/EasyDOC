@@ -102,35 +102,7 @@ export default function Upload({onNavigateToMyPage}) {
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         
-        // Gemini 통합 분석: 어려운 단어 추출 + 설명 생성
-        console.log("8. Gemini 통합 분석 요청 중...");
-        setShowLoading(true);
-        const analyzeResponse = await axios.post("http://localhost:8000/analyze-with-gemini", {
-          text: extractedText
-        });
-        console.log("9. Gemini 분석 완료!", analyzeResponse.data);
-
-        const difficultWords = analyzeResponse.data.difficult_words || [];
-
-        // 토큰 사용량 로그
-        if (analyzeResponse.data.token_usage) {
-          const t = analyzeResponse.data.token_usage;
-          const fc = analyzeResponse.data.from_cache || 0;
-          const fg = analyzeResponse.data.from_gemini || 0;
-          const chunks = analyzeResponse.data.chunks_processed || 1;
-          console.log(
-            `%c[Gemini 분석] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | 캐시: ${fc}개 | 신규: ${fg}개 | 청크: ${chunks}개`,
-            "color: #4CAF50; font-weight: bold; font-size: 12px;"
-          );
-        }
-        if (analyzeResponse.data.error) {
-          console.warn("Gemini 분석 경고:", analyzeResponse.data.error);
-        }
-
-        setParseResult({
-          ...parseResponse.data,
-          difficultWords: difficultWords
-        });
+        setParseResult(parseResponse.data);
         setOcrResult(null);  // OCR 데이터는 비움
       }
 

@@ -25,15 +25,15 @@ const STICKERS = [
 ];
 
 /* ─────────────────────────────────────────
-   PdfPage: 단일 PDF 페이지 렌더링 + 하이라이트
+   PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
-  const [highlights, setHighlights] = useState([]);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [hasText, setHasText] = useState(true);
+  const [highlights, setHighlights] = useState([]);
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -87,20 +87,22 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         renderTaskRef.current = null;
         if (cancelled) return;
 
-        /* ── 텍스트 좌표 추출 ── */
+        /* ── 텍스트 좌표 추출 및 단어 하이라이팅 ── */
+        if (!highlightWord) {
+          setHighlights([]);
+          return;
+        }
+
         const textContent = await page.getTextContent();
         if (cancelled) return;
 
         const vpT = viewport.transform;
-
-        // 각 텍스트 아이템 → 화면 좌표로 변환
         const charBoxes = [];
         for (const item of textContent.items) {
           const str = item.str;
           if (!str) continue;
 
           const itm = item.transform;
-          // combined = viewportTransform × itemTransform
           const ct = [
             vpT[0] * itm[0] + vpT[2] * itm[1],
             vpT[1] * itm[0] + vpT[3] * itm[1],
@@ -110,22 +112,13 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
             vpT[1] * itm[4] + vpT[3] * itm[5] + vpT[5],
           ];
 
-          // 폰트 높이: ct[0],ct[1]이 수평 방향, ct[2],ct[3]가 수직 방향
           const fontH = Math.hypot(ct[0], ct[1]);
           const baseX = ct[4];
           const baseY = ct[5];
 
-          let textW;
-          if (item.width && item.width > 0) {
-            textW = item.width * viewport.scale;
-          } else {
-            textW = str.length * fontH * 0.6;
-          }
-
+          let textW = item.width ? item.width * viewport.scale : str.length * fontH * 0.6;
           const charW = textW / (str.length || 1);
 
-          // 문자열의 각 글자를 개별 박스로 저장
-          // 상단 y = baseY - fontH (PDF는 아래→위 좌표계, 뷰포트 변환 후 위→아래)
           for (let ci = 0; ci < str.length; ci++) {
             charBoxes.push({
               char: str[ci],
@@ -139,27 +132,19 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
           }
         }
 
-        console.log(
-          `[PdfHL] 페이지 ${pageNum}: 글자 박스 ${charBoxes.length}개, 어려운 단어 ${difficultWords.length}개`
-        );
-
         if (charBoxes.length === 0) {
-          console.warn(`[PdfHL] 페이지 ${pageNum}: 텍스트 레이어 없음`);
           setHasText(false);
           setHighlights([]);
           return;
         }
         setHasText(true);
 
-        // ── 같은 줄의 글자들을 그룹핑 (Y좌표 근접 + X좌표 순서) ──
-        const LINE_TOLERANCE = 5; // px 이내면 같은 줄
+        const LINE_TOLERANCE = 5;
         const lines = [];
         let currentLine = [charBoxes[0]];
-
         for (let i = 1; i < charBoxes.length; i++) {
           const prev = currentLine[currentLine.length - 1];
           const cur = charBoxes[i];
-
           if (Math.abs(cur.baseY - prev.baseY) < LINE_TOLERANCE) {
             currentLine.push(cur);
           } else {
@@ -169,74 +154,31 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         }
         lines.push(currentLine);
 
-        // ── 각 줄에서 어려운 단어 매칭 (긴 단어 우선, 중복 방지, 단어 경계 체크) ──
-        const sortedWords = [...difficultWords].sort(
-          (a, b) => b.word.length - a.word.length
-        );
-
-        // 한글 음절 범위 체크 (가~힣)
-        const isKorean = (ch) => ch && ch.charCodeAt(0) >= 0xAC00 && ch.charCodeAt(0) <= 0xD7A3;
-
         const found = [];
-
         for (const line of lines) {
           line.sort((a, b) => a.x - b.x);
           const lineStr = line.map((c) => c.char).join("");
+          let searchPos = 0;
+          let idx;
 
-          // 이미 하이라이트된 글자 인덱스 추적
-          const taken = new Set();
+          while ((idx = lineStr.indexOf(highlightWord, searchPos)) !== -1) {
+            const startBox = line[idx];
+            const endBox = line[idx + highlightWord.length - 1];
 
-          for (const info of sortedWords) {
-            const word = info.word;
-            let searchPos = 0;
-            let idx;
-
-            while ((idx = lineStr.indexOf(word, searchPos)) !== -1) {
-              // 단어 경계 체크: 앞뒤에 한글이 붙어있으면 부분 매칭 → 스킵
-              const charBefore = idx > 0 ? lineStr[idx - 1] : null;
-              const charAfter = idx + word.length < lineStr.length ? lineStr[idx + word.length] : null;
-              const boundaryOk = !isKorean(charBefore) && !isKorean(charAfter);
-
-              // 이 범위가 이미 점유되어 있는지 확인
-              let overlap = false;
-              for (let ci = idx; ci < idx + word.length; ci++) {
-                if (taken.has(ci)) {
-                  overlap = true;
-                  break;
-                }
-              }
-
-              if (boundaryOk && !overlap) {
-                const startBox = line[idx];
-                const endBox = line[idx + word.length - 1];
-
-                if (startBox && endBox) {
-                  found.push({
-                    x: startBox.x,
-                    y: Math.min(startBox.y, endBox.y),
-                    width: endBox.x + endBox.w - startBox.x,
-                    height: Math.max(startBox.h, endBox.h),
-                    word,
-                    info,
-                  });
-
-                  // 점유 표시
-                  for (let ci = idx; ci < idx + word.length; ci++) {
-                    taken.add(ci);
-                  }
-                }
-              }
-
-              searchPos = idx + word.length;
+            if (startBox && endBox) {
+              found.push({
+                x: startBox.x,
+                y: Math.min(startBox.y, endBox.y),
+                width: endBox.x + endBox.w - startBox.x,
+                height: Math.max(startBox.h, endBox.h),
+                word: highlightWord
+              });
             }
+            searchPos = idx + highlightWord.length;
           }
         }
-
-        console.log(`[PdfHL] 페이지 ${pageNum}: 하이라이트 ${found.length}개 발견`);
-        if (found.length > 0) {
-          console.log(`  [예시]`, found[0]);
-        }
         setHighlights(found);
+
       } catch (err) {
         if (err?.name !== "RenderingCancelledException") {
           console.error(`페이지 ${pageNum} 렌더링 오류:`, err);
@@ -251,7 +193,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         renderTaskRef.current = null;
       }
     };
-  }, [pdfDoc, pageNum, containerWidth, difficultWords]);
+  }, [pdfDoc, pageNum, containerWidth, highlightWord]);
 
   // 메모 모드에서 빈 곳 클릭 시 새 메모 추가
   const handlePageClick = useCallback((e) => {
@@ -404,21 +346,18 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
       {highlights.map((h, i) => (
         <span
           key={`hl-${pageNum}-${i}`}
-          className={`pdf-word-highlight level-${h.info.level}`}
+          className="active-highlight-box"
           style={{
+            position: "absolute",
             left: `${h.x}px`,
             top: `${h.y}px`,
             width: `${h.width}px`,
             height: `${h.height}px`,
+            backgroundColor: "rgba(255, 255, 0, 0.4)",
+            borderBottom: "2px solid #eab308",
+            pointerEvents: "none"
           }}
-        >
-          <span className="word-bubble">
-            <strong>{h.word}</strong>
-            <span className="word-bubble-desc">
-              {h.info.easy_expression || `난이도 ${h.info.level} 단어`}
-            </span>
-          </span>
-        </span>
+        />
       ))}
 
       {/* 텍스트 메모 */}
@@ -867,7 +806,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -1251,7 +1190,7 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
               pdfDoc={pdfDoc}
               pageNum={pageNum}
               containerWidth={containerWidth}
-              difficultWords={difficultWords}
+              highlightWord={highlightWord}
               memoMode={memoMode}
               memos={memos.filter((m) => m.pageNum === pageNum)}
               onAddMemo={handleAddMemo}

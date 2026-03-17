@@ -17,6 +17,8 @@ import {
   RotateCcw,
   Zap,
   Smile,
+  X,
+  Plus,
 } from "lucide-react";
 import "./AgentChat.css";
 
@@ -156,7 +158,7 @@ function PersonaConfirmModal({ targetPersona, onConfirm, onCancel }) {
 }
 
 /* ——— 메인 채팅 패널 ——— */
-export default function AgentChat({ parsedText, difficultWords, documentName }) {
+export default function AgentChat({ parsedText, documentName, onHighlightWord }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -166,6 +168,11 @@ export default function AgentChat({ parsedText, difficultWords, documentName }) 
   const [persona, setPersona] = useState("default");
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const [pendingPersona, setPendingPersona] = useState(null);
+
+  // 용어 설명 입력 팝업
+  const [showTermInput, setShowTermInput] = useState(false);
+  const [termInputValue, setTermInputValue] = useState("");
+  const [termTags, setTermTags] = useState([]);
 
   // 토큰 사용량 추적
   const [sessionTokens, setSessionTokens] = useState(0);
@@ -280,7 +287,19 @@ export default function AgentChat({ parsedText, difficultWords, documentName }) 
       setSessionTokens((prev) => prev + total_tokens);
     }
 
-    return res.data.reply;
+    let reply = res.data.reply;
+    
+    // [HL:단어] 태그 추출 및 처리
+    const hlMatch = reply.match(/\[HL:(.+?)\]/);
+    if (hlMatch) {
+      const wordToHighlight = hlMatch[1].trim();
+      reply = reply.replace(/\[HL:.+?\]/g, "").trim(); // 사용자에게는 태그 숨김
+      if (onHighlightWord) {
+        onHighlightWord(wordToHighlight);
+      }
+    }
+
+    return reply;
   };
 
   // —— 메시지 전송 ——
@@ -354,7 +373,44 @@ export default function AgentChat({ parsedText, difficultWords, documentName }) 
 
   // 빠른 액션 클릭
   const handleQuickAction = (action) => {
+    if (action.id === "explain") {
+      setShowTermInput(true);
+      return;
+    }
     sendMessage(action.prompt);
+  };
+
+  // 용어 태그 추가 (Enter 또는 쉼표)
+  const handleTermKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const word = termInputValue.trim().replace(/,/g, "");
+      if (word && !termTags.includes(word)) {
+        setTermTags((prev) => [...prev, word]);
+      }
+      setTermInputValue("");
+    } else if (e.key === "Backspace" && !termInputValue && termTags.length > 0) {
+      setTermTags((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const removeTermTag = (idx) => {
+    setTermTags((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const submitTerms = () => {
+    if (termTags.length === 0) return;
+    const prompt = `다음 용어들을 쉽게 설명해줘: ${termTags.join(", ")}`;
+    setShowTermInput(false);
+    setTermTags([]);
+    setTermInputValue("");
+    sendMessage(prompt);
+  };
+
+  const cancelTermInput = () => {
+    setShowTermInput(false);
+    setTermTags([]);
+    setTermInputValue("");
   };
 
   // 대화 초기화
@@ -557,6 +613,57 @@ export default function AgentChat({ parsedText, difficultWords, documentName }) 
             : "Enter로 전송 · Shift+Enter로 줄바꿈"}
         </span>
       </div>
+
+      {/* —— 용어 입력 팝업 —— */}
+      {showTermInput && (
+        <div className="term-input-overlay" onClick={cancelTermInput}>
+          <div className="term-input-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="term-input-header">
+              <div className="term-input-icon">
+                <Search size={20} />
+              </div>
+              <h4 className="term-input-title">설명받을 용어 입력</h4>
+              <button className="term-input-close" onClick={cancelTermInput}>
+                <X size={16} />
+              </button>
+            </div>
+            <p className="term-input-desc">
+              궁금한 용어를 입력하고 Enter를 눌러 추가하세요.
+            </p>
+            <div className="term-tags-area">
+              {termTags.map((tag, idx) => (
+                <span key={idx} className="term-tag">
+                  {tag}
+                  <button className="term-tag-remove" onClick={() => removeTermTag(idx)}>
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+              <input
+                className="term-tag-input"
+                value={termInputValue}
+                onChange={(e) => setTermInputValue(e.target.value)}
+                onKeyDown={handleTermKeyDown}
+                placeholder={termTags.length === 0 ? "예: 채권, 이자율, 담보 ..." : "추가 입력..."}
+                autoFocus
+              />
+            </div>
+            <div className="term-input-actions">
+              <button className="term-input-btn term-input-btn--cancel" onClick={cancelTermInput}>
+                취소
+              </button>
+              <button
+                className="term-input-btn term-input-btn--ok"
+                onClick={submitTerms}
+                disabled={termTags.length === 0}
+              >
+                <Send size={13} />
+                {termTags.length > 0 ? `${termTags.length}개 용어 설명 요청` : "용어를 입력하세요"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* —— 성격 변경 확인 모달 —— */}
       {pendingPersona && (
