@@ -75,6 +75,7 @@ export default function Upload({onNavigateToMyPage}) {
       });
 
       console.log("5. 업로드 성공!");
+      setShowLoading(true);
 
       // S3 업로드 완료를 위한 대기 (eventual consistency)
       console.log("대기 중... (3초)");
@@ -143,6 +144,7 @@ export default function Upload({onNavigateToMyPage}) {
       alert("파일 업로드 성공!");
     } catch (error) {
       console.error("파일 업로드 오류:", error);
+      setShowLoading(false);
       alert("파일 업로드 중 오류가 발생했습니다.");
     }
   };
@@ -167,7 +169,7 @@ export default function Upload({onNavigateToMyPage}) {
     return "default";
   };
   if (showLoading) {
-    return <Loading />;
+    return <Loading title="문서 분석 중" subtitle="업로드된 문서를 파싱하고 있습니다" />;
   }
 
   if (showViewer) {
