@@ -158,7 +158,7 @@ function PersonaConfirmModal({ targetPersona, onConfirm, onCancel }) {
 }
 
 /* ——— 메인 채팅 패널 ——— */
-export default function AgentChat({ parsedText, documentName, onHighlightWord, tableCells, onAgentFill }) {
+export default function AgentChat({ parsedText, documentName, onHighlightWord, tableCells, onAgentFill, externalPrompt }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -202,6 +202,14 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord, t
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   }, [input]);
+
+  // 외부 프롬프트 수신 시 자동 전송 (드래그 선택 → 설명)
+  const externalPromptRef = useRef(null);
+  useEffect(() => {
+    if (!externalPrompt || externalPrompt.id === externalPromptRef.current) return;
+    externalPromptRef.current = externalPrompt.id;
+    sendMessage(externalPrompt.text);
+  }, [externalPrompt]);
 
   // 드롭다운 외부 클릭 닫기
   useEffect(() => {

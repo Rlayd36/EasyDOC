@@ -606,3 +606,21 @@
   display: flex;
   align-items: center;
 }
+
+/* ===============================
+   드래그 선택 영역
+   =============================== */
+.pdf-drag-selection {
+  background: rgba(59, 130, 246, 0.15);
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 0.3s ease-out;
+  animation: dragSelectionPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes dragSelectionPulse {
+  from { background: rgba(59, 130, 246, 0.12); }
+  to   { background: rgba(59, 130, 246, 0.22); }
+}

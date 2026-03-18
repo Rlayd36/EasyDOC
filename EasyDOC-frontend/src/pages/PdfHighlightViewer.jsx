@@ -30,7 +30,7 @@ const STICKERS = [
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
@@ -38,6 +38,15 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
   const [hasText, setHasText] = useState(true);
   const [highlights, setHighlights] = useState([]);
   const [renderScale, setRenderScale] = useState(1);  // 셀 오버레이 위치 계산용
+
+  // 텍스트 좌표 저장 (드래그 선택용)
+  const charBoxesRef = useRef([]);
+  const linesRef = useRef([]);
+
+  // 드래그 선택 상태
+  const [dragSelection, setDragSelection] = useState(null); // { startX, startY, endX, endY }
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef(null);
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -92,12 +101,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         renderTaskRef.current = null;
         if (cancelled) return;
 
-        /* ── 텍스트 좌표 추출 및 단어 하이라이팅 ── */
-        if (!highlightWord) {
-          setHighlights([]);
-          return;
-        }
-
+        /* ── 텍스트 좌표 추출 (하이라이팅 + 드래그 선택 공용) ── */
         const textContent = await page.getTextContent();
         if (cancelled) return;
 
@@ -137,9 +141,13 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           }
         }
 
+        // ref에 저장 (드래그 선택에서 재사용)
+        charBoxesRef.current = charBoxes;
+
         if (charBoxes.length === 0) {
           setHasText(false);
           setHighlights([]);
+          linesRef.current = [];
           return;
         }
         setHasText(true);
@@ -158,31 +166,37 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           }
         }
         lines.push(currentLine);
+        linesRef.current = lines;
 
-        const found = [];
-        for (const line of lines) {
-          line.sort((a, b) => a.x - b.x);
-          const lineStr = line.map((c) => c.char).join("");
-          let searchPos = 0;
-          let idx;
+        /* ── 단어 하이라이팅 ── */
+        if (!highlightWord) {
+          setHighlights([]);
+        } else {
+          const found = [];
+          for (const line of lines) {
+            line.sort((a, b) => a.x - b.x);
+            const lineStr = line.map((c) => c.char).join("");
+            let searchPos = 0;
+            let idx;
 
-          while ((idx = lineStr.indexOf(highlightWord, searchPos)) !== -1) {
-            const startBox = line[idx];
-            const endBox = line[idx + highlightWord.length - 1];
+            while ((idx = lineStr.indexOf(highlightWord, searchPos)) !== -1) {
+              const startBox = line[idx];
+              const endBox = line[idx + highlightWord.length - 1];
 
-            if (startBox && endBox) {
-              found.push({
-                x: startBox.x,
-                y: Math.min(startBox.y, endBox.y),
-                width: endBox.x + endBox.w - startBox.x,
-                height: Math.max(startBox.h, endBox.h),
-                word: highlightWord
-              });
+              if (startBox && endBox) {
+                found.push({
+                  x: startBox.x,
+                  y: Math.min(startBox.y, endBox.y),
+                  width: endBox.x + endBox.w - startBox.x,
+                  height: Math.max(startBox.h, endBox.h),
+                  word: highlightWord
+                });
+              }
+              searchPos = idx + highlightWord.length;
             }
-            searchPos = idx + highlightWord.length;
           }
+          setHighlights(found);
         }
-        setHighlights(found);
 
       } catch (err) {
         if (err?.name !== "RenderingCancelledException") {
@@ -199,6 +213,94 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       }
     };
   }, [pdfDoc, pageNum, containerWidth, highlightWord]);
+
+  // 드래그 영역에서 텍스트 추출
+  const extractTextFromRect = useCallback((rect) => {
+    const lines = linesRef.current;
+    if (!lines.length) return "";
+
+    const minX = Math.min(rect.startX, rect.endX);
+    const maxX = Math.max(rect.startX, rect.endX);
+    const minY = Math.min(rect.startY, rect.endY);
+    const maxY = Math.max(rect.startY, rect.endY);
+
+    const selectedLines = [];
+    for (const line of lines) {
+      const sorted = [...line].sort((a, b) => a.x - b.x);
+      // 라인의 Y 범위가 선택 영역과 겹치는지 확인
+      const lineTop = Math.min(...sorted.map(c => c.y));
+      const lineBottom = Math.max(...sorted.map(c => c.y + c.h));
+      if (lineBottom < minY || lineTop > maxY) continue;
+
+      // 이 라인에서 X 범위 안의 글자만 수집
+      const chars = sorted.filter(c => {
+        const cx = c.x + c.w / 2;
+        const cy = c.y + c.h / 2;
+        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      });
+      if (chars.length > 0) {
+        selectedLines.push(chars.map(c => c.char).join(""));
+      }
+    }
+    return selectedLines.join("\n");
+  }, []);
+
+  // 드래그 선택 핸들러
+  const handleDragStart = useCallback((e) => {
+    // 메모, 스티커, 이미지, 셀, 컨텍스트 메뉴 위에서는 무시
+    if (memoMode || fillMode) return;
+    if (e.target.closest(".pdf-memo") || e.target.closest(".pdf-sticker") ||
+        e.target.closest(".pdf-user-image") || e.target.closest(".pdf-fill-cell") ||
+        e.target.closest(".pdf-context-menu")) return;
+    if (e.button !== 0) return; // 좌클릭만
+
+    const wrapper = e.currentTarget;
+    const rect = wrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    isDraggingRef.current = false; // 아직 드래그 시작 아님 (클릭과 구분)
+    dragStartRef.current = { x, y, clientX: e.clientX, clientY: e.clientY };
+  }, [memoMode, fillMode]);
+
+  const handleDragMove = useCallback((e) => {
+    if (!dragStartRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.clientX;
+    const dy = e.clientY - dragStartRef.current.clientY;
+
+    // 최소 이동 거리 (5px) 이상이어야 드래그로 인식
+    if (!isDraggingRef.current && Math.hypot(dx, dy) < 5) return;
+    isDraggingRef.current = true;
+
+    const wrapper = e.currentTarget;
+    const rect = wrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setDragSelection({
+      startX: dragStartRef.current.x,
+      startY: dragStartRef.current.y,
+      endX: x,
+      endY: y,
+    });
+  }, []);
+
+  const handleDragEnd = useCallback((e) => {
+    if (!dragStartRef.current) return;
+
+    if (isDraggingRef.current && dragSelection) {
+      const text = extractTextFromRect(dragSelection);
+      if (text.trim() && onTextSelected) {
+        onTextSelected(text.trim());
+      }
+    }
+
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
+    // 선택 영역은 잠시 유지 후 제거 (시각적 피드백)
+    setTimeout(() => setDragSelection(null), 400);
+  }, [dragSelection, extractTextFromRect, onTextSelected]);
 
   // 메모 모드에서 빈 곳 클릭 시 새 메모 추가
   const handlePageClick = useCallback((e) => {
@@ -337,8 +439,26 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       style={{ width: pageSize.width || "auto" }}
       onClick={handlePageClick}
       onContextMenu={handleContextMenu}
+      onMouseDown={handleDragStart}
+      onMouseMove={handleDragMove}
+      onMouseUp={handleDragEnd}
+      onMouseLeave={handleDragEnd}
     >
       <canvas ref={canvasRef} />
+
+      {/* 드래그 선택 영역 */}
+      {dragSelection && (
+        <div
+          className="pdf-drag-selection"
+          style={{
+            position: "absolute",
+            left: Math.min(dragSelection.startX, dragSelection.endX),
+            top: Math.min(dragSelection.startY, dragSelection.endY),
+            width: Math.abs(dragSelection.endX - dragSelection.startX),
+            height: Math.abs(dragSelection.endY - dragSelection.startY),
+          }}
+        />
+      )}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
@@ -855,7 +975,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -1460,6 +1580,7 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
               cellValues={cellValues}
               pendingCells={pendingCells}
               onCellValueChange={handleCellValueChange}
+              onTextSelected={onTextSelected}
             />
           );
         })}
