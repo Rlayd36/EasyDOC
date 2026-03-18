@@ -1,68 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, User, BookOpen, ChevronRight, Lightbulb } from 'lucide-react';
+import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
+import AgentChat from "./AgentChat";
 import "./viewer.css";
-
-// 텍스트 하이라이트 컴포넌트 (나무위키 호버 말풍선)
-function HighlightedText({ text, difficultWords }) {
-  if (!text) return null;
-
-  const wordMap = new Map();
-  difficultWords.forEach(item => {
-    wordMap.set(item.word, item);
-  });
-
-  const lines = text.split('\n');
-  
-  return (
-    <div className="highlighted-text">
-      {lines.map((line, lineIdx) => {
-        const parts = [];
-        let currentPos = 0;
-        const regex = /[\uAC00-\uD7A3]+|[a-zA-Z]+|[0-9]+/g;
-        let match;
-        
-        while ((match = regex.exec(line)) !== null) {
-          const word = match[0];
-          const startPos = match.index;
-          
-          if (startPos > currentPos) {
-            parts.push(line.substring(currentPos, startPos));
-          }
-          
-          if (wordMap.has(word)) {
-            const wordInfo = wordMap.get(word);
-            const wordKey = `${lineIdx}-${startPos}`;
-            parts.push(
-              <span key={wordKey} className={`difficult-word level-${wordInfo.level}`}>
-                {word}
-                <span className="word-bubble">
-                  <strong>{word}</strong>
-                  <span className="word-bubble-desc">{wordInfo.easy_expression || `난이도 ${wordInfo.level} 단어`}</span>
-                </span>
-              </span>
-            );
-          } else {
-            parts.push(word);
-          }
-          
-          currentPos = startPos + word.length;
-        }
-        
-        if (currentPos < line.length) {
-          parts.push(line.substring(currentPos));
-        }
-        
-        return (
-          <div key={lineIdx}>
-            {parts}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // 로고 아이콘 (Login 페이지의 DocumentIcon 재사용 및 크기 조정)
 function LogoIcon() {
@@ -85,6 +26,40 @@ function LogoIcon() {
       <line x1="38" y1="62" x2="74" y2="62" stroke="#000000" strokeWidth="6" />
       <line x1="38" y1="70" x2="66" y2="70" stroke="#000000" strokeWidth="6" />
     </svg>
+  );
+}
+
+// 텍스트를 하이라이트해주는 컴포넌트
+function HighlightedTextView({ text, highlightWord }) {
+  if (!text) return null;
+  if (!highlightWord) return <pre>{text}</pre>;
+
+  // 단어 분리 시 정규식에 특수문자가 들어갈 것을 대비해 이스케이프 처리
+  const escapedWord = highlightWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escapedWord})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <div style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", lineHeight: 1.6, padding: "10px" }}>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlightWord.toLowerCase() ? (
+          <span 
+            key={i} 
+            className="active-highlight"
+            style={{ 
+              backgroundColor: "rgba(255, 255, 0, 0.4)", 
+              borderBottom: "2px solid #eab308", 
+              fontWeight: "bold",
+              padding: "0 2px"
+            }}
+          >
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </div>
   );
 }
 
@@ -116,27 +91,51 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     const S3_BUCKET = "easydoc-upload-list";
     const S3_REGION = "ap-northeast-2";
 
-    // 난이도 분석 관련 상태
-    const [difficultWords, setDifficultWords] = useState([]);
+    // 분석 관련 상태
     const [parsedText, setParsedText] = useState("");
     const [ocrText, setOcrText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [documentName, setDocumentName] = useState("");
+    
+    // 에이전트가 설명한 특정 단어 강조 표시용
+    const [highlightWord, setHighlightWord] = useState("");
 
     // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
     const [viewMode, setViewMode] = useState("parsed");
+
+    // 에이전트 어시스트 ↔ PDF 뷰어 브리지
+    const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
+    const [externalFillSuggestions, setExternalFillSuggestions] = useState(null); // AgentChat → PdfHighlightViewer
+
+    // 드래그 선택 → 에이전트 설명 브리지
+    const [externalPrompt, setExternalPrompt] = useState(null);
+    const [pendingSelectedText, setPendingSelectedText] = useState(null); // 확인 대화상자용
+
+    const handleCellsFetched = (pages) => setSharedTableCells(pages);
+    const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
+    const handleTextSelected = (text) => {
+      setPendingSelectedText(text);
+    };
+    const confirmSendToAgent = () => {
+      if (!pendingSelectedText) return;
+      const prompt = `다음 문단을 쉽게 설명해줘:\n\n"${pendingSelectedText}"`;
+      setExternalPrompt({ text: prompt, id: Date.now() });
+      setPendingSelectedText(null);
+    };
+    const cancelSendToAgent = () => {
+      setPendingSelectedText(null);
+    };
 
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
         if (parsedData) {
             console.log("Viewer가 받은 parsedData:", parsedData);
             setParsedText(parsedData.text || "");
-            setDifficultWords(parsedData.difficultWords || []);
             setOcrText("");  // 파싱 데이터가 있으면 OCR은 비움
         } else if (ocrData) {
             console.log("Viewer가 받은 ocrData:", ocrData);
             setOcrText(ocrData.text || ocrData || "");
             setParsedText("");  // OCR 데이터가 있으면 파싱은 비움
-            setDifficultWords([]);
         }
 
         // Upload에서 전달받은 PDF URL 설정
@@ -151,52 +150,6 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
       console.log("버튼 클릭됨! fileInputRef 상태:", fileInputRef.current); //디버깅용
       fileInputRef.current?.click();
     };
-    
-// 난이도 분석 함수
-const analyzeText = async (text) => {
-  try {
-    console.log("난이도 분석 요청 중...");
-    const response = await axios.post("http://localhost:8000/analyze", {
-      text: text,
-      min_level: 3  // 3단계 이상만
-    });
-    console.log("난이도 분석 완료:", response.data);
-    
-    const difficultWords = response.data.difficult_words || [];
-
-    // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
-    const needExplanation = difficultWords.filter(
-      w => w.source === "model" || !w.easy_expression
-    );
-
-    if (needExplanation.length > 0) {
-      console.log("Gemini 설명 생성 요청 중...", needExplanation.length, "개");
-      try {
-        const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
-          words: needExplanation.map(w => ({ word: w.word }))
-        });
-        // 설명을 단어 목록에 병합
-        const explanationMap = new Map();
-        (explainResponse.data.results || []).forEach(r => {
-          explanationMap.set(r.word, r.explanation);
-        });
-        difficultWords.forEach(w => {
-          if (explanationMap.has(w.word)) {
-            w.easy_expression = explanationMap.get(w.word);
-          }
-        });
-        console.log("Gemini 설명 생성 완료!");
-      } catch (explainErr) {
-        console.error("Gemini 설명 생성 오류:", explainErr);
-      }
-    }
-
-    setDifficultWords(difficultWords);
-  } catch (error) {
-    console.error("난이도 분석 오류:", error);
-  }
-};
-
 
 // handleFileChange 수정
 const handleFileChange = async (e) => {
@@ -208,6 +161,7 @@ const handleFileChange = async (e) => {
   // PDF 여부에 따라 렌더링 모드 결정
   const fileIsPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   setIsPdf(fileIsPdf);
+  setDocumentName(file.name);
   setIsLoading(true);  // 로딩 시작
 
   try {
@@ -273,8 +227,6 @@ const handleFileChange = async (e) => {
       const extractedText = parseResponse.data.text;
       setParsedText(extractedText);  // 파싱 결과 저장
 
-      // 난이도 분석 추가
-      await analyzeText(extractedText);
       setOcrText("");  // OCR 결과는 비움
     }
 
@@ -363,34 +315,6 @@ const handleFileChange = async (e) => {
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
           </div>
-          
-          {/* 힌트 배너 - 우측 */}
-          <div className="hint-banner-right">
-              <Lightbulb size={16} color="#f49e0b" />
-              <span>
-                <span className="hint-highlight">하이라이트된 단어</span>에 마우스를 대 보세요
-              </span>
-            </div>
-        </div>
-
-        {/* 색상 범례 */}
-        <div className="color-legend">
-          <span className="legend-item">
-            <span className="legend-box" style={{backgroundColor: '#dbeafe', color: '#1e40af'}}>1단계</span>
-            <span className="legend-label">청색</span>
-          </span>
-          <span className="legend-item">
-            <span className="legend-box" style={{backgroundColor: '#fef3c7', color: '#92400e'}}>2단계</span>
-            <span className="legend-label">노란색</span>
-          </span>
-          <span className="legend-item">
-            <span className="legend-box" style={{backgroundColor: '#fed7aa', color: '#9a3412'}}>3단계</span>
-            <span className="legend-label">주황색</span>
-          </span>
-          <span className="legend-item">
-            <span className="legend-box" style={{backgroundColor: '#fecaca', color: '#991b1b'}}>4단계</span>
-            <span className="legend-label">적색</span>
-          </span>
         </div>
 
         {/* 뷰 모드 전환 버튼 */}
@@ -414,15 +338,12 @@ const handleFileChange = async (e) => {
         <div className="pdf-container">
           {/* 뷰 모드에 따라 문서 표시 */}
           {viewMode === 'parsed' ? (
-            /* DOC 탭: 파싱된 텍스트 + 하이라이트 */
+            /* DOC 탭: 파싱된 텍스트 */
             <div className="parsed-content">
               {ocrText ? (
-                <pre>{ocrText}</pre>
+                <HighlightedTextView text={ocrText} highlightWord={highlightWord} />
               ) : parsedText ? (
-                <HighlightedText 
-                  text={parsedText} 
-                  difficultWords={difficultWords}
-                />
+                <HighlightedTextView text={parsedText} highlightWord={highlightWord} />
               ) : (
                 <div className="no-content">
                   <p>파일을 업로드하면 파싱된 문서가 여기에 표시됩니다.</p>
@@ -430,11 +351,15 @@ const handleFileChange = async (e) => {
               )}
             </div>
           ) : (
-            /* 원본 탭: PDF 원본 이미지 + 하이라이트 오버레이 */
+            /* 원본 탭: PDF 원본 이미지 */
             isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
               <PdfHighlightViewer
                 pdfUrl={pdfUrl}
-                difficultWords={difficultWords}
+                highlightWord={highlightWord}
+                parsedText={parsedText || ocrText}
+                onCellsFetched={handleCellsFetched}
+                externalSuggestions={externalFillSuggestions}
+                onTextSelected={handleTextSelected}
               />
             ) : (
               <iframe
@@ -444,99 +369,42 @@ const handleFileChange = async (e) => {
               />
             )
           )}
-
-          {/* 플로팅 요약 박스 */}
-          {showSummary && (
-            <div className="summary-float-box">
-              <div className="summary-header">
-                <div className="summary-title-group">
-                  <Settings size={20} />
-                  <span>요약</span>
-                </div>
-                <button
-                  className="btn-close-summary"
-                  onClick={() => setShowSummary(false)}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="summary-text">
-                낡은 주택이나 건물을 새로 짓기 위한 재개발, 재건축 등의 절차를 정한 법입니다. 
-                도시 환경을 개선하고 주거 생활의 질을 높이는 것을 목적으로 합니다.
-              </p>
-            </div>
-          )}
         </div>
       </main>
 
-      {/* 3. 오른쪽 사이드바 (문서 작업 플로우) */}
-      <aside className="sidebar sidebar-right">
-        {/* 우측 상단 유저 프로필 */}
-        <div className="user-profile-area">
-          <div className="user-avatar">
-            <User size={24} />
+      {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
+      <AgentChat
+        parsedText={parsedText}
+        documentName={documentName}
+        onHighlightWord={setHighlightWord}
+        tableCells={sharedTableCells}
+        onAgentFill={handleAgentFill}
+        externalPrompt={externalPrompt}
+      />
+
+      {/* 드래그 선택 확인 대화상자 */}
+      {pendingSelectedText && (
+        <div className="drag-confirm-overlay" onClick={cancelSendToAgent}>
+          <div className="drag-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="drag-confirm-header">
+              <Lightbulb size={20} color="#3D4B90" />
+              <h4 className="drag-confirm-title">선택한 내용을 AI에게 설명 요청할까요?</h4>
+            </div>
+            <div className="drag-confirm-text-box">
+              <p className="drag-confirm-text">{pendingSelectedText}</p>
+            </div>
+            <div className="drag-confirm-actions">
+              <button className="drag-confirm-btn drag-confirm-btn--cancel" onClick={cancelSendToAgent}>
+                취소
+              </button>
+              <button className="drag-confirm-btn drag-confirm-btn--ok" onClick={confirmSendToAgent}>
+                <Sparkles size={14} />
+                설명 요청
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* 플로우 섹션 */}
-        <div className="section-title" style={{ fontSize: '18px', color: '#111827', marginBottom: '24px' }}>
-          <FileText size={18} color="#3f4b92" style={{marginRight: '8px'}} />
-          <span style={{fontWeight: '700'}}>문서 작업 가이드</span>
-        </div>
-
-        <ul className="flow-list">
-          <li className="flow-step">
-            <div className="flow-step-number">1</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">문서 업로드</span>
-              <span className="flow-step-desc">PDF 또는 HWP 파일을 업로드하여 문서를 불러옵니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">2</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">난이도 분석</span>
-              <span className="flow-step-desc">텍스트에서 어려운 행정·법률 용어를 AI가 자동으로 찾아냅니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">3</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">단어 확인</span>
-              <span className="flow-step-desc">하이라이트된 단어에 마우스를 대면 나무위키 각주처럼 설명이 나타납니다.</span>
-            </div>
-          </li>
-          <li className="flow-connector" />
-          <li className="flow-step">
-            <div className="flow-step-number">4</div>
-            <div className="flow-step-body">
-              <span className="flow-step-title">요약 확인</span>
-              <span className="flow-step-desc">문서 위의 요약 박스에서 핵심 내용을 빠르게 파악할 수 있습니다.</span>
-            </div>
-          </li>
-        </ul>
-
-        {/* 어려운 단어 통계 */}
-        {difficultWords.length > 0 && (
-          <div className="flow-stats">
-            <div className="flow-stats-title">분석 결과</div>
-            <div className="flow-stats-row">
-              <span>발견된 어려운 단어</span>
-              <strong>{difficultWords.length}개</strong>
-            </div>
-            <div className="flow-stats-row">
-              <span>난이도 4 (매우 어려움)</span>
-              <strong>{difficultWords.filter(w => w.level >= 4).length}개</strong>
-            </div>
-            <div className="flow-stats-row">
-              <span>난이도 3 (어려움)</span>
-              <strong>{difficultWords.filter(w => w.level === 3).length}개</strong>
-            </div>
-          </div>
-        )}
-      </aside>
+      )}
     </div>
   );
 }

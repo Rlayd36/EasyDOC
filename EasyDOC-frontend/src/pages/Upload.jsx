@@ -75,6 +75,7 @@ export default function Upload({onNavigateToMyPage}) {
       });
 
       console.log("5. 업로드 성공!");
+      setShowLoading(true);
 
       // S3 업로드 완료를 위한 대기 (eventual consistency)
       console.log("대기 중... (3초)");
@@ -102,56 +103,7 @@ export default function Upload({onNavigateToMyPage}) {
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         
-        // 난이도 분석 추가
-        console.log("8. 난이도 분석 요청 중...");
-        setShowLoading(true);  // 로딩 화면 표시
-        const analyzeResponse = await axios.post("http://localhost:8000/analyze", {
-          text: extractedText,
-          min_level: 3
-        });
-        console.log("9. 난이도 분석 완료!", analyzeResponse.data);
-
-        const difficultWords = analyzeResponse.data.difficult_words || [];
-
-        // 모델 예측 단어 중 설명이 없는 단어들을 Gemini로 설명 생성
-        const needExplanation = difficultWords.filter(
-          w => w.source === "model" || !w.easy_expression
-        );
-
-        if (needExplanation.length > 0) {
-          console.log("10. Gemini 설명 생성 요청 중...", needExplanation.length, "개");
-          try {
-            const explainResponse = await axios.post("http://localhost:8000/explain/batch", {
-              words: needExplanation.map(w => ({ word: w.word, level: w.level }))
-            });
-            // 설명을 단어 목록에 병합
-            const explanationMap = new Map();
-            (explainResponse.data.results || []).forEach(r => {
-              explanationMap.set(r.word, r.explanation);
-            });
-            difficultWords.forEach(w => {
-              if (explanationMap.has(w.word)) {
-                w.easy_expression = explanationMap.get(w.word);
-              }
-            });
-            console.log("11. Gemini 설명 생성 완료!");
-            // 토큰 사용량 로그
-            if (explainResponse.data.token_usage) {
-              const t = explainResponse.data.token_usage;
-              console.log(
-                `%c[Gemini 토큰 사용량] 입력: ${t.prompt_tokens} | 출력: ${t.completion_tokens} | 합계: ${t.total_tokens} | API 호출: ${t.chunks}회`,
-                "color: #4CAF50; font-weight: bold; font-size: 12px;"
-              );
-            }
-          } catch (explainErr) {
-            console.error("Gemini 설명 생성 오류:", explainErr);
-          }
-        }
-
-        setParseResult({
-          ...parseResponse.data,
-          difficultWords: difficultWords
-        });
+        setParseResult(parseResponse.data);
         setOcrResult(null);  // OCR 데이터는 비움
       }
 
@@ -192,6 +144,7 @@ export default function Upload({onNavigateToMyPage}) {
       alert("파일 업로드 성공!");
     } catch (error) {
       console.error("파일 업로드 오류:", error);
+      setShowLoading(false);
       alert("파일 업로드 중 오류가 발생했습니다.");
     }
   };
@@ -216,7 +169,7 @@ export default function Upload({onNavigateToMyPage}) {
     return "default";
   };
   if (showLoading) {
-    return <Loading />;
+    return <Loading title="문서 분석 중" subtitle="업로드된 문서를 파싱하고 있습니다" />;
   }
 
   if (showViewer) {

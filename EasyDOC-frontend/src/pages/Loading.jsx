@@ -1,7 +1,7 @@
 import React from "react";
 import "./Loading.css";
 
-export default function Loading() {
+export default function Loading({ title = "문서 분석 중", subtitle = "AI가 문서를 분석하고 있습니다" }) {
   return (
     <div className="loading-page">
       {/* 배경 장식 원 */}
@@ -18,9 +18,9 @@ export default function Loading() {
         </div>
 
         {/* 텍스트 */}
-        <p className="loading-text">어려운 단어 설명 생성 중</p>
+        <p className="loading-text">{title}</p>
         <p className="loading-subtext">
-          AI가 문서를 분석하고 있습니다
+          {subtitle}
         </p>
 
         {/* 점 애니메이션 */}

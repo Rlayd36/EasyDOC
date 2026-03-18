@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "gradlew": "^0.0.1-security"
+    "gradlew": "^0.0.1-security",
+    "react-markdown": "^10.1.0"
   }
 }

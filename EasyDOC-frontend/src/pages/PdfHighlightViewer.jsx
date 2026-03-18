@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
-import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus } from "lucide-react";
+import axios from "axios";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X } from "lucide-react";
 import "./PdfHighlightViewer.css";
+
+const PARSER_URL = "http://localhost:8000";
 
 // PDF.js 워커 설정 (로컬 번들)
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -25,15 +28,25 @@ const STICKERS = [
 ];
 
 /* ─────────────────────────────────────────
-   PdfPage: 단일 PDF 페이지 렌더링 + 하이라이트
+   PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
-  const [highlights, setHighlights] = useState([]);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [hasText, setHasText] = useState(true);
+  const [highlights, setHighlights] = useState([]);
+  const [renderScale, setRenderScale] = useState(1);  // 셀 오버레이 위치 계산용
+
+  // 텍스트 좌표 저장 (드래그 선택용)
+  const charBoxesRef = useRef([]);
+  const linesRef = useRef([]);
+
+  // 드래그 선택 상태
+  const [dragSelection, setDragSelection] = useState(null); // { startX, startY, endX, endY }
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef(null);
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -53,6 +66,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         const baseViewport = page.getViewport({ scale: 1 });
         const scale = Math.min(containerWidth / baseViewport.width, 2.5);
         const viewport = page.getViewport({ scale });
+        setRenderScale(scale);
 
         /* ── 캔버스 렌더링 ── */
         const canvas = canvasRef.current;
@@ -87,20 +101,17 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         renderTaskRef.current = null;
         if (cancelled) return;
 
-        /* ── 텍스트 좌표 추출 ── */
+        /* ── 텍스트 좌표 추출 (하이라이팅 + 드래그 선택 공용) ── */
         const textContent = await page.getTextContent();
         if (cancelled) return;
 
         const vpT = viewport.transform;
-
-        // 각 텍스트 아이템 → 화면 좌표로 변환
         const charBoxes = [];
         for (const item of textContent.items) {
           const str = item.str;
           if (!str) continue;
 
           const itm = item.transform;
-          // combined = viewportTransform × itemTransform
           const ct = [
             vpT[0] * itm[0] + vpT[2] * itm[1],
             vpT[1] * itm[0] + vpT[3] * itm[1],
@@ -110,22 +121,13 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
             vpT[1] * itm[4] + vpT[3] * itm[5] + vpT[5],
           ];
 
-          // 폰트 높이: ct[0],ct[1]이 수평 방향, ct[2],ct[3]가 수직 방향
           const fontH = Math.hypot(ct[0], ct[1]);
           const baseX = ct[4];
           const baseY = ct[5];
 
-          let textW;
-          if (item.width && item.width > 0) {
-            textW = item.width * viewport.scale;
-          } else {
-            textW = str.length * fontH * 0.6;
-          }
-
+          let textW = item.width ? item.width * viewport.scale : str.length * fontH * 0.6;
           const charW = textW / (str.length || 1);
 
-          // 문자열의 각 글자를 개별 박스로 저장
-          // 상단 y = baseY - fontH (PDF는 아래→위 좌표계, 뷰포트 변환 후 위→아래)
           for (let ci = 0; ci < str.length; ci++) {
             charBoxes.push({
               char: str[ci],
@@ -139,27 +141,23 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
           }
         }
 
-        console.log(
-          `[PdfHL] 페이지 ${pageNum}: 글자 박스 ${charBoxes.length}개, 어려운 단어 ${difficultWords.length}개`
-        );
+        // ref에 저장 (드래그 선택에서 재사용)
+        charBoxesRef.current = charBoxes;
 
         if (charBoxes.length === 0) {
-          console.warn(`[PdfHL] 페이지 ${pageNum}: 텍스트 레이어 없음`);
           setHasText(false);
           setHighlights([]);
+          linesRef.current = [];
           return;
         }
         setHasText(true);
 
-        // ── 같은 줄의 글자들을 그룹핑 (Y좌표 근접 + X좌표 순서) ──
-        const LINE_TOLERANCE = 5; // px 이내면 같은 줄
+        const LINE_TOLERANCE = 5;
         const lines = [];
         let currentLine = [charBoxes[0]];
-
         for (let i = 1; i < charBoxes.length; i++) {
           const prev = currentLine[currentLine.length - 1];
           const cur = charBoxes[i];
-
           if (Math.abs(cur.baseY - prev.baseY) < LINE_TOLERANCE) {
             currentLine.push(cur);
           } else {
@@ -168,75 +166,38 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
           }
         }
         lines.push(currentLine);
+        linesRef.current = lines;
 
-        // ── 각 줄에서 어려운 단어 매칭 (긴 단어 우선, 중복 방지, 단어 경계 체크) ──
-        const sortedWords = [...difficultWords].sort(
-          (a, b) => b.word.length - a.word.length
-        );
-
-        // 한글 음절 범위 체크 (가~힣)
-        const isKorean = (ch) => ch && ch.charCodeAt(0) >= 0xAC00 && ch.charCodeAt(0) <= 0xD7A3;
-
-        const found = [];
-
-        for (const line of lines) {
-          line.sort((a, b) => a.x - b.x);
-          const lineStr = line.map((c) => c.char).join("");
-
-          // 이미 하이라이트된 글자 인덱스 추적
-          const taken = new Set();
-
-          for (const info of sortedWords) {
-            const word = info.word;
+        /* ── 단어 하이라이팅 ── */
+        if (!highlightWord) {
+          setHighlights([]);
+        } else {
+          const found = [];
+          for (const line of lines) {
+            line.sort((a, b) => a.x - b.x);
+            const lineStr = line.map((c) => c.char).join("");
             let searchPos = 0;
             let idx;
 
-            while ((idx = lineStr.indexOf(word, searchPos)) !== -1) {
-              // 단어 경계 체크: 앞뒤에 한글이 붙어있으면 부분 매칭 → 스킵
-              const charBefore = idx > 0 ? lineStr[idx - 1] : null;
-              const charAfter = idx + word.length < lineStr.length ? lineStr[idx + word.length] : null;
-              const boundaryOk = !isKorean(charBefore) && !isKorean(charAfter);
+            while ((idx = lineStr.indexOf(highlightWord, searchPos)) !== -1) {
+              const startBox = line[idx];
+              const endBox = line[idx + highlightWord.length - 1];
 
-              // 이 범위가 이미 점유되어 있는지 확인
-              let overlap = false;
-              for (let ci = idx; ci < idx + word.length; ci++) {
-                if (taken.has(ci)) {
-                  overlap = true;
-                  break;
-                }
+              if (startBox && endBox) {
+                found.push({
+                  x: startBox.x,
+                  y: Math.min(startBox.y, endBox.y),
+                  width: endBox.x + endBox.w - startBox.x,
+                  height: Math.max(startBox.h, endBox.h),
+                  word: highlightWord
+                });
               }
-
-              if (boundaryOk && !overlap) {
-                const startBox = line[idx];
-                const endBox = line[idx + word.length - 1];
-
-                if (startBox && endBox) {
-                  found.push({
-                    x: startBox.x,
-                    y: Math.min(startBox.y, endBox.y),
-                    width: endBox.x + endBox.w - startBox.x,
-                    height: Math.max(startBox.h, endBox.h),
-                    word,
-                    info,
-                  });
-
-                  // 점유 표시
-                  for (let ci = idx; ci < idx + word.length; ci++) {
-                    taken.add(ci);
-                  }
-                }
-              }
-
-              searchPos = idx + word.length;
+              searchPos = idx + highlightWord.length;
             }
           }
+          setHighlights(found);
         }
 
-        console.log(`[PdfHL] 페이지 ${pageNum}: 하이라이트 ${found.length}개 발견`);
-        if (found.length > 0) {
-          console.log(`  [예시]`, found[0]);
-        }
-        setHighlights(found);
       } catch (err) {
         if (err?.name !== "RenderingCancelledException") {
           console.error(`페이지 ${pageNum} 렌더링 오류:`, err);
@@ -251,7 +212,95 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
         renderTaskRef.current = null;
       }
     };
-  }, [pdfDoc, pageNum, containerWidth, difficultWords]);
+  }, [pdfDoc, pageNum, containerWidth, highlightWord]);
+
+  // 드래그 영역에서 텍스트 추출
+  const extractTextFromRect = useCallback((rect) => {
+    const lines = linesRef.current;
+    if (!lines.length) return "";
+
+    const minX = Math.min(rect.startX, rect.endX);
+    const maxX = Math.max(rect.startX, rect.endX);
+    const minY = Math.min(rect.startY, rect.endY);
+    const maxY = Math.max(rect.startY, rect.endY);
+
+    const selectedLines = [];
+    for (const line of lines) {
+      const sorted = [...line].sort((a, b) => a.x - b.x);
+      // 라인의 Y 범위가 선택 영역과 겹치는지 확인
+      const lineTop = Math.min(...sorted.map(c => c.y));
+      const lineBottom = Math.max(...sorted.map(c => c.y + c.h));
+      if (lineBottom < minY || lineTop > maxY) continue;
+
+      // 이 라인에서 X 범위 안의 글자만 수집
+      const chars = sorted.filter(c => {
+        const cx = c.x + c.w / 2;
+        const cy = c.y + c.h / 2;
+        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      });
+      if (chars.length > 0) {
+        selectedLines.push(chars.map(c => c.char).join(""));
+      }
+    }
+    return selectedLines.join("\n");
+  }, []);
+
+  // 드래그 선택 핸들러
+  const handleDragStart = useCallback((e) => {
+    // 메모, 스티커, 이미지, 셀, 컨텍스트 메뉴 위에서는 무시
+    if (memoMode || fillMode) return;
+    if (e.target.closest(".pdf-memo") || e.target.closest(".pdf-sticker") ||
+        e.target.closest(".pdf-user-image") || e.target.closest(".pdf-fill-cell") ||
+        e.target.closest(".pdf-context-menu")) return;
+    if (e.button !== 0) return; // 좌클릭만
+
+    const wrapper = e.currentTarget;
+    const rect = wrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    isDraggingRef.current = false; // 아직 드래그 시작 아님 (클릭과 구분)
+    dragStartRef.current = { x, y, clientX: e.clientX, clientY: e.clientY };
+  }, [memoMode, fillMode]);
+
+  const handleDragMove = useCallback((e) => {
+    if (!dragStartRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.clientX;
+    const dy = e.clientY - dragStartRef.current.clientY;
+
+    // 최소 이동 거리 (5px) 이상이어야 드래그로 인식
+    if (!isDraggingRef.current && Math.hypot(dx, dy) < 5) return;
+    isDraggingRef.current = true;
+
+    const wrapper = e.currentTarget;
+    const rect = wrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setDragSelection({
+      startX: dragStartRef.current.x,
+      startY: dragStartRef.current.y,
+      endX: x,
+      endY: y,
+    });
+  }, []);
+
+  const handleDragEnd = useCallback((e) => {
+    if (!dragStartRef.current) return;
+
+    if (isDraggingRef.current && dragSelection) {
+      const text = extractTextFromRect(dragSelection);
+      if (text.trim() && onTextSelected) {
+        onTextSelected(text.trim());
+      }
+    }
+
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
+    // 선택 영역은 잠시 유지 후 제거 (시각적 피드백)
+    setTimeout(() => setDragSelection(null), 400);
+  }, [dragSelection, extractTextFromRect, onTextSelected]);
 
   // 메모 모드에서 빈 곳 클릭 시 새 메모 추가
   const handlePageClick = useCallback((e) => {
@@ -390,8 +439,26 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
       style={{ width: pageSize.width || "auto" }}
       onClick={handlePageClick}
       onContextMenu={handleContextMenu}
+      onMouseDown={handleDragStart}
+      onMouseMove={handleDragMove}
+      onMouseUp={handleDragEnd}
+      onMouseLeave={handleDragEnd}
     >
       <canvas ref={canvasRef} />
+
+      {/* 드래그 선택 영역 */}
+      {dragSelection && (
+        <div
+          className="pdf-drag-selection"
+          style={{
+            position: "absolute",
+            left: Math.min(dragSelection.startX, dragSelection.endX),
+            top: Math.min(dragSelection.startY, dragSelection.endY),
+            width: Math.abs(dragSelection.endX - dragSelection.startX),
+            height: Math.abs(dragSelection.endY - dragSelection.startY),
+          }}
+        />
+      )}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
@@ -404,21 +471,18 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
       {highlights.map((h, i) => (
         <span
           key={`hl-${pageNum}-${i}`}
-          className={`pdf-word-highlight level-${h.info.level}`}
+          className="active-highlight-box"
           style={{
+            position: "absolute",
             left: `${h.x}px`,
             top: `${h.y}px`,
             width: `${h.width}px`,
             height: `${h.height}px`,
+            backgroundColor: "rgba(255, 255, 0, 0.4)",
+            borderBottom: "2px solid #eab308",
+            pointerEvents: "none"
           }}
-        >
-          <span className="word-bubble">
-            <strong>{h.word}</strong>
-            <span className="word-bubble-desc">
-              {h.info.easy_expression || `난이도 ${h.info.level} 단어`}
-            </span>
-          </span>
-        </span>
+        />
       ))}
 
       {/* 텍스트 메모 */}
@@ -450,6 +514,50 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, difficultWords, memoMode, me
           onDelete={onDeleteImage}
         />
       ))}
+
+      {/* 표 셀 오버레이 — 편집 모드: 입력 가능 / 모드 OFF: 채운 값 표시 */}
+      {fillCells && fillCells.map((cell) => {
+        const value = cellValues?.[cell.id] ?? "";
+        // 모드 꺼졌을 때는 값이 있는 셀만 표시
+        if (!fillMode && !value) return null;
+
+        const x = cell.x0 * renderScale;
+        const y = cell.top * renderScale;
+        const w = (cell.x1 - cell.x0) * renderScale;
+        const h = (cell.bottom - cell.top) * renderScale;
+        const isPending = pendingCells?.has(cell.id);
+
+        if (!fillMode) {
+          // 읽기 전용 텍스트 오버레이
+          return (
+            <div
+              key={cell.id}
+              className="pdf-fill-cell pdf-fill-cell--readonly"
+              style={{ left: x, top: y, width: w, height: h }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="fill-cell-readonly-text">{value}</span>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={cell.id}
+            className={`pdf-fill-cell ${isPending ? "pdf-fill-cell--pending" : value ? "pdf-fill-cell--filled" : ""}`}
+            style={{ left: x, top: y, width: w, height: h }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              className="fill-cell-input"
+              value={value}
+              onChange={(e) => onCellValueChange?.(cell.id, e.target.value)}
+              placeholder={isPending ? "" : "클릭해서 입력..."}
+              title={cell.text ? `원본: ${cell.text}` : "빈 셀"}
+            />
+          </div>
+        );
+      })}
 
       {/* 숨겨진 file input (우클릭 메뉴용) */}
       <input
@@ -867,7 +975,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -878,6 +986,126 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
   // 메모 관련 상태
   const [memoMode, setMemoMode] = useState(false);
   const [memos, setMemos] = useState([]);     // { id, pageNum, x, y, text }
+
+  // 양식 채우기 관련 상태
+  const [fillMode, setFillMode] = useState(false);
+  const [tableCells, setTableCells] = useState([]);   // 백엔드에서 받은 페이지별 셀
+  const [cellValues, setCellValues] = useState({});   // { cellId: string }
+  const [pendingCells, setPendingCells] = useState(new Set());  // AI 제안 대기 중인 셀 ID
+  const [fetchingCells, setFetchingCells] = useState(false);
+  const [aiFillingCells, setAiFillingCells] = useState(false);
+  const [fillMessage, setFillMessage] = useState("");
+
+  // 양식 채우기: 셀 좌표 가져오기
+  const handleToggleFillMode = useCallback(async () => {
+    if (fillMode) {
+      setFillMode(false);
+      return;
+    }
+    if (!pdfUrl || pdfUrl === "/sample.pdf") return;
+
+    setFetchingCells(true);
+    setFillMessage("표 구조 분석 중...");
+    try {
+      // URL 타입 무관하게 blob fetch → 파일로 전송
+      const pdfBlob = await fetch(pdfUrl).then((r) => r.blob());
+      const formData = new FormData();
+      formData.append("file", pdfBlob, "document.pdf");
+      const res = await axios.post(`${PARSER_URL}/parse/table-cells-file`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.error) throw new Error(res.data.error);
+      const pages = res.data.pages || [];
+      setTableCells(pages);
+      onCellsFetched?.(pages);
+      const totalCells = pages.reduce((s, p) => s + p.cells.length, 0);
+      const emptyCells = (res.data.pages || []).reduce(
+        (s, p) => s + p.cells.filter((c) => c.is_empty).length, 0
+      );
+      setFillMessage(`표 감지 완료 — 전체 ${totalCells}개 셀, 빈 셀 ${emptyCells}개`);
+      setFillMode(true);
+    } catch (err) {
+      console.error("셀 분석 실패:", err);
+      setFillMessage("표 분석에 실패했습니다.");
+    } finally {
+      setFetchingCells(false);
+    }
+  }, [fillMode, pdfUrl]);
+
+  // 외부(에이전트 어시스트)에서 주입된 제안 적용
+  const lastExternalRef = useRef(null);
+  useEffect(() => {
+    if (!externalSuggestions || externalSuggestions === lastExternalRef.current) return;
+    lastExternalRef.current = externalSuggestions;
+    if (!externalSuggestions.length) return;
+
+    // 양식 채우기 모드가 꺼져 있으면 자동으로 켜야 하므로 cells 로드 필요
+    // (tableCells가 이미 있으면 바로 적용, 없으면 무시 - Viewer가 순서 보장)
+    const newValues = { ...cellValues };
+    const newPending = new Set(pendingCells);
+    externalSuggestions.forEach(({ cell_id, value }) => {
+      if (value) {
+        newValues[cell_id] = value;
+        newPending.add(cell_id);
+      }
+    });
+    setCellValues(newValues);
+    setPendingCells(newPending);
+    setFillMode(true);
+    setFillMessage(`에이전트가 ${externalSuggestions.length}개 셀을 채웠습니다. 확인 후 수정하세요.`);
+  }, [externalSuggestions]);
+
+  // AI 자동 채우기
+  const handleAiFill = useCallback(async () => {
+    const allCells = tableCells.flatMap((p) => p.cells);
+    if (!allCells.length) return;
+    setAiFillingCells(true);
+    setFillMessage("AI가 내용을 분석하는 중...");
+    try {
+      const res = await axios.post(`${PARSER_URL}/chat/fill-cells`, {
+        cells: allCells,
+        document_context: parsedText || "",
+      });
+      const suggestions = res.data.suggestions || [];
+      if (!suggestions.length) {
+        setFillMessage(res.data.message || "AI가 제안할 내용을 찾지 못했습니다.");
+        return;
+      }
+      const newValues = { ...cellValues };
+      const newPending = new Set(pendingCells);
+      suggestions.forEach(({ cell_id, value }) => {
+        if (value) {
+          newValues[cell_id] = value;
+          newPending.add(cell_id);
+        }
+      });
+      setCellValues(newValues);
+      setPendingCells(newPending);
+      setFillMessage(res.data.message || `AI가 ${suggestions.length}개 셀을 채웠습니다. 내용을 확인 후 수정하세요.`);
+    } catch (err) {
+      console.error("AI 채우기 실패:", err);
+      setFillMessage("AI 채우기에 실패했습니다.");
+    } finally {
+      setAiFillingCells(false);
+    }
+  }, [tableCells, parsedText, cellValues, pendingCells]);
+
+  // 셀 값 변경
+  const handleCellValueChange = useCallback((cellId, value) => {
+    setCellValues((prev) => ({ ...prev, [cellId]: value }));
+    // 사용자가 직접 편집하면 pending 해제
+    setPendingCells((prev) => {
+      const next = new Set(prev);
+      next.delete(cellId);
+      return next;
+    });
+  }, []);
+
+  // AI 제안 전체 수락 (pending 상태만 해제, 값은 유지)
+  const handleAcceptAll = useCallback(() => {
+    setPendingCells(new Set());
+    setFillMessage("모든 제안을 수락했습니다.");
+  }, []);
 
   const handleAddMemo = useCallback((memo) => {
     setMemos((prev) => [...prev, memo]);
@@ -1079,7 +1307,41 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
           ctx.restore();
         }
 
-        // 4) 해당 페이지 이미지 그리기
+        // 4) 채워진 셀 텍스트 그리기 (양식 채우기 모드 여부 무관)
+        if (tableCells.length > 0 && Object.keys(cellValues).length > 0) {
+          const pageData = tableCells.find((p) => p.page === i + 1);
+          if (pageData) {
+            const cssWidth = parseFloat(srcCanvas.style.width);
+            const fillScale = cssWidth / pageData.page_width;
+
+            for (const cell of pageData.cells) {
+              const value = cellValues[cell.id];
+              if (!value) continue;
+
+              const cx = cell.x0 * fillScale * dpr;
+              const cy = cell.top * fillScale * dpr;
+              const cw = (cell.x1 - cell.x0) * fillScale * dpr;
+              const ch = (cell.bottom - cell.top) * fillScale * dpr;
+              const fontSize = Math.max(8, Math.min(ch * 0.55, 13)) * dpr;
+
+              ctx.save();
+              // 흰 배경으로 원본 덮기
+              ctx.fillStyle = "rgba(255,255,255,0.92)";
+              ctx.fillRect(cx + 1, cy + 1, cw - 2, ch - 2);
+              // 텍스트 클리핑
+              ctx.beginPath();
+              ctx.rect(cx + 2, cy + 2, cw - 4, ch - 4);
+              ctx.clip();
+              ctx.fillStyle = "#1a1a1a";
+              ctx.font = `${fontSize}px sans-serif`;
+              ctx.textBaseline = "middle";
+              ctx.fillText(value, cx + 4, cy + ch / 2);
+              ctx.restore();
+            }
+          }
+        }
+
+        // 5) 해당 페이지 이미지 그리기
         const pageImages = images.filter((img) => img.pageNum === i + 1);
 
         for (const img of pageImages) {
@@ -1207,6 +1469,42 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
           <span className="memo-count">{memos.length}개</span>
         )}
 
+        {/* 양식 채우기 버튼 */}
+        <button
+          className={`memo-tool-btn ${fillMode ? "active" : ""}`}
+          onClick={handleToggleFillMode}
+          disabled={fetchingCells}
+          title={fillMode ? "양식 채우기 끄기" : "표 셀을 직접 채우거나 AI로 자동 채우기"}
+        >
+          <ClipboardEdit size={16} />
+          <span>{fetchingCells ? "분석 중..." : "양식 채우기"}</span>
+        </button>
+
+        {/* AI 자동 채우기 (양식 모드 활성 시만) */}
+        {fillMode && (
+          <button
+            className="memo-tool-btn fill-ai-btn"
+            onClick={handleAiFill}
+            disabled={aiFillingCells}
+            title="AI가 빈 셀 내용을 자동으로 제안"
+          >
+            <Sparkles size={16} />
+            <span>{aiFillingCells ? "AI 분석 중..." : "AI 자동 채우기"}</span>
+          </button>
+        )}
+
+        {/* 전체 수락 (AI 제안이 있을 때) */}
+        {fillMode && pendingCells.size > 0 && (
+          <button
+            className="memo-tool-btn fill-accept-btn"
+            onClick={handleAcceptAll}
+            title="AI 제안 전체 수락"
+          >
+            <CheckCheck size={16} />
+            <span>전체 수락 ({pendingCells.size})</span>
+          </button>
+        )}
+
         <StickerToolbar onAddSticker={handleAddSticker} />
         {stickers.length > 0 && (
           <span className="memo-count">🌟 {stickers.length}</span>
@@ -1242,6 +1540,17 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
         </button>
       </div>
 
+      {/* 양식 채우기 안내 배너 */}
+      {fillMode && fillMessage && (
+        <div className="fill-mode-banner">
+          <Sparkles size={13} />
+          <span>{fillMessage}</span>
+          <button className="fill-banner-close" onClick={() => setFillMessage("")} title="닫기">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {containerWidth > 0 &&
         Array.from({ length: numPages }, (_, i) => {
           const pageNum = i + 1;
@@ -1251,7 +1560,7 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
               pdfDoc={pdfDoc}
               pageNum={pageNum}
               containerWidth={containerWidth}
-              difficultWords={difficultWords}
+              highlightWord={highlightWord}
               memoMode={memoMode}
               memos={memos.filter((m) => m.pageNum === pageNum)}
               onAddMemo={handleAddMemo}
@@ -1266,6 +1575,12 @@ export default function PdfHighlightViewer({ pdfUrl, difficultWords = [] }) {
               onAddImage={handleAddImage}
               onUpdateImage={handleUpdateImage}
               onDeleteImage={handleDeleteImage}
+              fillMode={fillMode}
+              fillCells={tableCells.find((p) => p.page === pageNum)?.cells || []}
+              cellValues={cellValues}
+              pendingCells={pendingCells}
+              onCellValueChange={handleCellValueChange}
+              onTextSelected={onTextSelected}
             />
           );
         })}
