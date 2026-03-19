@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles, MessageSquare, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles, MessageSquare, PanelRightClose, PanelRightOpen, PanelLeftClose, PanelLeftOpen, Loader2, RefreshCw } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -100,6 +100,9 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
 
+    // 왼쪽 사이드바 접기/펼치기 (디폴트: 펼침)
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
     // 에이전트 패널 접기/펼치기 (디폴트: 접힘)
     const [agentOpen, setAgentOpen] = useState(false);
 
@@ -156,6 +159,51 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     };
     const cancelSendToAgent = () => {
       setPendingSelectedText(null);
+    };
+
+    // ── 문단 쉬운 말 변환 ──
+    const PARSER_URL = "http://localhost:8000";
+    const [pendingParagraph, setPendingParagraph] = useState(null);   // 변환 확인 대화상자용
+    const [simplifiedParas, setSimplifiedParas] = useState({});       // { "pageNum-paraId": { original, simplified, y, height } }
+    const [simplifyingId, setSimplifyingId] = useState(null);         // 로딩 중인 문단 ID
+
+    const handleParagraphClick = (para) => {
+      setPendingParagraph(para);
+    };
+
+    const confirmSimplify = async () => {
+      if (!pendingParagraph) return;
+      const key = `${pendingParagraph.pageNum}-${pendingParagraph.id}`;
+      setPendingParagraph(null);
+      setSimplifyingId(key);
+
+      try {
+        const res = await axios.post(`${PARSER_URL}/simplify-paragraph`, {
+          paragraph: pendingParagraph.text,
+        });
+        setSimplifiedParas(prev => ({
+          ...prev,
+          [key]: {
+            original: pendingParagraph.text,
+            simplified: res.data.simplified,
+            y: pendingParagraph.y,
+            height: pendingParagraph.height,
+            x: pendingParagraph.x,
+            width: pendingParagraph.width,
+            pageNum: pendingParagraph.pageNum,
+            colorIdx: pendingParagraph.colorIdx,
+          }
+        }));
+      } catch (err) {
+        console.error("문단 변환 오류:", err);
+        alert("문단 변환 중 오류가 발생했습니다.");
+      } finally {
+        setSimplifyingId(null);
+      }
+    };
+
+    const cancelSimplify = () => {
+      setPendingParagraph(null);
     };
 
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
@@ -292,57 +340,66 @@ const handleFileChange = async (e) => {
     return (
     <div className="viewer-page">
       
-      {/* 1. 왼쪽 사이드바 */}
-      <aside className="sidebar sidebar-left">
-        {/* 브랜드 로고 */}
-        <div className="viewer-brand">
-          <LogoIcon />
-          <span className="brand-text-easy">Easy</span>
-          <span className="brand-text-doc">DOC</span>
-        </div>
-
-        {/* 업로드 버튼 */}
-        <input
-          type = "file"
-          ref = {fileInputRef}
-          style = {{ display: "none" }}
-          accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
-          onChange={handleFileChange}
-        />
-        <button className="btn-upload" onClick={handleUploadBtnClick}>
-          <Upload size={20} />
-          <span>문서 업로드</span>
-        </button>
-
-        {/* 최근 문서 목록 */}
-        <div className="recent-section">
-          <div className="section-title">
-            <Clock size={16} />
-            <span>최근 문서</span>
+      {/* 1. 왼쪽 사이드바 — 접기/펼치기 */}
+      <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : 'closed'}`}>
+        <aside className="sidebar sidebar-left">
+          {/* 브랜드 로고 */}
+          <div className="viewer-brand">
+            <LogoIcon />
+            <span className="brand-text-easy">Easy</span>
+            <span className="brand-text-doc">DOC</span>
           </div>
-          <ul className="doc-list">
-            {recentDocs.map((doc) => (
-              <li key={doc.id} className="doc-item">
-                <div className="doc-info">
-                  <div className="doc-icon-box">
-                    <FileText size={18} />
+
+          {/* 업로드 버튼 */}
+          <input
+            type = "file"
+            ref = {fileInputRef}
+            style = {{ display: "none" }}
+            accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
+            onChange={handleFileChange}
+          />
+          <button className="btn-upload" onClick={handleUploadBtnClick}>
+            <Upload size={20} />
+            <span>문서 업로드</span>
+          </button>
+
+          {/* 최근 문서 목록 */}
+          <div className="recent-section">
+            <div className="section-title">
+              <Clock size={16} />
+              <span>최근 문서</span>
+            </div>
+            <ul className="doc-list">
+              {recentDocs.map((doc) => (
+                <li key={doc.id} className="doc-item">
+                  <div className="doc-info">
+                    <div className="doc-icon-box">
+                      <FileText size={18} />
+                    </div>
+                    <div className="doc-text">
+                      <span className="doc-title">{doc.title}</span>
+                      <span className="doc-date">{doc.date}</span>
+                    </div>
                   </div>
-                  <div className="doc-text">
-                    <span className="doc-title">{doc.title}</span>
-                    <span className="doc-date">{doc.date}</span>
-                  </div>
-                </div>
-                <ChevronRight size={16} color="#9ca3af" />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+                  <ChevronRight size={16} color="#9ca3af" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      </div>
 
       {/* 2. 메인 콘텐츠 — 원본 + easyDOC 나란히 */}
       <main className="main-content">
         {/* 상단 헤더 */}
         <div className="content-header">
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarOpen(prev => !prev)}
+            title={sidebarOpen ? "사이드바 닫기" : "사이드바 열기"}
+          >
+            {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+          </button>
           <div className="header-title">
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
@@ -376,6 +433,7 @@ const handleFileChange = async (e) => {
                 onCellsFetched={handleCellsFetched}
                 externalSuggestions={externalFillSuggestions}
                 onTextSelected={handleTextSelected}
+                onParagraphClick={handleParagraphClick}
                 scrollRef={leftScrollRef}
               />
             ) : (
@@ -388,7 +446,7 @@ const handleFileChange = async (e) => {
           {/* 구분선 */}
           <div className="dual-panel-divider" />
 
-          {/* 오른쪽: easyDOC (원본과 동일한 PDF 뷰) */}
+          {/* 오른쪽: easyDOC — PDF 원본 + 변환된 문단 오버레이 */}
           <div className="dual-panel dual-panel--right">
             {isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
               <PdfHighlightViewer
@@ -396,6 +454,8 @@ const handleFileChange = async (e) => {
                 highlightWord={highlightWord}
                 parsedText={parsedText || ocrText}
                 scrollRef={rightScrollRef}
+                simplifiedParas={simplifiedParas}
+                simplifyingId={simplifyingId}
               />
             ) : (
               <div className="no-content">
@@ -436,6 +496,30 @@ const handleFileChange = async (e) => {
               <button className="drag-confirm-btn drag-confirm-btn--ok" onClick={confirmSendToAgent}>
                 <Sparkles size={14} />
                 설명 요청
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 문단 쉬운 말 변환 확인 대화상자 */}
+      {pendingParagraph && (
+        <div className="drag-confirm-overlay" onClick={cancelSimplify}>
+          <div className="drag-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="drag-confirm-header">
+              <RefreshCw size={20} color="#3D4B90" />
+              <h4 className="drag-confirm-title">이 문단을 쉬운 말로 변환할까요?</h4>
+            </div>
+            <div className="drag-confirm-text-box">
+              <p className="drag-confirm-text">{pendingParagraph.text}</p>
+            </div>
+            <div className="drag-confirm-actions">
+              <button className="drag-confirm-btn drag-confirm-btn--cancel" onClick={cancelSimplify}>
+                취소
+              </button>
+              <button className="drag-confirm-btn drag-confirm-btn--ok" onClick={confirmSimplify}>
+                <Sparkles size={14} />
+                변환하기
               </button>
             </div>
           </div>

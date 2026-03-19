@@ -635,3 +635,56 @@ async def fill_cells(req: FillCellsRequest):
     except Exception as e:
         print(f"[fill-cells 오류] {e}")
         return {"error": str(e), "suggestions": []}
+
+
+# ============================================================
+# 문단 쉬운 말 변환 엔드포인트
+# ============================================================
+
+class SimplifyRequest(BaseModel):
+    paragraph: str  # 원본 문단 텍스트
+
+@app.post("/simplify-paragraph")
+async def simplify_paragraph(req: SimplifyRequest):
+    """문단을 쉬운 말로 변환한다."""
+    if not gemini_model:
+        return {"error": "Gemini API가 설정되지 않았습니다.", "simplified": req.paragraph}
+
+    prompt = f"""당신은 행정/법률 문서를 일반인이 이해할 수 있도록 쉽게 바꿔주는 전문가입니다.
+
+아래 문단을 쉬운 말로 바꿔주세요.
+
+규칙:
+- 전문 용어나 어려운 한자어는 쉬운 우리말로 바꿉니다.
+- 문장 구조를 간결하게 다듬습니다.
+- 원래 의미를 왜곡하지 않습니다.
+- 줄바꿈 구조는 원본과 비슷하게 유지합니다.
+- 부가 설명이나 주석 없이, 변환된 문단만 출력합니다.
+
+원본 문단:
+\"\"\"
+{req.paragraph}
+\"\"\"
+
+변환 결과:"""
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        simplified = response.text.strip()
+
+        token_usage = {}
+        if hasattr(response, 'usage_metadata'):
+            token_usage = {
+                "prompt_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0),
+                "completion_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0),
+                "total_tokens": getattr(response.usage_metadata, 'total_token_count', 0),
+            }
+
+        print(f"[simplify] 원본 {len(req.paragraph)}자 → 변환 {len(simplified)}자")
+        return {
+            "simplified": simplified,
+            "token_usage": token_usage,
+        }
+    except Exception as e:
+        print(f"[simplify 오류] {e}")
+        return {"error": str(e), "simplified": req.paragraph}

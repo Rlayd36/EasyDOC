@@ -32,9 +32,27 @@
     flex-shrink: 0;
 }
 
+/* 사이드바 래퍼 — 접기/펼치기 */
+.sidebar-wrapper {
+    overflow: hidden;
+    transition: width 0.3s ease, opacity 0.3s ease;
+    flex-shrink: 0;
+    border-right: 1px solid #CACACA;
+}
+
+.sidebar-wrapper.open {
+    width: 350px;
+    opacity: 1;
+}
+
+.sidebar-wrapper.closed {
+    width: 0;
+    opacity: 0;
+    border-right: none;
+}
+
 .sidebar-left {
     width: 350px;
-    border-right: 1px solid #CACACA;
 }
 
 .sidebar-right {
@@ -181,6 +199,27 @@
   align-items: center;
   gap: 10px;
   color: #000000;
+}
+
+/* 사이드바 토글 버튼 */
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 
 /* AI 에이전트 토글 버튼 */

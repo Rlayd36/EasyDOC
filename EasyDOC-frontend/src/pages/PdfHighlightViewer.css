@@ -623,3 +623,38 @@
   from { background: rgba(59, 130, 246, 0.12); }
   to   { background: rgba(59, 130, 246, 0.22); }
 }
+
+/* ===============================
+   문단 브래킷 호버 효과
+   =============================== */
+.para-bracket:hover {
+  border-left-width: 5px !important;
+  filter: brightness(0.85);
+}
+
+/* ===============================
+   변환된 문단 오버레이
+   =============================== */
+.simplified-overlay {
+  animation: simplifiedFadeIn 0.3s ease-out;
+}
+
+@keyframes simplifiedFadeIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 로딩 스피너 */
+.simplify-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d1d5db;
+  border-top-color: #3D4B90;
+  border-radius: 50%;
+  animation: simplifySpinnerRotate 0.6s linear infinite;
+}
+
+@keyframes simplifySpinnerRotate {
+  to { transform: rotate(360deg); }
+}

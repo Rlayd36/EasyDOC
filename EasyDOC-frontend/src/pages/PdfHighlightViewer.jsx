@@ -131,7 +131,7 @@ function groupLinesIntoParagraphs(lines) {
   });
 }
 
-function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected, onParagraphClick, simplifiedParas, simplifyingId }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
@@ -569,41 +569,98 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         />
       )}
 
-      {/* 문단 분리 시각화 (프로토타입) */}
-      {paragraphs.map((para, i) => (
-        <div
-          key={`para-${pageNum}-${i}`}
-          style={{
-            position: "absolute",
-            left: `${para.x - 4}px`,
-            top: `${para.y - 2}px`,
-            width: `${para.width + 8}px`,
-            height: `${para.height + 4}px`,
-            background: PARA_COLORS[i % PARA_COLORS.length],
-            border: `2px solid ${PARA_BORDERS[i % PARA_BORDERS.length]}`,
-            borderRadius: "4px",
-            pointerEvents: "none",
-            zIndex: 2,
-          }}
-        >
-          <span
+      {/* 문단 분리 시각화 — 왼쪽 [ 브래킷 (클릭 가능) */}
+      {paragraphs.map((para, i) => {
+        const color = PARA_BORDERS[i % PARA_BORDERS.length];
+        return (
+          <div
+            key={`para-${pageNum}-${i}`}
+            className="para-bracket"
+            onClick={(e) => {
+              e.stopPropagation();
+              onParagraphClick?.({ ...para, pageNum, colorIdx: i });
+            }}
             style={{
               position: "absolute",
-              top: "-18px",
-              left: "2px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: PARA_BORDERS[i % PARA_BORDERS.length],
-              background: "white",
-              padding: "0 4px",
-              borderRadius: "3px",
-              whiteSpace: "nowrap",
+              left: `${para.x - 14}px`,
+              top: `${para.y - 2}px`,
+              width: "10px",
+              height: `${para.height + 4}px`,
+              borderLeft: `3px solid ${color}`,
+              borderTop: `3px solid ${color}`,
+              borderBottom: `3px solid ${color}`,
+              borderRight: "none",
+              borderRadius: "4px 0 0 4px",
+              cursor: "pointer",
+              zIndex: 2,
+              transition: "border-width 0.15s, left 0.15s",
             }}
           >
-            P{i + 1} ({para.lineCount}줄)
-          </span>
-        </div>
-      ))}
+            <span
+              style={{
+                position: "absolute",
+                top: "-16px",
+                left: "-2px",
+                fontSize: "10px",
+                fontWeight: 700,
+                color,
+                background: "rgba(255,255,255,0.85)",
+                padding: "0 3px",
+                borderRadius: "3px",
+                whiteSpace: "nowrap",
+                lineHeight: "14px",
+              }}
+            >
+              P{i + 1}
+            </span>
+          </div>
+        );
+      })}
+
+      {/* 변환된 문단 오버레이 (easyDOC 패널에서만 표시) */}
+      {simplifiedParas && paragraphs.map((para, i) => {
+        const key = `${pageNum}-${para.id}`;
+        const loadingThis = simplifyingId === key;
+        const data = simplifiedParas[key];
+        if (!data && !loadingThis) return null;
+        return (
+          <div
+            key={`simplified-${key}`}
+            className="simplified-overlay"
+            style={{
+              position: "absolute",
+              left: `${para.x - 4}px`,
+              top: `${para.y - 2}px`,
+              width: `${para.width + 8}px`,
+              minHeight: `${para.height + 4}px`,
+              background: "rgba(255, 255, 255, 0.95)",
+              border: `2px solid ${PARA_BORDERS[i % PARA_BORDERS.length]}`,
+              borderRadius: "6px",
+              padding: "8px 10px",
+              zIndex: 5,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}
+          >
+            {loadingThis ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#6b7280", fontSize: "13px" }}>
+                <span className="simplify-spinner" />
+                변환 중...
+              </div>
+            ) : (
+              <p style={{
+                margin: 0,
+                fontSize: "12px",
+                lineHeight: 1.6,
+                color: "#1e293b",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}>
+                {data.simplified}
+              </p>
+            )}
+          </div>
+        );
+      })}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
@@ -1120,7 +1177,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected, scrollRef }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected, onParagraphClick, scrollRef, simplifiedParas, simplifyingId }) {
   const internalRef = useRef(null);
   const containerRef = scrollRef || internalRef;
   const [pdfDoc, setPdfDoc] = useState(null);
@@ -1727,6 +1784,9 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
               pendingCells={pendingCells}
               onCellValueChange={handleCellValueChange}
               onTextSelected={onTextSelected}
+              onParagraphClick={onParagraphClick}
+              simplifiedParas={simplifiedParas}
+              simplifyingId={simplifyingId}
             />
           );
         })}
