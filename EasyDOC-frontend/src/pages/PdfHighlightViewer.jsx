@@ -975,8 +975,9 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected }) {
-  const containerRef = useRef(null);
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected, scrollRef }) {
+  const internalRef = useRef(null);
+  const containerRef = scrollRef || internalRef;
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -183,60 +183,137 @@
   color: #000000;
 }
 
-/* 힌트 배너 - 우측 */
-.hint-banner-right {
+/* AI 에이전트 토글 버튼 */
+.agent-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #6b7280;
-  font-size: 14px;
-  flex: 0 0 auto;
-}
-
-/* 뷰 모드 전환 버튼 컨테이너 */
-.view-mode-buttons-container {
-  padding: 12px 24px;
-  background: #fafafa;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: center;
-}
-
-/* 뷰 모드 전환 버튼 */
-.view-mode-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.view-mode-btn {
-  padding: 8px 20px;
-  border: 2px solid #3D4B90;
-  background: #ffffff;
-  color: #3D4B90;
-  border-radius: 6px;
-  font-size: 14px;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #3D4B90;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.view-mode-btn:hover {
-  background: #f0f2f9;
+.agent-toggle-btn:hover {
+  background: #2e3a70;
 }
 
-.view-mode-btn.active {
-  background: #3D4B90;
-  color: #ffffff;
-}
-
-/* 힌트 배너 - 우측 */
-.hint-banner-right {
+/* 탭 라벨 행 */
+.dual-tab-labels {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #6b7280;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0;
+}
+
+.dual-tab-label {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
   font-size: 14px;
-  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.dual-tab-label--original {
+  color: #374151;
+  background: #ffffff;
+}
+
+.dual-tab-label--easy {
+  color: #ffffff;
+  background: #1e293b;
+  border-radius: 0;
+}
+
+.dual-tab-separator {
+  color: #d1d5db;
+  font-size: 18px;
+  padding: 0 2px;
+  user-select: none;
+}
+
+/* 양쪽 패널 컨테이너 */
+.dual-panel-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: #eff3fc;
+}
+
+.dual-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  position: relative;
+}
+
+.dual-panel--left {
+  background: #eff3fc;
+  display: flex;
+  justify-content: center;
+}
+
+.dual-panel--right {
+  background: #f8fafc;
+  display: flex;
+  justify-content: center;
+}
+
+.dual-panel-divider {
+  width: 3px;
+  background: linear-gradient(to bottom, #d1d5db 0%, #9ca3af 50%, #d1d5db 100%);
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+}
+
+.dual-panel-divider::after {
+  content: '⋮';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #6b7280;
+  font-size: 16px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  padding: 8px 2px;
+}
+
+/* easyDOC 내부 파싱 콘텐츠 */
+.parsed-content-inner {
+  width: 100%;
+  max-width: 800px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 에이전트 패널 래퍼 */
+.agent-panel-wrapper {
+  overflow: hidden;
+  transition: width 0.3s ease, opacity 0.3s ease;
+  flex-shrink: 0;
+  border-left: 1px solid #e5e7eb;
+}
+
+.agent-panel-wrapper.open {
+  width: 380px;
+  opacity: 1;
+}
+
+.agent-panel-wrapper.closed {
+  width: 0;
+  opacity: 0;
+  border-left: none;
 }
 
 .hint-banner {

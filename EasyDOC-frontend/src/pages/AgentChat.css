@@ -5,10 +5,9 @@
 
 /* —— 패널 전체 —— */
 .agent-chat-panel {
-  width: 380px;
+  width: 100%;
   height: 100vh;
   background: #ffffff;
-  border-left: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;

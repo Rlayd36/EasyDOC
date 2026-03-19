@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
-import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import axios from "axios";
+import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles, MessageSquare, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -100,8 +100,39 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
 
-    // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
-    const [viewMode, setViewMode] = useState("parsed");
+    // 에이전트 패널 접기/펼치기 (디폴트: 접힘)
+    const [agentOpen, setAgentOpen] = useState(false);
+
+    // 스크롤 동기화용 ref (PdfHighlightViewer 내부 컨테이너에 연결)
+    const leftScrollRef = useRef(null);
+    const rightScrollRef = useRef(null);
+    const isSyncingScroll = useRef(false);
+
+    // 스크롤 동기화: PdfHighlightViewer 내부 스크롤 이벤트 연결
+    useEffect(() => {
+      const leftEl = leftScrollRef.current;
+      const rightEl = rightScrollRef.current;
+      if (!leftEl || !rightEl) return;
+
+      const syncFrom = (source, target) => () => {
+        if (isSyncingScroll.current) return;
+        isSyncingScroll.current = true;
+        const maxScroll = source.scrollHeight - source.clientHeight;
+        const ratio = maxScroll > 0 ? source.scrollTop / maxScroll : 0;
+        target.scrollTop = ratio * (target.scrollHeight - target.clientHeight);
+        requestAnimationFrame(() => { isSyncingScroll.current = false; });
+      };
+
+      const syncLeftToRight = syncFrom(leftEl, rightEl);
+      const syncRightToLeft = syncFrom(rightEl, leftEl);
+
+      leftEl.addEventListener('scroll', syncLeftToRight);
+      rightEl.addEventListener('scroll', syncRightToLeft);
+      return () => {
+        leftEl.removeEventListener('scroll', syncLeftToRight);
+        rightEl.removeEventListener('scroll', syncRightToLeft);
+      };
+    });
 
     // 에이전트 어시스트 ↔ PDF 뷰어 브리지
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
@@ -121,6 +152,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
       const prompt = `다음 문단을 쉽게 설명해줘:\n\n"${pendingSelectedText}"`;
       setExternalPrompt({ text: prompt, id: Date.now() });
       setPendingSelectedText(null);
+      setAgentOpen(true); // 에이전트 패널 자동 열기
     };
     const cancelSendToAgent = () => {
       setPendingSelectedText(null);
@@ -307,7 +339,7 @@ const handleFileChange = async (e) => {
         </div>
       </aside>
 
-      {/* 2. 메인 콘텐츠 (문서 뷰어) */}
+      {/* 2. 메인 콘텐츠 — 원본 + easyDOC 나란히 */}
       <main className="main-content">
         {/* 상단 헤더 */}
         <div className="content-header">
@@ -315,44 +347,28 @@ const handleFileChange = async (e) => {
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
           </div>
+          <button
+            className="agent-toggle-btn"
+            onClick={() => setAgentOpen(prev => !prev)}
+            title={agentOpen ? "AI 에이전트 닫기" : "AI 에이전트 열기"}
+          >
+            {agentOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+            <span>AI</span>
+          </button>
         </div>
 
-        {/* 뷰 모드 전환 버튼 */}
-        <div className="view-mode-buttons-container">
-          <div className="view-mode-buttons">
-            <button 
-              className={`view-mode-btn ${viewMode === 'parsed' ? 'active' : ''}`}
-              onClick={() => setViewMode('parsed')}
-            >
-              DOC
-            </button>
-            <button 
-              className={`view-mode-btn ${viewMode === 'original' ? 'active' : ''}`}
-              onClick={() => setViewMode('original')}
-            >
-              원본
-            </button>
-          </div>
+        {/* 탭 라벨 */}
+        <div className="dual-tab-labels">
+          <div className="dual-tab-label dual-tab-label--original">원본</div>
+          <div className="dual-tab-separator">⋮</div>
+          <div className="dual-tab-label dual-tab-label--easy">easyDOC</div>
         </div>
 
-        <div className="pdf-container">
-          {/* 뷰 모드에 따라 문서 표시 */}
-          {viewMode === 'parsed' ? (
-            /* DOC 탭: 파싱된 텍스트 */
-            <div className="parsed-content">
-              {ocrText ? (
-                <HighlightedTextView text={ocrText} highlightWord={highlightWord} />
-              ) : parsedText ? (
-                <HighlightedTextView text={parsedText} highlightWord={highlightWord} />
-              ) : (
-                <div className="no-content">
-                  <p>파일을 업로드하면 파싱된 문서가 여기에 표시됩니다.</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* 원본 탭: PDF 원본 이미지 */
-            isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
+        {/* 양쪽 패널 */}
+        <div className="dual-panel-container">
+          {/* 왼쪽: 원본 PDF */}
+          <div className="dual-panel dual-panel--left">
+            {isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
               <PdfHighlightViewer
                 pdfUrl={pdfUrl}
                 highlightWord={highlightWord}
@@ -360,27 +376,47 @@ const handleFileChange = async (e) => {
                 onCellsFetched={handleCellsFetched}
                 externalSuggestions={externalFillSuggestions}
                 onTextSelected={handleTextSelected}
+                scrollRef={leftScrollRef}
               />
             ) : (
-              <iframe
-                src={pdfUrl}
-                className="pdf-frame"
-                title="Document Viewer"
+              <div className="no-content">
+                <p>파일을 업로드하면 원본 문서가 여기에 표시됩니다.</p>
+              </div>
+            )}
+          </div>
+
+          {/* 구분선 */}
+          <div className="dual-panel-divider" />
+
+          {/* 오른쪽: easyDOC (원본과 동일한 PDF 뷰) */}
+          <div className="dual-panel dual-panel--right">
+            {isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
+              <PdfHighlightViewer
+                pdfUrl={pdfUrl}
+                highlightWord={highlightWord}
+                parsedText={parsedText || ocrText}
+                scrollRef={rightScrollRef}
               />
-            )
-          )}
+            ) : (
+              <div className="no-content">
+                <p>파일을 업로드하면 easyDOC 문서가 여기에 표시됩니다.</p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
-      {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
-      <AgentChat
-        parsedText={parsedText}
-        documentName={documentName}
-        onHighlightWord={setHighlightWord}
-        tableCells={sharedTableCells}
-        onAgentFill={handleAgentFill}
-        externalPrompt={externalPrompt}
-      />
+      {/* 3. AI 에이전트 — 접기/펼치기 */}
+      <div className={`agent-panel-wrapper ${agentOpen ? 'open' : 'closed'}`}>
+        <AgentChat
+          parsedText={parsedText}
+          documentName={documentName}
+          onHighlightWord={setHighlightWord}
+          tableCells={sharedTableCells}
+          onAgentFill={handleAgentFill}
+          externalPrompt={externalPrompt}
+        />
+      </div>
 
       {/* 드래그 선택 확인 대화상자 */}
       {pendingSelectedText && (
