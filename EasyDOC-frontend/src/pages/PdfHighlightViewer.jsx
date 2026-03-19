@@ -30,6 +30,107 @@ const STICKERS = [
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
+/* ── 문단 분리 색상 (프로토타입 시각화용) ── */
+const PARA_COLORS = [
+  "rgba(59, 130, 246, 0.12)",   // 파랑
+  "rgba(16, 185, 129, 0.12)",   // 초록
+  "rgba(245, 158, 11, 0.12)",   // 주황
+  "rgba(139, 92, 246, 0.12)",   // 보라
+  "rgba(236, 72, 153, 0.12)",   // 분홍
+  "rgba(20, 184, 166, 0.12)",   // 청록
+  "rgba(239, 68, 68, 0.12)",    // 빨강
+  "rgba(107, 114, 128, 0.12)",  // 회색
+];
+
+const PARA_BORDERS = [
+  "rgba(59, 130, 246, 0.5)",
+  "rgba(16, 185, 129, 0.5)",
+  "rgba(245, 158, 11, 0.5)",
+  "rgba(139, 92, 246, 0.5)",
+  "rgba(236, 72, 153, 0.5)",
+  "rgba(20, 184, 166, 0.5)",
+  "rgba(239, 68, 68, 0.5)",
+  "rgba(107, 114, 128, 0.5)",
+];
+
+/**
+ * lines 배열을 문단(paragraph)으로 그룹핑한다.
+ * 기준: 인접 줄의 baseY 간격이 평균 줄 높이 × GAP_FACTOR 이상이면 새 문단.
+ */
+function groupLinesIntoParagraphs(lines) {
+  if (!lines || lines.length === 0) return [];
+
+  // 각 줄의 대표 baseY와 fontH 계산
+  const lineMeta = lines.map(line => {
+    const avgBaseY = line.reduce((s, c) => s + c.baseY, 0) / line.length;
+    const avgFontH = line.reduce((s, c) => s + c.fontH, 0) / line.length;
+    return { avgBaseY, avgFontH, line };
+  });
+
+  // baseY 기준 정렬 (위→아래)
+  lineMeta.sort((a, b) => a.avgBaseY - b.avgBaseY);
+
+  // 인접 줄 간격 계산
+  const gaps = [];
+  for (let i = 1; i < lineMeta.length; i++) {
+    const gap = Math.abs(lineMeta[i].avgBaseY - lineMeta[i - 1].avgBaseY);
+    gaps.push(gap);
+  }
+
+  // 평균 줄 간격 (일반적인 줄 간격 기준)
+  const medianGap = gaps.length > 0
+    ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)]
+    : 0;
+
+  // 문단 분리 임계값: 중앙값 줄 간격의 1.8배 이상이면 새 문단
+  const GAP_FACTOR = 1.8;
+  const threshold = medianGap * GAP_FACTOR;
+
+  const paragraphs = [];
+  let currentPara = [lineMeta[0]];
+
+  for (let i = 1; i < lineMeta.length; i++) {
+    const gap = Math.abs(lineMeta[i].avgBaseY - lineMeta[i - 1].avgBaseY);
+
+    if (threshold > 0 && gap > threshold) {
+      paragraphs.push(currentPara);
+      currentPara = [lineMeta[i]];
+    } else {
+      currentPara.push(lineMeta[i]);
+    }
+  }
+  paragraphs.push(currentPara);
+
+  // 각 문단의 바운딩 박스 + 텍스트 계산
+  return paragraphs.map((paraLines, idx) => {
+    let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+    const textLines = [];
+
+    for (const { line } of paraLines) {
+      const sorted = [...line].sort((a, b) => a.x - b.x);
+      const text = sorted.map(c => c.char).join("");
+      textLines.push(text);
+
+      for (const c of sorted) {
+        minX = Math.min(minX, c.x);
+        minY = Math.min(minY, c.y);
+        maxX = Math.max(maxX, c.x + c.w);
+        maxY = Math.max(maxY, c.y + c.h);
+      }
+    }
+
+    return {
+      id: idx,
+      text: textLines.join("\n"),
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+      lineCount: paraLines.length,
+    };
+  });
+}
+
 function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
@@ -38,6 +139,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
   const [hasText, setHasText] = useState(true);
   const [highlights, setHighlights] = useState([]);
   const [renderScale, setRenderScale] = useState(1);  // 셀 오버레이 위치 계산용
+  const [paragraphs, setParagraphs] = useState([]);   // 문단 분리 결과
 
   // 텍스트 좌표 저장 (드래그 선택용)
   const charBoxesRef = useRef([]);
@@ -167,6 +269,13 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         }
         lines.push(currentLine);
         linesRef.current = lines;
+
+        /* ── 문단 분리 (프로토타입) ── */
+        const paras = groupLinesIntoParagraphs(lines);
+        setParagraphs(paras);
+        console.log(`[Page ${pageNum}] 문단 ${paras.length}개 감지:`, paras.map((p, i) =>
+          `\n  [${i}] (${p.lineCount}줄) "${p.text.substring(0, 40)}..."`
+        ).join(""));
 
         /* ── 단어 하이라이팅 ── */
         if (!highlightWord) {
@@ -459,6 +568,42 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           }}
         />
       )}
+
+      {/* 문단 분리 시각화 (프로토타입) */}
+      {paragraphs.map((para, i) => (
+        <div
+          key={`para-${pageNum}-${i}`}
+          style={{
+            position: "absolute",
+            left: `${para.x - 4}px`,
+            top: `${para.y - 2}px`,
+            width: `${para.width + 8}px`,
+            height: `${para.height + 4}px`,
+            background: PARA_COLORS[i % PARA_COLORS.length],
+            border: `2px solid ${PARA_BORDERS[i % PARA_BORDERS.length]}`,
+            borderRadius: "4px",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: "-18px",
+              left: "2px",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: PARA_BORDERS[i % PARA_BORDERS.length],
+              background: "white",
+              padding: "0 4px",
+              borderRadius: "3px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            P{i + 1} ({para.lineCount}줄)
+          </span>
+        </div>
+      ))}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
