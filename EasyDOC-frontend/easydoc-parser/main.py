@@ -1,4 +1,6 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends
+from sqlalchemy.orm import Session
+import sys
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -30,6 +32,16 @@ for _ef in _env_files:
     load_dotenv(dotenv_path=_ef, override=True)
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
+
+# --- DB 공유를 위한 경로 설정 ---
+current_file_path = Path(__file__).resolve()
+root_dir = current_file_path.parent.parent.parent
+
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from database_document.database import get_db, Document
+# -----------------------------
 
 app = FastAPI()
 
@@ -191,8 +203,8 @@ async def parse_hwp(file: UploadFile = File(...)):
 
 
 @app.get("/parse/s3/{file_key:path}")
-async def parse_from_s3(file_key: str):
-    """S3에서 파일 가져와서 파싱"""
+async def parse_from_s3(file_key: str, db: Session = Depends(get_db)):
+    """S3에서 파일 가져와서 파싱 및 DB 저장"""
     print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
     print(f"[DEBUG] 버킷: {BUCKET_NAME}")
     try:
@@ -212,7 +224,6 @@ async def parse_from_s3(file_key: str):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
-            return {"filename": filename, "text": text}
         
         elif ext == "hwp":
             ole = olefile.OleFileIO(io.BytesIO(contents))
@@ -222,10 +233,33 @@ async def parse_from_s3(file_key: str):
             else:
                 text = "텍스트를 추출할 수 없습니다."
             ole.close()
-            return {"filename": filename, "text": text.strip()}
+            text = text.strip()
         
         else:
             return {"error": "지원하지 않는 파일 형식입니다."}
+
+        # ================= [새로 추가] DB 저장 로직 =================
+        # S3 URL 조립
+        s3_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_DEFAULT_REGION')}.amazonaws.com/{file_key}"
+
+        # DB 모델 생성
+        new_doc = Document(
+            file_name=filename,
+            file_type=ext,
+            s3_url=s3_url,
+            extracted_text=text
+        )
+
+        # DB에 추가 및 커밋
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+
+        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id})")
+        # ========================================================
+
+        # 저장된 ID와 함께 프론트엔드로 응답
+        return {"id": new_doc.id, "filename": filename, "text": text}
     
     except Exception as e:
         return {"error": str(e)}

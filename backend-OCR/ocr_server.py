@@ -1,17 +1,27 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import boto3
 import os
+import sys
 from urllib.parse import unquote
 from ocr_logic import EasyDocOCR
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+from pathlib import Path  # 추가됨
+
+# --- DB 공유를 위한 경로 설정 ---
+current_file_path = Path(__file__).resolve()
+root_dir = current_file_path.parent.parent
+
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+# ---------------------------------------------
+
+from database_document.database import get_db, Document  
 
 load_dotenv()
 
 app = FastAPI()
-
-# Google Cloud 인증 키 위치 지정
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json"
 
 # CORS 설정
 app.add_middleware(
@@ -22,7 +32,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OCR 엔진 로딩
+# 설정 및 연결
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json" # Google Cloud 인증 키 위치 지정   
 ocr_engine = EasyDocOCR()
 
 # .env 파일에서 AWS 설정값 불러오기
@@ -39,10 +50,10 @@ s3_client = boto3.client(
     region_name=AWS_REGION
 )
 
-# 프론트엔드 요청에 맞게 GET 방식으로 주소 변경
+# db: Session = Depends(get_db)를 추가하여 API가 호출될 때마다 DB와 통신할 수 있는 세션 할당
 @app.get("/ocr/s3/{filename}")
-def run_ocr(filename: str):
-    #URL에 포함된 암호화된 파일명(예: %ED%95...)을 정상적인 글자로 변환
+def run_ocr(filename: str, db: Session = Depends(get_db)):
+    # URL에 포함된 암호화된 파일명(예: %ED%95...)을 정상적인 글자로 변환
     decoded_filename = unquote(filename)
 
     # 로컬에 다운로드할 임시 경로
@@ -58,8 +69,34 @@ def run_ocr(filename: str):
         text_result = ocr_engine.extract_text(local_path)
         print(f"분석 완료: {text_result[:30]}...")
 
-        #프론트엔드에서 ocrResponse.data.text로 받을 수 있도록 반환형식 수정
-        return {"text": text_result}
+        # ================= DB 저장 로직 =================
+        # 1. S3 URL 주소 조립
+        s3_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{filename}"
+
+        # 2. 파일명에서 확장자(예: png, jpg) 추출
+        file_extension = decoded_filename.split('.')[-1] if '.' in decoded_filename else "unknown"
+
+        # 3. DB에 넣을 데이터 포장 (INSERT 문과 동일한 역할)
+        new_doc = Document(
+            file_name = decoded_filename,
+            file_type = file_extension,
+            s3_url = s3_url,
+            extracted_text=text_result
+        )
+
+        # 4. DB에 추가하고 저장
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc) #MySQL이 방금 발급해준 고유 ID 번호를 가져온다
+
+        print(f"DB 저장 성공! (문서 번호: {new_doc.id})")
+        # ===================================================
+
+        # 프론트엔드에 추출 텍스트와 함께 부여된 문서 번호 반환
+        return {
+            "id": new_doc.id,
+            "text": text_result
+        }
 
     except Exception as e:
         print(f"에러 발생: {e}")
