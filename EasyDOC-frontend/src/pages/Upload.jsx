@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
@@ -17,6 +17,69 @@ export default function Upload({onNavigateToMyPage}) {
 
   // AWS API Gateway 주소
   const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+
+  // 최근 문서 목록 가져오기
+  const fetchRecentDocs = async () => {
+    try {
+      const response = await axios.get('http://localhost:8002/api/documents');
+      
+      // DB 데이터를 화면에 맞게 변환
+      const formattedDocs = response.data.map(doc => {
+        const dateObj = new Date(doc.created_at);
+        return {
+          id: doc.id,
+          name: doc.file_name,
+          date: dateObj.toLocaleDateString("ko-KR", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).replace(/\./g, ".")
+        };
+      });
+      setRecentDocs(formattedDocs);
+    } catch (error) {
+      console.error("최근 문서 목록 로딩 실패:", error);
+    }
+  };
+
+  // 페이지가 처음 열릴 때 목록 가져오기
+  useEffect(() => {
+    fetchRecentDocs();
+  }, []);
+
+  // 최근 문서 목록에서 문서 클릭 시 뷰어 페이지로 이동
+  const handleRecentDocClick = async (docId) => {
+    if (!docId) return; // id가 없으면 무시
+
+    try {
+      setShowLoading(true);
+      const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+      const docData = response.data;
+
+      // Viewer.jsx가 알아들을 수 있는 형태로 데이터 세팅
+      setParseResult({
+        id: docData.id,
+        filename: docData.file_name,
+        text: docData.text,
+        difficult_words: docData.difficult_words
+      });
+      setOcrResult(null);
+
+      // S3 주소가 있으면 PDF 원본 주소로 세팅
+      if (docData.s3_url) {
+        setPdfFileUrl(docData.s3_url);
+      } else {
+        setPdfFileUrl(null);
+      }
+
+      setShowLoading(false);
+      setShowViewer(true); // 뷰어 화면으로 전환!
+    } catch (error) {
+      console.error("문서 상세 불러오기 실패:", error);
+      alert("문서를 불러올 수 없습니다.");
+      setShowLoading(false);
+    }
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -116,24 +179,7 @@ export default function Upload({onNavigateToMyPage}) {
       // console.log("파싱 결과:", parseResponse.data.text);
 
       // UPDATE: UI 업데이트 (최근 문서 목록에 추가)
-      const fileInfo = {
-        name: selectedFile.name,
-        date: new Date()
-          .toLocaleDateString("ko-KR", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          })
-          .replace(/\./g, "."),
-      };
-
-      const filteredDocs = recentDocs.filter(
-        (doc) => doc.name !== selectedFile.name
-      );
-      setRecentDocs([fileInfo, ...filteredDocs.slice(0, 9)]);
-
-      // 파일 저장 (나중에 백엔드 API로 대체)
-      //console.log("업로드 성공", selectedFile.name);
+      await fetchRecentDocs();
 
       // 초기화
       setSelectedFile(null);
@@ -203,7 +249,12 @@ export default function Upload({onNavigateToMyPage}) {
             </div>
             <div className="recent-list">
               {recentDocs.map((doc, index) => (
-                <div key={index} className="recent-item">
+                <div 
+                  key={doc.id || index} 
+                  className="recent-item"
+                  onClick={() => handleRecentDocClick(doc.id)}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="recent-item-icon">
                     {getFileIcon(doc.name) === "pdf" && <PDFIcon />}
                     {getFileIcon(doc.name) === "hwp" && <HWPIcon />}
