@@ -70,6 +70,13 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
         print(f"분석 완료: {text_result[:30]}...")
 
         # ================= DB 저장 로직 =================
+        file_size_bytes = os.path.getsize(local_path)
+        size_kb = file_size_bytes / 1024
+        file_size_str = f"{size_kb:.1f} KB"
+
+        total_pages = 1 
+        # OCR은 촬영하거나 기기에 있는 이미지 하나를 업로드 하므로 총 페이지 수를 계산할 필요 없이 1로 고정
+
         # 1. S3 URL 주소 조립
         s3_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{filename}"
 
@@ -81,7 +88,9 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
             file_name = decoded_filename,
             file_type = file_extension,
             s3_url = s3_url,
-            extracted_text=text_result
+            extracted_text=text_result,
+            file_size = file_size_str,
+            page_count = total_pages
         )
 
         # 4. DB에 추가하고 저장
@@ -89,7 +98,7 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_doc) #MySQL이 방금 발급해준 고유 ID 번호를 가져온다
 
-        print(f"DB 저장 성공! (문서 번호: {new_doc.id})")
+        print(f"DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages})")
         # ===================================================
 
         # 프론트엔드에 추출 텍스트와 함께 부여된 문서 번호 반환

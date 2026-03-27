@@ -36,11 +36,20 @@ class DifficultWordsUpdate(BaseModel):
 # 전체 문서 목록 조회
 @app.get("/api/documents")
 def get_document_list(db: Session = Depends(get_db)):
-    docs = db.query(Document.id, Document.file_name, Document.created_at)\
-            .order_by(Document.id.desc())\
-            .all()
+    docs = db.query(Document.id, Document.file_name, Document.created_at, Document.page_count, Document.file_size)\
+             .order_by(Document.id.desc())\
+             .all()
 
-    result = [{"id": doc.id, "file_name": doc.file_name, "created_at": doc.created_at} for doc in docs]
+    result = [
+        {
+            "id": doc.id, 
+            "file_name": doc.file_name, 
+            "created_at": doc.created_at,
+            "page_count": doc.page_count,  
+            "file_size": doc.file_size    
+        } 
+        for doc in docs
+    ]
     return result
 
 # 특정 문서 상세 조회

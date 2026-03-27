@@ -15,7 +15,10 @@
  * 
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; 
+import axios from "axios"; 
+import Viewer from "./Viewer";
+import Loading from "./Loading";
 import "./mypage.css";
 
 /**
@@ -403,16 +406,77 @@ function LanguageSettingsContent() {
  *  그 정도 생각할 수 있을 듯.
  */
 
-function HistoryContent() {
+function HistoryContent({ onDocumentClick }) {
   // 문서 검색어 상태
   const [searchQuery, setSearchQuery] = useState("");
+  const [documents, setDocuments] = useState([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await axios.get('http://localhost:8002/api/documents');
+
+        const formattedDocs = response.data.map(doc => {
+          const d = new Date(doc.created_at);
+          const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+          return {
+            id: doc.id,
+            name: doc.file_name,
+            level: 3, // DB에 난이도 컬럼이 없으므로 디폴트 3 지정
+            category: "문서", // 기본 카테고리
+            date: dateStr,
+            pages: doc.page_count || "-",  // (DB에 값이 없으면 "-" 출력)
+            size: doc.file_size || "-",    
+          };
+        });
+        setDocuments(formattedDocs);
+      } catch (error) {
+        console.error("이력 로딩 실패: ", error);
+      }
+    };
+    fetchHistory();
+  }, []);
+  
+  // 파일 다운로드 처리 함수
+  const handleDownload = async (e, docId, fileName) => {
+    e.stopPropagation();
+
+    try{
+      const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+      const s3Url = response.data.s3_url;
+
+      if (!s3Url) {
+        alert("다운로드할 원본 파일이 존재하지 않습니다.");
+        return;
+      }
+
+      // S3에서 파일을 받아와 내 컴퓨터에 저장
+      const fileResponse = await fetch(s3Url);
+      const blob = await fileResponse.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("다운로드 실패:", error);
+      alert("파일 다운로드 중 오류가 발생했습니다.");
+    }
+  };
 
   // ===== 더미 문서 데이터 =====
   // 실제 운영에서는 백엔드 API에서 fetch
   // 형식: { id, name, level, category, date, pages, size }
   // ISO 날짜 형식으로 바꿔야 하는데, 어떻게 하는지 모름
 
-  const documents = [
+  /*const documents = [
     {
       id: 1,
       name: "행정기본법.pdf",
@@ -590,13 +654,21 @@ function HistoryContent() {
               </div>
 
               <div className="document-actions">
-                <button className="action-btn" title="보기">
+                <button 
+                  className="action-btn" 
+                  title="보기" 
+                  onClick={() => onDocumentClick(doc.id)}
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 </button>
-                <button className="action-btn" title="다운로드">
+                <button 
+                  className="action-btn" 
+                  title="다운로드"
+                  onClick={(e) => handleDownload(e, doc.id, doc.name)}
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -814,6 +886,36 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   // 현재 활성화된 메뉴 상태 (기본값: 프로필)
   const [activeMenu, setActiveMenu] = useState("profile");
   
+  const [showViewer, setShowViewer] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [viewerData, setViewerData] = useState({ parseResult: null, ocrResult: null, pdfFileUrl: null });
+
+  const handleDocumentClick = async (docId) => {
+    try {
+      setShowLoading(true);
+      const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+      const docData = response.data;
+
+      setViewerData({
+        parseResult: {
+          id: docData.id,
+          filename: docData.file_name,
+          text: docData.text,
+          difficult_words: docData.difficult_words
+        },
+        ocrResult: null,
+        pdfFileUrl: docData.s3_url || null
+      });
+
+      setShowLoading(false);
+      setShowViewer(true);
+    } catch (error) {
+      console.error("문서 상세 로딩 실패:", error);
+      alert("문서를 불러올 수 없습니다.");
+      setShowLoading(false);
+    }
+  };
+
   // ===== 더미 사용자 데이터 =====
   const [userData,setUserData]=useState({
     name: " ",
@@ -861,6 +963,31 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
         .catch(err => {
           console.error("정보 로딩 실패:", err);
         });
+
+      // 문서 DB에서 데이터 가져와서 통계 (문서 수, 페이지 수) 계산하기
+      axios.get('http://localhost:8002/api/documents')
+        .then(response => {
+          const docs = response.data;
+
+          // 총 문서 개수
+          const totalDocs = docs.length;
+
+          // 총 페이지 수 합산 (값이 비어있으면 1장으로 계산)
+          const totalPages = docs.reduce((sum, doc) => sum + (doc.page_count || 1), 0);
+
+          // 계산된 결과를 userData.stats에 반영
+          setUserData(prev => ({
+            ...prev,
+            stats: {
+              ...prev.stats,
+              documents: totalDocs,
+              pages: totalPages
+            }
+          }));
+        })
+        .catch(error => {
+          console.error("통계 정보 로딩 실패:", error);
+        });
     }
   }, [userEmail]);
 
@@ -884,13 +1011,28 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
       case "language":
         return <LanguageSettingsContent />;
       case "history":
-        return <HistoryContent />;
+        return <HistoryContent onDocumentClick={handleDocumentClick} />;
       case "settings":
         return <SettingsContent userEmail={userEmail} onLogout={onLogout}/>;
       default:
         return <ProfileContent userData={userData} />;
     }
   };
+
+  // 로딩 & 뷰어 화면 렌더링 추가
+  if (showLoading) {
+    return <Loading title="문서 불러오는 중" subtitle="잠시만 기다려주세요" />;
+  }
+
+  if (showViewer) {
+    return (
+      <Viewer 
+        parsedData={viewerData.parseResult} 
+        ocrData={viewerData.ocrResult} 
+        pdfFileUrl={viewerData.pdfFileUrl} 
+      />
+    );
+  }
 
 return (
     <div className="mypage">

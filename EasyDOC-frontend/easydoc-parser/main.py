@@ -238,7 +238,20 @@ async def parse_from_s3(file_key: str, db: Session = Depends(get_db)):
         else:
             return {"error": "지원하지 않는 파일 형식입니다."}
 
-        # ================= [새로 추가] DB 저장 로직 =================
+        # ================= DB 저장 로직 =================
+        # 파일 크기 계산
+        size_kb = len(contents) / 1024
+        file_size_str = f"{size_kb:.1f} KB"
+
+        # 페이지 수 계산
+        total_pages = 1
+        if ext == "pdf":
+            try:
+                with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                    total_pages = len(pdf.pages)
+            except:
+                total_pages = 1
+        
         # S3 URL 조립
         s3_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_DEFAULT_REGION')}.amazonaws.com/{file_key}"
 
@@ -247,15 +260,17 @@ async def parse_from_s3(file_key: str, db: Session = Depends(get_db)):
             file_name=filename,
             file_type=ext,
             s3_url=s3_url,
-            extracted_text=text
+            extracted_text=text,
+            file_size=file_size_str,
+            page_count=total_pages
         )
-
+        
         # DB에 추가 및 커밋
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
 
-        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id})")
+        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages})")
         # ========================================================
 
         # 저장된 ID와 함께 프론트엔드로 응답

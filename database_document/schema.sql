@@ -10,4 +10,6 @@ CREATE TABLE IF NOT EXISTS docsinfos (
     extracted_text LONGTEXT,						-- 추출된 아주 긴 텍스트
     difficult_words JSON,                           -- 어려운 단어 목록 (JSON 형식)        
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP	-- 업로드된 시간 (자동 기록)
+    page_count INT DEFAULT 0;                       -- 문서 총 페이지 수
+    file_size VARCHAR(50);                          -- 문서 파일 용량
 );

@@ -46,6 +46,8 @@ class Document(Base):
     extracted_text = Column(LONGTEXT)
     difficult_words = Column(JSON)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    page_count = Column(Integer, default=0)
+    file_size = Column(String(50))
 
 # DB 연결 세션을 가져오는 함수 (FastAPI에서 사용)
 def get_db():
