@@ -52,7 +52,7 @@ s3_client = boto3.client(
 
 # db: Session = Depends(get_db)를 추가하여 API가 호출될 때마다 DB와 통신할 수 있는 세션 할당
 @app.get("/ocr/s3/{filename}")
-def run_ocr(filename: str, db: Session = Depends(get_db)):
+def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
     # URL에 포함된 암호화된 파일명(예: %ED%95...)을 정상적인 글자로 변환
     decoded_filename = unquote(filename)
 
@@ -90,7 +90,8 @@ def run_ocr(filename: str, db: Session = Depends(get_db)):
             s3_url = s3_url,
             extracted_text=text_result,
             file_size = file_size_str,
-            page_count = total_pages
+            page_count = total_pages,
+            user_email = user_email
         )
 
         # 4. DB에 추가하고 저장

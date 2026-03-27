@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-_search = Path(__file__).resolve().parent
+"""_search = Path(__file__).resolve().parent
 _env_files = []
 for _ in range(5):  # 최대 5단계 상위 폴더까지 탐색
     _candidate = _search / ".env"
@@ -18,14 +18,14 @@ for _ef in _env_files:
     load_dotenv(dotenv_path=_ef, override=True)
 
 if _env_files:
-    print(f"✓ database.py: .env 로드 완료 ({[str(f) for f in _env_files]})")
+    print(f"✓ database.py: .env 로드 완료 ({[str(f) for f in _env_files]})")"""
 
-# 환경변수에서 DB 정보 가져오기
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
+# DB 정보 가져오기
+DB_USER = "root"
+DB_PASSWORD = "root"
+DB_HOST = "localhost"
+DB_PORT = "3306"
+DB_NAME = "easydoc"
 
 # MySQL 연결 주소 만들기 (pymysql)
 SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
@@ -48,6 +48,7 @@ class Document(Base):
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     page_count = Column(Integer, default=0)
     file_size = Column(String(50))
+    user_email = Column(String(255), index=True)
 
 # DB 연결 세션을 가져오는 함수 (FastAPI에서 사용)
 def get_db():

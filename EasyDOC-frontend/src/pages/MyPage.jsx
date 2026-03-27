@@ -406,7 +406,7 @@ function LanguageSettingsContent() {
  *  그 정도 생각할 수 있을 듯.
  */
 
-function HistoryContent({ onDocumentClick }) {
+function HistoryContent({ onDocumentClick, userEmail }) {
   // 문서 검색어 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [documents, setDocuments] = useState([]);
@@ -414,7 +414,7 @@ function HistoryContent({ onDocumentClick }) {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await axios.get('http://localhost:8002/api/documents');
+        const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
 
         const formattedDocs = response.data.map(doc => {
           const d = new Date(doc.created_at);
@@ -965,7 +965,7 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
         });
 
       // 문서 DB에서 데이터 가져와서 통계 (문서 수, 페이지 수) 계산하기
-      axios.get('http://localhost:8002/api/documents')
+      axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`)
         .then(response => {
           const docs = response.data;
 
@@ -1011,7 +1011,7 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
       case "language":
         return <LanguageSettingsContent />;
       case "history":
-        return <HistoryContent onDocumentClick={handleDocumentClick} />;
+        return <HistoryContent onDocumentClick={handleDocumentClick} userEmail={userEmail} />;
       case "settings":
         return <SettingsContent userEmail={userEmail} onLogout={onLogout}/>;
       default:
@@ -1030,6 +1030,7 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
         parsedData={viewerData.parseResult} 
         ocrData={viewerData.ocrResult} 
         pdfFileUrl={viewerData.pdfFileUrl} 
+        userEmail={userEmail}
       />
     );
   }

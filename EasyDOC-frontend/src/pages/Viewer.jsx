@@ -63,7 +63,7 @@ function HighlightedTextView({ text, highlightWord }) {
   );
 }
 
-export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
+export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
@@ -129,7 +129,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
 
     const fetchDocuments = async () => {
         try {
-            const response = await axios.get('http://localhost:8002/api/documents');
+            const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
             setRecentDocs(response.data);
         } catch (error) {
             console.error("문서 목록 로딩 실패:", error);
@@ -260,7 +260,7 @@ const handleFileChange = async (e) => {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
       console.log("6. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
@@ -269,7 +269,7 @@ const handleFileChange = async (e) => {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. 파싱 완료!", parseResponse.data);
       const extractedText = parseResponse.data.text;

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -33,10 +33,11 @@ app.add_middleware(
 class DifficultWordsUpdate(BaseModel):
     difficult_words: list
 
-# 전체 문서 목록 조회
+# 현재 로그인한 특정 유저의 문서 목록만 조회
 @app.get("/api/documents")
-def get_document_list(db: Session = Depends(get_db)):
+def get_document_list(user_email: str = Query(...), db: Session = Depends(get_db)):
     docs = db.query(Document.id, Document.file_name, Document.created_at, Document.page_count, Document.file_size)\
+             .filter(Document.user_email == user_email)\
              .order_by(Document.id.desc())\
              .all()
 

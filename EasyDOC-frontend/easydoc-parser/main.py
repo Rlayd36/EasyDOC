@@ -203,7 +203,7 @@ async def parse_hwp(file: UploadFile = File(...)):
 
 
 @app.get("/parse/s3/{file_key:path}")
-async def parse_from_s3(file_key: str, db: Session = Depends(get_db)):
+async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depends(get_db)):
     """S3에서 파일 가져와서 파싱 및 DB 저장"""
     print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
     print(f"[DEBUG] 버킷: {BUCKET_NAME}")
@@ -262,7 +262,8 @@ async def parse_from_s3(file_key: str, db: Session = Depends(get_db)):
             s3_url=s3_url,
             extracted_text=text,
             file_size=file_size_str,
-            page_count=total_pages
+            page_count=total_pages,
+            user_email=user_email
         )
         
         # DB에 추가 및 커밋

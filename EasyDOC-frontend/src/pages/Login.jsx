@@ -22,6 +22,7 @@ export default function Login() {
         return (
           <Upload 
             onNavigateToMyPage={() => setCurrentView("mypage")} 
+            userEmail={userEmail}
           />
         );
       case "mypage":

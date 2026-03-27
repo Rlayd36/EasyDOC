@@ -4,7 +4,7 @@ import Viewer from "./Viewer";
 import Loading from "./Loading";
 import "./Upload.css";
 
-export default function Upload({onNavigateToMyPage}) {
+export default function Upload({onNavigateToMyPage, userEmail}) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showViewer, setShowViewer] = useState(false);
@@ -21,7 +21,7 @@ export default function Upload({onNavigateToMyPage}) {
   // 최근 문서 목록 가져오기
   const fetchRecentDocs = async () => {
     try {
-      const response = await axios.get('http://localhost:8002/api/documents');
+      const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
       
       // DB 데이터를 화면에 맞게 변환
       const formattedDocs = response.data.map(doc => {
@@ -149,7 +149,7 @@ export default function Upload({onNavigateToMyPage}) {
         // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
         console.log("6. OCR 서버에 분석 요청...");
         const ocrResponse = await axios.get(
-          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
         );
         console.log("7. OCR 결과 도착!", ocrResponse.data);
         setOcrResult(ocrResponse.data); // 결과 저장
@@ -159,7 +159,7 @@ export default function Upload({onNavigateToMyPage}) {
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);
         const parseResponse = await axios.get(
-          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
+          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
         );
         console.log("7. 파싱 완료!", parseResponse.data);
         
@@ -220,7 +220,7 @@ export default function Upload({onNavigateToMyPage}) {
 
   if (showViewer) {
     // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
-    return <Viewer parsedData={parseResult} ocrData={ocrResult} pdfFileUrl={pdfFileUrl} />;
+    return <Viewer parsedData={parseResult} ocrData={ocrResult} pdfFileUrl={pdfFileUrl} userEmail={userEmail} />;
   }
 
   return (
