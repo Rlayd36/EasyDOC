@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles } from 'lucide-react';
+import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles, Image as ImageIcon } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -155,7 +155,9 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
             if (docData.s3_url) {
               setPdfUrl(docData.s3_url);
               const isPdfFile = docData.file_type?.toLowerCase() === 'pdf' ||
-                docData.file_name?.toLowerCase().endsWith('.pdf');
+                docData.file_type?.toLowerCase() === 'pdf' ||
+                docData.file_name?.toLowerCase().endsWith('.pdf') ||
+                docData.s3_url?.toLowerCase().includes('.pdf');
                 setIsPdf(isPdfFile);
             }
         } catch (error) {
@@ -170,6 +172,19 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
     const formatDate = (dateString) => {
       if (!dateString) return "";
       return dateString.substring(0, 10).replace(/-/g, '.');
+    };
+
+    // 파일명에 따라 아이콘과 색상을 다르게 반환
+    const renderFileIcon = (fileName) => {
+      if (!fileName) return <FileText size={18} color="#DC2626" />;
+      const ext = fileName.split(".").pop().toLowerCase();
+      if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) {
+        return <ImageIcon size={18} color="#10B981" />; // 이미지는 초록색 아이콘
+      }
+      if (ext === "hwp") {
+        return <FileText size={18} color="#2563EB" />; // HWP는 파란색 아이콘
+      }
+      return <FileText size={18} color="#DC2626" />; // PDF 등 기본은 빨간색 아이콘
     };
 
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
@@ -265,6 +280,11 @@ const handleFileChange = async (e) => {
       console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
+
+      if (ocrResponse.data.pdf_url) {
+        setPdfUrl(ocrResponse.data.pdf_url);
+        setIsPdf(true);
+      }
     } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
@@ -332,7 +352,7 @@ const handleFileChange = async (e) => {
               >
                 <div className="doc-info">
                   <div className="doc-icon-box">
-                    <FileText size={18} />
+                    {renderFileIcon(doc.file_name)}
                   </div>
                   <div className="doc-text">
                     <span className="doc-title">{doc.file_name}</span>

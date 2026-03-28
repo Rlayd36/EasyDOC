@@ -7,7 +7,7 @@ from urllib.parse import unquote
 from ocr_logic import EasyDocOCR
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-from pathlib import Path  # 추가됨
+from pathlib import Path  
 
 # --- DB 공유를 위한 경로 설정 ---
 current_file_path = Path(__file__).resolve()
@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 # 설정 및 연결
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-key.json" # Google Cloud 인증 키 위치 지정   
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "vision-key.json" # Google Cloud 인증 키 위치 지정   
 ocr_engine = EasyDocOCR()
 
 # .env 파일에서 AWS 설정값 불러오기
@@ -56,8 +56,14 @@ def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
     # URL에 포함된 암호화된 파일명(예: %ED%95...)을 정상적인 글자로 변환
     decoded_filename = unquote(filename)
 
+    pure_filename = os.path.basename(decoded_filename)
+
     # 로컬에 다운로드할 임시 경로
-    local_path = f"temp_{decoded_filename}"
+    local_path = f"temp_{pure_filename}"
+
+    filename_without_ext = pure_filename.rsplit('.', 1)[0] if '.' in pure_filename else pure_filename
+    pdf_filename = f"{filename_without_ext}_OCR.pdf"
+    local_pdf_path = f"temp_{pdf_filename}"
 
     try:
         print(f"S3에서 다운로드 시작: {decoded_filename}")
@@ -66,46 +72,49 @@ def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
 
         print("OCR 분석 시작...")
         # 다운받은 파일로 OCR 수행
-        text_result = ocr_engine.extract_text(local_path)
+        text_result = ocr_engine.extract_text_and_make_pdf(local_path, local_pdf_path)
         print(f"분석 완료: {text_result[:30]}...")
 
+        print("생성된 PDF를 S3에 업로드 중...")
+        # 생성된 PDF를 S3에 업로드
+        s3_pdf_key = f"ocr_pdfs/{pdf_filename}" 
+        s3_client.upload_file(local_pdf_path, BUCKET_NAME, s3_pdf_key, ExtraArgs={'ContentType': 'application/pdf'})
+        s3_pdf_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_pdf_key}"
+
         # ================= DB 저장 로직 =================
-        file_size_bytes = os.path.getsize(local_path)
+        file_size_bytes = os.path.getsize(local_pdf_path)
         size_kb = file_size_bytes / 1024
         file_size_str = f"{size_kb:.1f} KB"
 
         total_pages = 1 
         # OCR은 촬영하거나 기기에 있는 이미지 하나를 업로드 하므로 총 페이지 수를 계산할 필요 없이 1로 고정
 
-        # 1. S3 URL 주소 조립
-        s3_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{filename}"
-
-        # 2. 파일명에서 확장자(예: png, jpg) 추출
-        file_extension = decoded_filename.split('.')[-1] if '.' in decoded_filename else "unknown"
-
-        # 3. DB에 넣을 데이터 포장 (INSERT 문과 동일한 역할)
+        file_extension = pure_filename.split('.')[-1].lower() if '.' in pure_filename else "unknown"
+        
+        # DB에 넣을 데이터 포장 (INSERT 문과 동일한 역할)
         new_doc = Document(
-            file_name = decoded_filename,
+            file_name = pure_filename,
             file_type = file_extension,
-            s3_url = s3_url,
+            s3_url = s3_pdf_url,
             extracted_text=text_result,
             file_size = file_size_str,
             page_count = total_pages,
             user_email = user_email
         )
 
-        # 4. DB에 추가하고 저장
+        # DB에 추가하고 저장
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc) #MySQL이 방금 발급해준 고유 ID 번호를 가져온다
 
-        print(f"DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages})")
+        print(f"DB 저장 성공! (문서 번호: {new_doc.id}, PDF URL: {s3_pdf_url})")
         # ===================================================
 
-        # 프론트엔드에 추출 텍스트와 함께 부여된 문서 번호 반환
+        # 프론트엔드에 추출 텍스트와 함께 부여된 문서 번호와 새 PDF 주소 반환
         return {
             "id": new_doc.id,
-            "text": text_result
+            "text": text_result,
+            "pdf_url": s3_pdf_url 
         }
 
     except Exception as e:
@@ -116,6 +125,8 @@ def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
         # 임시 파일 삭제
         if os.path.exists(local_path):
             os.remove(local_path)
+        if os.path.exists(local_pdf_path):
+            os.remove(local_pdf_path)
 
 if __name__ == "__main__":
     import uvicorn

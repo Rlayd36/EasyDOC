@@ -155,6 +155,10 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
         setOcrResult(ocrResponse.data); // 결과 저장
         setParseResult(null);           // 파싱 데이터는 비움
         setParsedText("");
+
+        if (ocrResponse.data.pdf_url) {
+          setPdfFileUrl(ocrResponse.data.pdf_url);
+        }
       } else {
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);
