@@ -22,20 +22,17 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"[document_api] DB 테이블 초기화 실패 (연결 정보·방화벽 확인): {e}")
+        print(f"[document_api] DB 초기화 실패 (서버는 기동됨): {e}")
     yield
 
 
 app = FastAPI(title="Document DB Server", lifespan=lifespan)
 
-# CORS: allow_origins=["*"] 와 allow_credentials=True 는 스펙상 동시 사용 불가 → 브라우저가 헤더를 버림
+# * 와 credentials=True 동시 사용 불가 → 브라우저 CORS 오류 방지
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

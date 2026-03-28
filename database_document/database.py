@@ -15,10 +15,9 @@ for _ in range(8):
         break
     _search = _search.parent
 
-# Spring application.properties 와 동일한 환경변수명
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "root")
-DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "easydoc")
 
