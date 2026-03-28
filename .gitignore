@@ -44,3 +44,6 @@ out/
 
 ### Spring Boot 로컬 설정 (비밀번호 등) ###
 **/application-local.properties
+
+### GCP 서비스 계정 키 ###
+google-key.json

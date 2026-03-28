@@ -27,9 +27,18 @@ for _ in range(5):
         _env_files.append(_candidate)
     _search = _search.parent
 for _ef in _env_files:
-    load_dotenv(dotenv_path=_ef, override=True)
+    for _enc in ("utf-8", "euc-kr", "cp949", "latin-1"):
+        try:
+            load_dotenv(dotenv_path=_ef, override=True, encoding=_enc)
+            break
+        except UnicodeDecodeError:
+            continue
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
+
+BASE_DIR = Path(__file__).resolve().parent
+KEY_PATH = BASE_DIR / "google-key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(KEY_PATH)
 
 app = FastAPI()
 
@@ -53,11 +62,11 @@ BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 gemini_model = None
 try:
     project_id = os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("GCP_LOCATION", "asia-northeast3")
-    
+    location = os.getenv("GCP_LOCATION", "us-central1")
+
     if project_id:
         vertexai.init(project=project_id, location=location)
-        gemini_model = GenerativeModel("gemini-1.5-flash")
+        gemini_model = GenerativeModel("gemini-2.5-flash")
         print("✓ Vertex AI Gemini 초기화 성공")
     else:
         print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
@@ -377,6 +386,130 @@ async def analyze_with_gemini(data: dict):
 
 
 # ============================================================
+# 중요 페이지 분석 엔드포인트
+# ============================================================
+
+@app.post("/analyze-important-pages")
+async def analyze_important_pages(data: dict):
+    """페이지별 텍스트를 받아 중요 페이지(독소조항, 핵심 약관 등)를 판별"""
+    pages = data.get("pages", [])
+
+    if not pages:
+        return {"important_pages": []}
+
+    if gemini_model is None:
+        return {"important_pages": [], "error": "Gemini API가 설정되지 않았습니다."}
+
+    pages_block = ""
+    for p in pages:
+        page_num = p.get("page", 0)
+        text = p.get("text", "").strip()
+        if text:
+            pages_block += f"\n--- 페이지 {page_num} ---\n{text}\n"
+
+    if not pages_block.strip():
+        return {"important_pages": []}
+
+    prompt = f"""## 역할
+당신은 보험·금융·행정·법률 문서의 독소조항 및 핵심 약관을 찾아내는 전문가입니다.
+
+## 작업
+아래 문서의 각 페이지를 분석하여, 사용자가 반드시 읽어야 하는 **중요한 페이지**를 찾아주세요.
+
+## 중요 페이지 판단 기준
+- 보험 면책조항, 보장 제한, 감액 규정이 있는 페이지
+- 계약 해지 조건, 위약금, 벌칙 규정이 있는 페이지
+- 보험금 지급 제한 또는 부지급 사유가 있는 페이지
+- 중요한 의무사항 (고지의무, 통지의무 등)이 있는 페이지
+- 보장 내용의 핵심 요약이 있는 페이지
+- 분쟁 해결, 소멸시효, 관할 법원 등 법적 권리에 관한 페이지
+- 기타 소비자에게 불리하거나 반드시 알아야 할 조항이 있는 페이지
+
+## 규칙
+- 단순한 목차, 표지, 서식, 연락처 페이지는 중요하지 않습니다.
+- 각 중요 페이지에 대해 왜 중요한지 한 문장으로 설명해주세요.
+- 중요도를 1~3으로 매겨주세요 (3=매우 중요/독소조항, 2=중요/핵심약관, 1=참고/알아두면 좋음)
+- **반드시 최소 1페이지 이상** 중요한 페이지로 선정해주세요. 독소조항이 없더라도 문서에서 가장 핵심적인 내용이 담긴 페이지를 골라주세요.
+- 각 중요 페이지에서 가장 핵심적인 **문장 또는 문단**을 1~2개 뽑아주세요.
+- 반드시 **문서 원문에 있는 그대로의 문장**을 사용하세요. 단어 하나가 아니라 의미가 통하는 문장 단위로 뽑아야 합니다.
+- 뽑은 문장이 왜 중요한지 쉬운 말로 설명해주세요.
+
+## 출력 형식 (반드시 이 형식을 지키세요)
+각 줄에 하나씩, 구분자로 `|||`를 사용:
+PAGE|||페이지번호|||중요도|||이유|||페이지요약
+KEYWORD|||페이지번호|||원문 문장|||쉬운 설명
+
+PAGE 줄은 중요 페이지 정보, KEYWORD 줄은 해당 페이지에서 뽑은 핵심 문장입니다.
+
+예시:
+PAGE|||3|||3|||보험금 부지급 사유가 명시된 면책조항 페이지|||이 페이지는 보험금이 지급되지 않는 사유를 나열하고 있습니다. 특히 고의사고, 음주운전 등의 면책사유를 확인해야 합니다.
+KEYWORD|||3|||피보험자가 고의로 자신을 해친 경우에는 보험금을 지급하지 않습니다|||본인이 일부러 사고를 내면 보험금을 못 받는다는 뜻입니다.
+PAGE|||7|||2|||계약 해지 시 환급금 규정|||이 페이지는 보험 계약을 중도 해지할 때 돌려받는 금액에 대한 규정입니다.
+KEYWORD|||7|||해약환급금은 납입한 보험료보다 적거나 없을 수 있습니다|||중도 해지하면 낸 돈보다 적게 돌려받거나 아예 못 받을 수 있다는 뜻입니다.
+
+## 문서 내용
+{pages_block}
+"""
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+
+        important_pages = []
+        keywords_by_page = {}
+
+        for line in response_text.split("\n"):
+            line = line.strip()
+            if not line or "|||" not in line:
+                continue
+            parts = line.split("|||")
+
+            if parts[0].strip() == "PAGE" and len(parts) >= 5:
+                try:
+                    page_num = int(parts[1].strip())
+                    importance = int(parts[2].strip())
+                    reason = parts[3].strip()
+                    summary = parts[4].strip() if len(parts) > 4 else reason
+                    important_pages.append({
+                        "page": page_num,
+                        "importance": min(max(importance, 1), 3),
+                        "reason": reason,
+                        "summary": summary,
+                    })
+                except ValueError:
+                    continue
+
+            elif parts[0].strip() == "KEYWORD" and len(parts) >= 4:
+                try:
+                    page_num = int(parts[1].strip())
+                    keyword = parts[2].strip()
+                    explanation = parts[3].strip()
+                    if page_num not in keywords_by_page:
+                        keywords_by_page[page_num] = []
+                    keywords_by_page[page_num].append({
+                        "keyword": keyword,
+                        "explanation": explanation,
+                    })
+                except ValueError:
+                    continue
+
+        # 키워드를 각 페이지에 병합
+        for p in important_pages:
+            p["keywords"] = keywords_by_page.get(p["page"], [])
+
+        important_pages.sort(key=lambda x: (-x["importance"], x["page"]))
+        total_kw = sum(len(v) for v in keywords_by_page.values())
+        print(f"[중요 페이지 분석] {len(important_pages)}개 중요 페이지, 키워드 {total_kw}개 발견")
+        return {"important_pages": important_pages}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[중요 페이지 분석 오류] {e}")
+        return {"important_pages": [], "error": str(e)}
+
+
+# ============================================================
 # AI 에이전트 채팅 엔드포인트
 # ============================================================
 
@@ -443,9 +576,9 @@ async def chat(req: ChatRequest):
 
     try:
         # system_instruction이 포함된 모델 인스턴스 생성
-        chat_model = genai.GenerativeModel(
-            'gemini-3-flash-preview',
-            system_instruction=system_prompt,
+        chat_model = GenerativeModel(
+            'gemini-2.5-flash',
+            system_instruction=[system_prompt],
         )
 
         # 대화 히스토리를 Gemini contents 형식으로 변환
@@ -470,8 +603,10 @@ async def chat(req: ChatRequest):
         return {"reply": reply, "persona": req.persona, "token_usage": token_usage}
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"[Chat 오류] {e}")
-        return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona, "token_usage": None}
+        return {"reply": f"응답을 생성하지 못했습니다. 오류: {str(e)[:100]}", "persona": req.persona, "token_usage": None}
 
 
 # ============================================================
@@ -619,7 +754,7 @@ async def fill_cells(req: FillCellsRequest):
 [/FILL_CELLS]"""
 
     try:
-        fill_model = genai.GenerativeModel('gemini-3-flash-preview')
+        fill_model = GenerativeModel('gemini-2.5-flash')
         response = fill_model.generate_content(prompt)
         reply = response.text.strip()
 
