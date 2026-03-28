@@ -40,7 +40,7 @@ ocr_engine = EasyDocOCR()
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
-BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "easydoc-upload-list")
+BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "easydoc-s3")
 
 # 가져온 키를 사용하여 AWS S3 연결 설정
 s3_client = boto3.client(

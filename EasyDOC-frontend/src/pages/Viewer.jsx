@@ -62,7 +62,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
     
     // S3 URL 구성용 상수
-    const S3_BUCKET = "easydoc-upload-list";
+    const S3_BUCKET = "easydoc-s3";
     const S3_REGION = "ap-northeast-2";
 
     // 분석 관련 상태
