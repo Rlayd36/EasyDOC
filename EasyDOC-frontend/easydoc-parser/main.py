@@ -5,7 +5,8 @@ from typing import List, Optional
 import pdfplumber
 import olefile
 import zlib
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel
 import io
 import re
 import json
@@ -48,18 +49,20 @@ s3 = boto3.client(
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
-# Gemini 설정 (API 키가 없으면 None으로 설정)
+# Vertex AI (Gemini) 설정
 gemini_model = None
 try:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if api_key and api_key != "your_gemini_api_key":
-        genai.configure(api_key=api_key)
-        gemini_model = genai.GenerativeModel('gemini-3-flash-preview')
-        print("✓ Gemini API 초기화 성공")
+    project_id = os.getenv("GCP_PROJECT_ID")
+    location = os.getenv("GCP_LOCATION", "asia-northeast3")
+    
+    if project_id:
+        vertexai.init(project=project_id, location=location)
+        gemini_model = GenerativeModel("gemini-1.5-flash")
+        print("✓ Vertex AI Gemini 초기화 성공")
     else:
-        print("⚠ Gemini API 키가 설정되지 않음 - 사전 기반 설명만 사용")
+        print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
 except Exception as e:
-    print(f"⚠ Gemini API 초기화 실패: {e} - 사전 기반 설명만 사용")
+    print(f"⚠ Vertex AI API 초기화 실패: {e} - 사전 기반 설명만 사용")
     gemini_model = None
 
 # Gemini 응답 캐시 (gemini_word.csv)
