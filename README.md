@@ -77,7 +77,7 @@ python ocr_server.py
 
 **필요 사항:**
 - 프로젝트 최상위 폴더(`EasyDOC`)에 `.env` 파일 필요 (AWS 키 포함)
-- backend-OCR 폴더 내 `google-key.json` 키 파일 필요
+- backend-OCR 폴더 내 `vision-key.json` 키 파일 필요
 
 ---
 
