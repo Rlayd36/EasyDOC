@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { User, Mail, Lock, Eye, EyeOff, Sparkles } from "lucide-react"; //아이콘
+import { User, Mail, Lock, Eye, EyeOff, Sparkles, CheckCircle } from "lucide-react"; //아이콘
 import "./signup.css";
 
-const Signup = () => {
+const Signup = ({ onBack }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [modalType, setModalType] = useState(null); // 'terms' | 'privacy' | null
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -45,8 +46,7 @@ const Signup = () => {
         }),
       });
       if (response.ok) {
-        alert("회원가입 성공! 로그인 해주세요.");
-        window.location.reload();
+        setShowSuccessModal(true);
       } else {
         const errorMsg = await response.text();
         alert("회원가입 실패: " + errorMsg);
@@ -54,6 +54,15 @@ const Signup = () => {
     } catch (error) {
       console.error("Error:", error);
       alert("서버 연결에 실패했습니다.");
+    }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    if (typeof onBack === "function") {
+      onBack();
+    } else {
+      window.location.reload();
     }
   };
 
@@ -225,6 +234,44 @@ const Signup = () => {
             <div className="terms-modal-body">
               {modalType === "terms" && <TermsContent />}
               {modalType === "privacy" && <PrivacyContent />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 회원가입 성공 팝업 */}
+      {showSuccessModal && (
+        <div
+          className="terms-modal-overlay"
+          onClick={closeSuccessModal}
+          onKeyDown={(e) => e.key === "Escape" && closeSuccessModal()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="signup-success-title"
+        >
+          <div
+            className="terms-modal-content signup-success-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="signup-success-inner">
+              <div className="signup-success-icon-wrap" aria-hidden="true">
+                <CheckCircle size={32} strokeWidth={2.5} />
+              </div>
+              <h2 id="signup-success-title" className="signup-success-title">
+                가입을 환영합니다
+              </h2>
+              <p className="signup-success-desc">
+                회원가입이 완료되었습니다.
+                <br />
+                로그인 화면에서 이메일과 비밀번호로 로그인해 주세요.
+              </p>
+              <button
+                type="button"
+                className="submit-btn signup-success-btn"
+                onClick={closeSuccessModal}
+              >
+                로그인하기
+              </button>
             </div>
           </div>
         </div>

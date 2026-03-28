@@ -13,7 +13,7 @@ export default function Login() {
   const [userEmail, setUserEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailInput, setEmailInput] = useState("");
-
+  const [loginError, setLoginError] = useState("");
 
   //화면 렌더링
   const renderView = () => {
@@ -57,6 +57,7 @@ export default function Login() {
     //불필요한 공백 제거
     const cleanEmail = String(emailInput || "").trim();
     const cleanPassword = String(password || "").trim();
+    setLoginError("");
 
     //서버로 로그인 요청
     try{
@@ -70,19 +71,17 @@ export default function Login() {
 
       if (response.ok) {
         const data=await response.json(); //응답을 JSON으로 받기
-        alert("로그인 성공!");
-        
         localStorage.setItem("token",data.token);
         setUserEmail(data.email);
         setCurrentView("upload");
       } else {
         const errorMsg = await response.text();
         console.log("서버 에러 응답:", errorMsg);
-        alert("로그인 실패: " + errorMsg);
+        setLoginError("이메일 또는 비밀번호가 잘못되었습니다.");
       }
     } catch (error) {
       console.error("Login Error:", error);
-      alert("서버 연결에 실패했습니다.");
+      setLoginError("서버 연결에 실패했습니다.");
     }
   };
 
@@ -118,7 +117,10 @@ export default function Login() {
               type="email"
               placeholder="example@email.com"
               value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
+              onChange={(e) => {
+                setEmailInput(e.target.value);
+                setLoginError("");
+              }}
               required
             />
           </div>
@@ -130,9 +132,17 @@ export default function Login() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setLoginError("");
+              }}
               required
             />
+            {loginError ? (
+              <p className="login-error-msg" role="alert">
+                {loginError}
+              </p>
+            ) : null}
           </div>
 
           <div className="button-group">

@@ -89,8 +89,6 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
   };
 
   const handleUpload = async () => {
-    alert("업로드 버튼이 클릭되었습니다! (파일 유무: " + (selectedFile ? "있음" : "없음") + ")");
-
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
@@ -186,8 +184,6 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-
-      alert("파일 업로드 성공!");
     } catch (error) {
       console.error("파일 업로드 오류:", error);
       setShowLoading(false);
@@ -215,7 +211,7 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
     return "default";
   };
   if (showLoading) {
-    return <Loading title="문서 분석 중" subtitle="업로드된 문서를 파싱하고 있습니다" />;
+    return <Loading title="문서 분석 중" subtitle="문서를 확인하는 중입니다. 잠시만 기다려 주세요" />;
   }
 
   if (showViewer) {
@@ -303,7 +299,7 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
 
             {selectedFile && (
               <div className="selected-file">
-                선택된 파일: {selectedFile.name}
+                {selectedFile.name}
               </div>
             )}
 
@@ -318,7 +314,7 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
 
             <button className="upload-btn" onClick={handleUpload} type="button">
               <UploadIcon />
-              <span>문서 업로드</span>
+              <span>{selectedFile ? "업로드 시작" : "문서 불러오기"}</span>
             </button>
           </div>
         </main>
