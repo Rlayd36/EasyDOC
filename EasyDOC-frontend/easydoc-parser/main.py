@@ -6,7 +6,7 @@ import pdfplumber
 import olefile
 import zlib
 import vertexai
-from vertexai.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel, Content, Part
 import io
 import re
 import json
@@ -31,6 +31,19 @@ for _ef in _env_files:
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
 
+# GOOGLE_APPLICATION_CREDENTIALS: 상대 경로는 cwd가 아니라 이 파일(easydoc-parser) 기준으로 해석
+_parser_dir = Path(__file__).resolve().parent
+_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gac:
+    _cred_path = Path(_gac)
+    if not _cred_path.is_absolute():
+        _cred_path = (_parser_dir / _gac).resolve()
+    if _cred_path.is_file():
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(_cred_path)
+        print(f"✓ 서비스 계정 키: {_cred_path}")
+    else:
+        print(f"⚠ GOOGLE_APPLICATION_CREDENTIALS 파일 없음: {_cred_path}")
+
 app = FastAPI()
 
 app.add_middleware(
@@ -49,16 +62,22 @@ s3 = boto3.client(
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
+
+VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
+VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
+
 # Vertex AI (Gemini) 설정
 gemini_model = None
 try:
     project_id = os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("GCP_LOCATION", "asia-northeast3")
-    
+
     if project_id:
-        vertexai.init(project=project_id, location=location)
-        gemini_model = GenerativeModel("gemini-1.5-flash")
-        print("✓ Vertex AI Gemini 초기화 성공")
+        vertexai.init(project=project_id, location=VERTEX_LOCATION)
+        gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
+        print(
+            f"✓ Vertex AI Gemini 초기화 성공 "
+            f"(model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION})"
+        )
     else:
         print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
 except Exception as e:
@@ -237,7 +256,7 @@ async def analyze_with_gemini(data: dict):
     text = data.get("text", "")
     
     if not text:
-        return {"difficult_words": [], "token_usage": {}}
+        return {"difficult_words": []}
     
     if gemini_model is None:
         return {"difficult_words": [], "error": "Gemini API 키가 설정되지 않았습니다."}
@@ -271,7 +290,6 @@ async def analyze_with_gemini(data: dict):
     if cached_word_set:
         cache_exclude_hint = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(cached_word_set)}"
     
-    total_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     new_gemini_words = []
     seen_words = set(cached_word_set)  # 중복 방지
     
@@ -317,18 +335,7 @@ async def analyze_with_gemini(data: dict):
         try:
             response = gemini_model.generate_content(prompt)
             response_text = response.text.strip()
-            
-            # 토큰 사용량 집계
-            if hasattr(response, 'usage_metadata'):
-                um = response.usage_metadata
-                p_tok = getattr(um, 'prompt_token_count', 0) or 0
-                c_tok = getattr(um, 'candidates_token_count', 0) or 0
-                t_tok = getattr(um, 'total_token_count', 0) or 0
-                total_token_usage["prompt_tokens"] += p_tok
-                total_token_usage["completion_tokens"] += c_tok
-                total_token_usage["total_tokens"] += t_tok
-                print(f"[Gemini 토큰] 청크 {idx + 1}/{len(chunks)}: 입력={p_tok}, 출력={c_tok}, 합계={t_tok}")
-            
+
             # 응답 파싱
             for line in response_text.split("\n"):
                 line = line.strip()
@@ -353,7 +360,7 @@ async def analyze_with_gemini(data: dict):
                         seen_words.add(word)
             
         except Exception as e:
-            print(f"[Gemini 청크 {idx + 1} 오류] {e}")
+            print(f"[어려운 단어 분석] 청크 {idx + 1} 처리 오류: {e}")
     
     # 4단계: 새 단어를 CSV 캐시에 저장
     if new_gemini_words:
@@ -363,16 +370,16 @@ async def analyze_with_gemini(data: dict):
     all_words = cached_words + new_gemini_words
     all_words.sort(key=lambda x: x["level"], reverse=True)
     
-    print(f"[Gemini 분석 완료] 캐시={len(cached_words)}개, 신규={len(new_gemini_words)}개, "
-          f"전체={len(all_words)}개, 청크={len(chunks)}개")
-    
+    print(
+        f"[어려운 단어 분석 완료] 캐시 {len(cached_words)}개 · 신규 {len(new_gemini_words)}개 · "
+        f"전체 단어 {len(all_words)}개 · 처리 청크 {len(chunks)}개"
+    )
     return {
         "difficult_words": all_words,
         "total_found": len(all_words),
         "from_cache": len(cached_words),
         "from_gemini": len(new_gemini_words),
         "chunks_processed": len(chunks),
-        "token_usage": total_token_usage
     }
 
 
@@ -442,36 +449,29 @@ async def chat(req: ChatRequest):
         system_prompt += f"\n\n## 현재 사용자가 보고 있는 문서 내용:\n{doc_preview}"
 
     try:
-        # system_instruction이 포함된 모델 인스턴스 생성
-        chat_model = genai.GenerativeModel(
-            'gemini-3-flash-preview',
+        chat_model = GenerativeModel(
+            VERTEX_GEMINI_MODEL,
             system_instruction=system_prompt,
         )
 
-        # 대화 히스토리를 Gemini contents 형식으로 변환
         contents = []
         for msg in req.messages:
             role = "model" if msg.role == "model" else "user"
-            contents.append({"role": role, "parts": [{"text": msg.content}]})
+            contents.append(
+                Content(role=role, parts=[Part.from_text(msg.content)])
+            )
 
         response = chat_model.generate_content(contents)
         reply = response.text.strip()
 
-        # 토큰 사용량 추출
-        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-        if hasattr(response, 'usage_metadata'):
-            um = response.usage_metadata
-            token_usage["prompt_tokens"] = getattr(um, 'prompt_token_count', 0) or 0
-            token_usage["completion_tokens"] = getattr(um, 'candidates_token_count', 0) or 0
-            token_usage["total_tokens"] = getattr(um, 'total_token_count', 0) or 0
-
-        print(f"[Chat] persona={req.persona}, msgs={len(req.messages)}, "
-              f"reply_len={len(reply)}, tokens={token_usage['total_tokens']}")
-        return {"reply": reply, "persona": req.persona, "token_usage": token_usage}
+        print(
+            f"[에이전트 채팅] 성격={req.persona}, 대화 {len(req.messages)}턴, 답변 {len(reply)}자"
+        )
+        return {"reply": reply, "persona": req.persona}
 
     except Exception as e:
-        print(f"[Chat 오류] {e}")
-        return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona, "token_usage": None}
+        print(f"[에이전트 채팅 오류] {e}")
+        return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona}
 
 
 # ============================================================
@@ -619,8 +619,7 @@ async def fill_cells(req: FillCellsRequest):
 [/FILL_CELLS]"""
 
     try:
-        fill_model = genai.GenerativeModel('gemini-3-flash-preview')
-        response = fill_model.generate_content(prompt)
+        response = gemini_model.generate_content(prompt)
         reply = response.text.strip()
 
         match = re.search(r'\[FILL_CELLS\](.*?)\[/FILL_CELLS\]', reply, re.DOTALL)
@@ -630,11 +629,11 @@ async def fill_cells(req: FillCellsRequest):
             data["suggestions"] = [
                 s for s in data.get("suggestions", []) if s.get("value")
             ]
-            print(f"[fill-cells] 제안 {len(data['suggestions'])}개")
+            print(f"[표 셀 자동 채우기] 제안 {len(data['suggestions'])}개 반영")
             return data
         else:
-            print(f"[fill-cells] JSON 파싱 실패. 응답: {reply[:200]}")
+            print(f"[표 셀 자동 채우기] JSON 파싱 실패 · 응답 앞부분: {reply[:200]}")
             return {"suggestions": [], "message": "AI 응답 파싱에 실패했습니다."}
     except Exception as e:
-        print(f"[fill-cells 오류] {e}")
+        print(f"[표 셀 자동 채우기 오류] {e}")
         return {"error": str(e), "suggestions": []}
