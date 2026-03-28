@@ -5,6 +5,7 @@ import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
+import { formatDocumentDateKo } from "../utils/documentDate";
 
 // 텍스트를 하이라이트해주는 컴포넌트
 function HighlightedTextView({ text, highlightWord }) {
@@ -125,12 +126,6 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
         } finally {
             setIsLoading(false);
         }
-    };
-
-    // 날짜 형식 변환 함수 (2024-11-14 -> 2024.11.14)
-    const formatDate = (dateString) => {
-      if (!dateString) return "";
-      return dateString.substring(0, 10).replace(/-/g, '.');
     };
 
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
@@ -295,7 +290,7 @@ const handleFileChange = async (e) => {
                   </div>
                   <div className="doc-text">
                     <span className="doc-title">{doc.file_name}</span>
-                    <span className="doc-date">{formatDate(doc.created_at)}</span>
+                    <span className="doc-date">{formatDocumentDateKo(doc.created_at)}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} color="#9ca3af" />

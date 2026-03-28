@@ -1,10 +1,24 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import sys
 from pathlib import Path
+
+
+def to_utc_iso(dt):
+    """DB에 저장된 시각을 UTC로 간주해 ISO 8601 문자열(Z)로 직렬화 (브라우저 로컬 표시용)."""
+    if dt is None:
+        return None
+    if not isinstance(dt, datetime):
+        return dt
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
 
 # --- DB 공유를 위한 경로 설정 ---
 current_file_path = Path(__file__).resolve()
@@ -43,19 +57,24 @@ class DifficultWordsUpdate(BaseModel):
 # 현재 로그인한 특정 유저의 문서 목록만 조회
 @app.get("/api/documents")
 def get_document_list(user_email: str = Query(...), db: Session = Depends(get_db)):
-    docs = db.query(Document.id, Document.file_name, Document.created_at, Document.page_count, Document.file_size)\
-             .filter(Document.user_email == user_email)\
-             .order_by(Document.id.desc())\
-             .all()
+    docs = db.query(
+        Document.id,
+        Document.file_name,
+        Document.created_at,
+        Document.page_count,
+        Document.file_size,
+        Document.file_type,
+    ).filter(Document.user_email == user_email).order_by(Document.id.desc()).all()
 
     result = [
         {
-            "id": doc.id, 
-            "file_name": doc.file_name, 
-            "created_at": doc.created_at,
-            "page_count": doc.page_count,  
-            "file_size": doc.file_size    
-        } 
+            "id": doc.id,
+            "file_name": doc.file_name,
+            "created_at": to_utc_iso(doc.created_at),
+            "page_count": doc.page_count,
+            "file_size": doc.file_size,
+            "file_type": doc.file_type,
+        }
         for doc in docs
     ]
     return result
@@ -72,9 +91,10 @@ def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
         "id": doc.id,
         "file_name": doc.file_name,
         "text": doc.extracted_text,
-        "s3_url": doc.s3_url,        # 원본 PDF 조회를 위해 추가
-        "file_type": doc.file_type,  # PDF 여부 판단을 위해 추가
-        "difficult_words": doc.difficult_words or [] 
+        "s3_url": doc.s3_url,
+        "file_type": doc.file_type,
+        "difficult_words": doc.difficult_words or [],
+        "created_at": to_utc_iso(doc.created_at),
     }
 
 # 어려운 단어 DB에 저장

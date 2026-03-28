@@ -4,6 +4,7 @@ import Viewer from "./Viewer";
 import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
+import { formatDocumentDateKo } from "../utils/documentDate";
 import "./Upload.css";
 
 export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEmail }) {
@@ -29,18 +30,11 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
       const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
       
       // DB 데이터를 화면에 맞게 변환
-      const formattedDocs = response.data.map(doc => {
-        const dateObj = new Date(doc.created_at);
-        return {
-          id: doc.id,
-          name: doc.file_name,
-          date: dateObj.toLocaleDateString("ko-KR", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          }).replace(/\./g, ".")
-        };
-      });
+      const formattedDocs = response.data.map((doc) => ({
+        id: doc.id,
+        name: doc.file_name,
+        date: formatDocumentDateKo(doc.created_at),
+      }));
       setRecentDocs(formattedDocs);
     } catch (error) {
       console.error("최근 문서 목록 로딩 실패:", error);

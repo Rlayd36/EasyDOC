@@ -5,22 +5,22 @@
  * 
  * 사이드바에사 순서대로...
  * 1. 프로필 정보 조회 및 통계 표시
- * 2. 언어 능력 단계 설정 (문서 변환 난이도 조절)
- * 3. 변환 이력 관리 및 검색
- * 4. 계정 설정 (준비 중)
+ * 2. 변환 이력 관리 및 검색
+ * 3. 계정 설정
  * 
  * 일단 각 페이지는 컴포넌트별로 따로 관리됨
  * 각 컴포넌트는 이 파일 하단에 정의되어 있음
- * 실제 운영 시에는 백엔드 API에서 사용자 정보 fetch 필요, 언어 레벨도 실시간 저장 필요.
+ * 실제 운영 시에는 백엔드 API에서 사용자 정보 fetch 필요.
  * 
  */
 
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios"; 
 import Viewer from "./Viewer";
 import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
+import { parseDocumentCreatedAt, formatDocumentDateTimeKo } from "../utils/documentDate";
 import "./mypage.css";
 
 // ============================================
@@ -38,21 +38,6 @@ function ProfileIcon({ active }) {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? "#3b82f6" : "#6b7280"} strokeWidth="1.5">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/**
- * 언어/번역 아이콘
- * 메뉴: 언어 능력 설정
- */
-function LanguageIcon({ active }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? "#3b82f6" : "#6b7280"} strokeWidth="1.5">
-      <path d="M12 3v3M8 6l1 3M16 6l-1 3" strokeLinecap="round" />
-      <path d="M5 9h14" strokeLinecap="round" />
-      <path d="M7 9l3 12M17 9l-3 12" strokeLinecap="round" />
-      <path d="M9 21h6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -209,171 +194,12 @@ function ProfileContent({ userData }) {
 }
 
 // ============================================
-// 언어 능력 설정 컴포넌트
-// ============================================
-/**
- * LanguageSettingsContent - 사용자 언어 난이도 레벨 설정
- * 
- * 【핵심 기능】
- * 문서 변환 시 사용할 언어 난이도를 4단계로 조절
- * - 1단계: 초등학생 수준 (가장 쉬운 단어)
- * - 2단계: 중학생 수준 (쉬운 단어)
- * - 3단계: 고등학생 수준 (보통 단어) - 기본값
- * - 4단계: 대학생 이상 (매우 어려운 단어만 변환)
- * 
- * 【상태 관리】
- * - selectedLevel: 현재 선택된 레벨 (1~4)
- * - 초기값: 3단계 (고등학생 수준)
- * 
- */
-function LanguageSettingsContent() {
-  // 현재 선택된 언어 난이도 레벨 (1~4)
-  const [selectedLevel, setSelectedLevel] = useState(3);
-
-  // 언어 난이도 레벨 정의
-
-  const levels = [
-    {
-      id: 1,
-      title: "1단계",
-      subtitle: "가장 쉬운 단어",
-      description: "초등학생 수준 - 모든 어려운 단어를 쉬운 말로 변환",
-    },
-    {
-      id: 2,
-      title: "2단계",
-      subtitle: "쉬운 단어",
-      description: "중학생 수준 - 대부분의 어려운 단어를 쉬운 말로 변환",
-    },
-    {
-      id: 3,
-      title: "3단계",
-      subtitle: "보통 단어",
-      description: "고등학생 수준 - 어려운 전문 용어와 한자어 중심 변환",
-    },
-    {
-      id: 4,
-      title: "4단계",
-      subtitle: "매우 어려운 단어만",
-      description: "대학생 이상 수준 - 정말 어려운 전문 용어만 변환",
-    },
-  ];
-
-  // 현재 선택된 레벨 객체 찾기
-  const currentLevel = levels.find((l) => l.id === selectedLevel);
-
-  // 변환 예시 단어. 일단 픽스함.
-  // 차후: 선택된 레벨에 따라 다른 예시 표시하도록 개선
-  // 예시는 차후 회의때 한 번 생각해봐야 할 듯?
-  const exampleWords = [
-    { original: "불가항력", converted: "어쩔 수 없는 사정" },
-    { original: "준용", converted: "비슷하게 적용" },
-    { original: "소급", converted: "과거로 거슬러 적용" },
-  ];
-  // 나중에 백엔드에서 동적 예시도 갖고와야 하남..?
-  return (
-    <>
-      {/* 현재 설정된 단계 */}
-      <section className="current-level-card">
-        <div className="current-level-left">
-          <div className="current-level-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2">
-              <path d="M12 3v3M8 6l1 3M16 6l-1 3" strokeLinecap="round" />
-              <path d="M5 9h14" strokeLinecap="round" />
-              <path d="M7 9l3 12M17 9l-3 12" strokeLinecap="round" />
-              <path d="M9 21h6" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div className="current-level-info">
-            <div className="current-level-header">
-              <span className="current-level-label">현재 설정된 단계</span>
-            </div>
-            <div className="current-level-title">
-              <span className="level-number">{selectedLevel}단계</span>
-              <span className="level-dot">·</span>
-              <span className="level-name">{currentLevel?.subtitle}</span>
-            </div>
-            <p className="current-level-desc">{currentLevel?.description}</p>
-          </div>
-        </div>
-
-        <div className="current-level-right">
-          <div className="example-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>변환 예시</span>
-          </div>
-          <div className="example-list">
-            {exampleWords.map((word, idx) => (
-              <div className="example-row" key={idx}>
-                <span className="example-original">{word.original}</span>
-                <span className="example-arrow">→</span>
-                <span className="example-converted">{word.converted}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 언어 능력 단계 선택 */}
-      <section className="level-selection-section">
-        <h2 className="section-title">언어 능력 단계 선택</h2>
-        <p className="section-subtitle">나에게 맞는 난이도를 선택해주세요</p>
-
-        <div className="level-options">
-          {levels.map((level) => (
-            <button
-              key={level.id}
-              className={`level-option ${selectedLevel === level.id ? "level-option--active" : ""}`}
-              onClick={() => setSelectedLevel(level.id)}
-            >
-              <div className={`level-badge ${selectedLevel === level.id ? "level-badge--active" : ""}`}>
-                {level.id}
-              </div>
-              <div className="level-content">
-                <div className="level-title-row">
-                  <span className={`level-title ${selectedLevel === level.id ? "level-title--active" : ""}`}>
-                    {level.title}
-                  </span>
-                  <span className="level-subtitle">{level.subtitle}</span>
-                </div>
-                <p className="level-description">{level.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* 도움말 */}
-      <section className="help-section">
-        <div className="help-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" strokeLinecap="round" />
-            <circle cx="12" cy="17" r="0.5" fill="#f59e0b" />
-          </svg>
-        </div>
-        <div className="help-content">
-          <h3 className="help-title">어떤 단계를 선택해야 할까요?</h3>
-          <ul className="help-list">
-            <li><span className="help-highlight">1-2단계</span>는 일반 시민을 위한 공공문서나 복지 안내문에 적합해요</li>
-            <li><span className="help-highlight">3단계</span>는 일부 전문 용어를 유지해야 하는 행정문서에 좋아요</li>
-            <li><span className="help-highlight">4단계</span>는 법률 전문가나 학술 자료에 필요한 수준이에요</li>
-          </ul>
-        </div>
-      </section>
-    </>
-  );
-}
-
-// ============================================
 // 변환 이력 컴포넌트
 // ============================================
 /**
  * 과거 변환한 문서 이력 관리
  * 
- * 1. 문서 목록 표시 (이름, 레벨, 카테고리, 날짜, 페이지, 크기)
+ * 1. 문서 목록 표시 (이름, 형식 배지, 날짜, 페이지, 크기)
  * 2. 실시간 검색 필터링
  * 3. 문서 보기/다운로드 액션 버튼
  * 
@@ -386,28 +212,104 @@ function LanguageSettingsContent() {
  *  그 정도 생각할 수 있을 듯.
  */
 
+/** 파일명·MIME 기준 변환 이력 배지 (PDF / HWP / HWPX / 이미지) */
+function getHistoryFileBadge(fileName, fileType) {
+  const mime = (fileType || "").toLowerCase();
+  const lower = String(fileName || "").trim().toLowerCase();
+  const ext = lower.includes(".") ? lower.slice(lower.lastIndexOf(".") + 1) : "";
+
+  if (ext === "pdf" || mime === "application/pdf") {
+    return { label: "PDF", variant: "pdf" };
+  }
+  if (ext === "hwpx") {
+    return { label: "HWPX", variant: "hwpx" };
+  }
+  if (ext === "hwp" || (mime.includes("hwp") && !mime.includes("hwpx"))) {
+    return { label: "HWP", variant: "hwp" };
+  }
+  const imageExts = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tif", "tiff", "heic", "heif", "svg"];
+  if (mime.startsWith("image/") || imageExts.includes(ext)) {
+    return { label: "이미지", variant: "image" };
+  }
+  return { label: "기타", variant: "other" };
+}
+
+/** 변환일(로컬 기준)이 선택한 기간에 포함되는지 */
+function docMatchesDatePeriod(createdAtMs, preset, customFrom, customTo) {
+  if (preset === "all") return true;
+  const t = createdAtMs;
+  const now = Date.now();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  if (preset === "today") return t >= startOfToday.getTime();
+  if (preset === "7d") return t >= now - 7 * 24 * 60 * 60 * 1000;
+  if (preset === "30d") return t >= now - 30 * 24 * 60 * 60 * 1000;
+  if (preset === "month") {
+    const d = new Date();
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    first.setHours(0, 0, 0, 0);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+    return t >= first.getTime() && t <= last.getTime();
+  }
+  if (preset === "custom" && customFrom && customTo) {
+    const from = new Date(customFrom);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(customTo);
+    to.setHours(23, 59, 59, 999);
+    return t >= from.getTime() && t <= to.getTime();
+  }
+  return true;
+}
+
+/** 검색 비교용: NFC로 맞추면 NFD 저장 파일명과 한글 IME 입력이 같은 글자로 매칭됨 */
+function normalizeForHistorySearch(s) {
+  return String(s ?? "")
+    .normalize("NFC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .toLowerCase();
+}
+
+/** 변환 이력: 파일명·형식 배지·날짜·페이지·용량 문자열에서 검색 (공백으로 여러 키워드 AND) */
+function historyDocMatchesSearch(doc, rawQuery) {
+  const q = normalizeForHistorySearch(rawQuery).trim();
+  if (!q) return true;
+  const haystack = normalizeForHistorySearch(
+    [doc.name ?? "", doc.badgeLabel ?? "", doc.date ?? "", String(doc.pages ?? ""), String(doc.size ?? "")].join(" "),
+  );
+  const terms = q.split(/\s+/).filter(Boolean);
+  return terms.every((term) => haystack.includes(term));
+}
+
 function HistoryContent({ onDocumentClick, userEmail }) {
-  // 문서 검색어 상태
+  const periodWrapRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [documents, setDocuments] = useState([]);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [periodPreset, setPeriodPreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
 
-        const formattedDocs = response.data.map(doc => {
-          const d = new Date(doc.created_at);
-          const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const formattedDocs = response.data.map((doc) => {
+          const d = parseDocumentCreatedAt(doc.created_at);
+          const createdAtMs = d.getTime();
+          const dateStr = formatDocumentDateTimeKo(doc.created_at);
+          const badge = getHistoryFileBadge(doc.file_name, doc.file_type);
 
           return {
             id: doc.id,
             name: doc.file_name,
-            level: 3, // DB에 난이도 컬럼이 없으므로 디폴트 3 지정
-            category: "문서", // 기본 카테고리
+            createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
+            badgeLabel: badge.label,
+            badgeVariant: badge.variant,
             date: dateStr,
-            pages: doc.page_count || "-",  // (DB에 값이 없으면 "-" 출력)
-            size: doc.file_size || "-",    
+            pages: doc.page_count || "-",
+            size: doc.file_size || "-",
           };
         });
         setDocuments(formattedDocs);
@@ -416,8 +318,46 @@ function HistoryContent({ onDocumentClick, userEmail }) {
       }
     };
     fetchHistory();
-  }, []);
-  
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (!periodOpen) return;
+    const onDown = (e) => {
+      if (periodWrapRef.current && !periodWrapRef.current.contains(e.target)) {
+        setPeriodOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [periodOpen]);
+
+  const applyCustomPeriod = () => {
+    if (!customFrom || !customTo) {
+      alert("시작일과 종료일을 모두 선택해 주세요.");
+      return;
+    }
+    let from = customFrom;
+    let to = customTo;
+    if (new Date(from) > new Date(to)) {
+      const swap = from;
+      from = to;
+      to = swap;
+      setCustomFrom(from);
+      setCustomTo(to);
+    }
+    setPeriodPreset("custom");
+    setPeriodOpen(false);
+  };
+
+  const periodBtnSuffix = {
+    all: null,
+    today: "오늘",
+    "7d": "7일",
+    "30d": "30일",
+    month: "이번 달",
+    custom: "지정",
+  }[periodPreset];
+
   // 파일 다운로드 처리 함수
   const handleDownload = async (e, docId, fileName) => {
     e.stopPropagation();
@@ -451,106 +391,12 @@ function HistoryContent({ onDocumentClick, userEmail }) {
     }
   };
 
-  // ===== 더미 문서 데이터 =====
-  // 실제 운영에서는 백엔드 API에서 fetch
-  // 형식: { id, name, level, category, date, pages, size }
-  // ISO 날짜 형식으로 바꿔야 하는데, 어떻게 하는지 모름
-
-  /*const documents = [
-    {
-      id: 1,
-      name: "행정기본법.pdf",
-      level: 2, // 변환 시 사용한 난이도 (1~4)
-      category: "법률", // 문서 카테고리 (차후: 태그 시스템으로 확장 가능)
-      date: "2024년 11월 14일 14:32", // 차후: ISO 8601 형식으로 변경 ("2024-11-14T14:32:00Z")
-      pages: 45, // 문서 페이지 수
-      size: "2.4 MB", // 파일 크기
-    },
-    {
-      id: 2,
-      name: "도시재생법.pdf",
-      level: 2,
-      category: "법률",
-      date: "2024년 11월 13일 16:45",
-      pages: 32,
-      size: "1.9 MB",
-    },
-    {
-      id: 3,
-      name: "도시재생구역지정안.pdf",
-      level: 1,
-      category: "행정",
-      date: "2024년 11월 12일 15:41",
-      pages: 67,
-      size: "5.2 MB",
-    },
-    {
-      id: 4,
-      name: "주택법 시행령.pdf",
-      level: 3,
-      category: "법률",
-      date: "2024년 11월 11일 11:26",
-      pages: 54,
-      size: "2.1 MB",
-    },
-    {
-      id: 5,
-      name: "환경영향평가서.pdf",
-      level: 2,
-      category: "환경",
-      date: "2024년 11월 09일 18:11",
-      pages: 156,
-      size: "8.3 MB",
-    },
-    {
-      id: 6,
-      name: "국민건강보험법.pdf",
-      level: 2,
-      category: "법률",
-      date: "2024년 11월 07일 20:56",
-      pages: 89,
-      size: "4.1 MB",
-    },
-    {
-      id: 7,
-      name: "지방자치법 개정안.pdf",
-      level: 1,
-      category: "법률",
-      date: "2024년 11월 07일 20:56",
-      pages: 89,
-      size: "4.1 MB",
-    },
-  ];
-
-  /**
-   * 레벨별 배지 색상 매핑 함수
-   * @param {number} level - 언어 난이도 레벨 (1~4)
-   * @returns {Object} { bg: 배경색, text: 텍스트색 }
-   * 
-   * 색상 선택 기준:
-   * - 1단계: 파란색 (쉬움, 친근함)
-   * - 2단계: 초록색 (안전, 보통)
-   * - 3단계: 노란색 (주의, 중간 난이도)
-   * - 4단계: 빨간색 (경고, 높은 난이도)
-   * 
-   */
-  const getLevelColor = (level) => {
-    switch (level) {
-      case 1: return { bg: "#dbeafe", text: "#1d4ed8" }; // blue-100 / blue-700
-      case 2: return { bg: "#d1fae5", text: "#059669" }; // green-100 / green-600
-      case 3: return { bg: "#fef3c7", text: "#d97706" }; // amber-100 / amber-600
-      case 4: return { bg: "#fee2e2", text: "#dc2626" }; // red-100 / red-600
-      default: return { bg: "#f3f4f6", text: "#6b7280" }; // gray-100 / gray-500
-    }
-  };
-
-  // 검색어로 문서 필터링
-  // 현재는 파일명만 검색.
-  // 백엔드쪽 작업하고 나서야 필터링 관련 로직 생각해야 할 듯.
-  const filteredDocs = documents.filter((doc) =>
-    doc.name.toLowerCase().includes(searchQuery.toLowerCase())
-    // 차후: doc.category 등도 포함하도록 확장
-  );
+  const filteredDocs = useMemo(() => {
+    return documents.filter((doc) => {
+      if (!historyDocMatchesSearch(doc, searchQuery)) return false;
+      return docMatchesDatePeriod(doc.createdAtMs, periodPreset, customFrom, customTo);
+    });
+  }, [documents, searchQuery, periodPreset, customFrom, customTo]);
 
   return (
     <>
@@ -558,16 +404,112 @@ function HistoryContent({ onDocumentClick, userEmail }) {
       <div className="history-header">
         <h2 className="history-title">변환 이력</h2>
         <div className="history-filters">
-          <button className="filter-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            기간
-          </button>
-          <button className="filter-btn">
+          <div className="history-filter-slot" ref={periodWrapRef}>
+            <button
+              type="button"
+              className={`filter-btn ${periodPreset !== "all" ? "filter-btn--active" : ""}`}
+              aria-expanded={periodOpen}
+              onClick={() => setPeriodOpen((o) => !o)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {periodBtnSuffix ? `기간 · ${periodBtnSuffix}` : "기간"}
+            </button>
+            {periodOpen ? (
+              <div className="history-period-panel" role="dialog" aria-label="기간 선택">
+                <div className="history-period-presets">
+                  <button
+                    type="button"
+                    className="period-chip"
+                    onClick={() => {
+                      setPeriodPreset("all");
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    전체
+                  </button>
+                  <button
+                    type="button"
+                    className="period-chip"
+                    onClick={() => {
+                      setPeriodPreset("today");
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    오늘
+                  </button>
+                  <button
+                    type="button"
+                    className="period-chip"
+                    onClick={() => {
+                      setPeriodPreset("7d");
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    최근 7일
+                  </button>
+                  <button
+                    type="button"
+                    className="period-chip"
+                    onClick={() => {
+                      setPeriodPreset("30d");
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    최근 30일
+                  </button>
+                  <button
+                    type="button"
+                    className="period-chip"
+                    onClick={() => {
+                      setPeriodPreset("month");
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    이번 달
+                  </button>
+                </div>
+                <div className="history-period-custom">
+                  <span className="history-period-custom-label">직접 지정</span>
+                  <div className="history-period-custom-row">
+                    <input
+                      type="date"
+                      className="period-date-input"
+                      value={customFrom}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      aria-label="시작일"
+                    />
+                    <span className="period-date-tilde">~</span>
+                    <input
+                      type="date"
+                      className="period-date-input"
+                      value={customTo}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      aria-label="종료일"
+                    />
+                    <button type="button" className="period-apply-btn" onClick={applyCustomPeriod}>
+                      적용
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <button type="button" className="filter-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
             </svg>
@@ -579,13 +521,16 @@ function HistoryContent({ onDocumentClick, userEmail }) {
       {/* 검색창 */}
       <div className="history-search">
         <input
-          type="text"
+          type="search"
           className="search-input"
-          placeholder="문서 검색..."
+          placeholder="파일명, 형식(PDF 등), 날짜, 용량으로 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onCompositionEnd={(e) => setSearchQuery(e.currentTarget.value)}
+          aria-label="문서 검색"
+          autoComplete="off"
         />
-        <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+        <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" aria-hidden>
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
@@ -593,72 +538,74 @@ function HistoryContent({ onDocumentClick, userEmail }) {
 
       {/* 문서 목록 */}
       <div className="document-list">
-        {filteredDocs.map((doc) => {
-          const levelColor = getLevelColor(doc.level);
-          return (
-            <div className="document-item" key={doc.id}>
-              <div className="document-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-              </div>
+        {filteredDocs.length === 0 ? (
+          <div className="history-empty" role="status">
+            {documents.length === 0
+              ? "아직 변환된 문서가 없습니다."
+              : "검색어 또는 기간 조건에 맞는 문서가 없습니다."}
+          </div>
+        ) : null}
+        {filteredDocs.map((doc) => (
+          <div className="document-item" key={doc.id}>
+            <div className="document-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
 
-              <div className="document-info">
-                <div className="document-name-row">
-                  <span className="document-name">{doc.name}</span>
-                  <span
-                    className="document-level"
-                    style={{ background: levelColor.bg, color: levelColor.text }}
-                  >
-                    {doc.level}단계
-                  </span>
-                  <span className="document-category">{doc.category}</span>
-                </div>
-                <div className="document-meta">
-                  <span className="meta-item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    {doc.date}
-                  </span>
-                  <span className="meta-divider">|</span>
-                  <span className="meta-item">{doc.pages}페이지</span>
-                  <span className="meta-divider">|</span>
-                  <span className="meta-item">{doc.size}</span>
-                </div>
+            <div className="document-info">
+              <div className="document-name-row">
+                <span className="document-name">{doc.name}</span>
+                <span
+                  className={`document-type-badge document-type-badge--${doc.badgeVariant}`}
+                >
+                  {doc.badgeLabel}
+                </span>
               </div>
-
-              <div className="document-actions">
-                <button 
-                  className="action-btn" 
-                  title="보기" 
-                  onClick={() => onDocumentClick(doc.id)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
+              <div className="document-meta">
+                <span className="meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
                   </svg>
-                </button>
-                <button 
-                  className="action-btn" 
-                  title="다운로드"
-                  onClick={(e) => handleDownload(e, doc.id, doc.name)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                </button>
+                  {doc.date}
+                </span>
+                <span className="meta-divider">|</span>
+                <span className="meta-item">{doc.pages}페이지</span>
+                <span className="meta-divider">|</span>
+                <span className="meta-item">{doc.size}</span>
               </div>
             </div>
-          );
-        })}
+
+            <div className="document-actions">
+              <button
+                className="action-btn"
+                title="보기"
+                onClick={() => onDocumentClick(doc.id)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button
+                className="action-btn"
+                title="다운로드"
+                onClick={(e) => handleDownload(e, doc.id, doc.name)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </>
   );
@@ -671,11 +618,6 @@ function SettingsContent({userEmail,onLogout}) {
     currentPassword: "",
     newPassword: "",
     confirmPassword:""
-  });
-
-  const [notifications,setNotifications] = useState({
-    email: true,
-    marketing: false,
   });
 
   const handlePwChange = (e) => {
@@ -791,37 +733,6 @@ function SettingsContent({userEmail,onLogout}) {
         </div>
       </section>
 
-      {/* 알림 설정 */}
-      <section className="settings-section">
-        <h2 className="section-title">알림 설정</h2>
-        <div className="settings-toggles">
-          <div className="toggle-item">
-            <div className="toggle-info">
-              <span className="toggle-label">이메일 알림</span>
-              <span className="toggle-desc">변환 완료, 공지사항 등을 이메일로 받습니다</span>
-            </div>
-            <button
-              className={`toggle-switch ${notifications.email ? "toggle-switch--on" : ""}`}
-              onClick={() => setNotifications({ ...notifications, email: !notifications.email })}
-            >
-              <span className="toggle-knob"></span>
-            </button>
-          </div>
-          <div className="toggle-item">
-            <div className="toggle-info">
-              <span className="toggle-label">마케팅 정보 수신</span>
-              <span className="toggle-desc">이벤트, 프로모션 정보를 받습니다</span>
-            </div>
-            <button
-              className={`toggle-switch ${notifications.marketing ? "toggle-switch--on" : ""}`}
-              onClick={() => setNotifications({ ...notifications, marketing: !notifications.marketing })}
-            >
-              <span className="toggle-knob"></span>
-            </button>
-          </div>
-        </div>
-      </section>
-
       {/* 계정 삭제 */}
       <section className="settings-section settings-section--danger">
         <h2 className="section-title section-title--danger">계정 삭제</h2>
@@ -846,13 +757,12 @@ function SettingsContent({userEmail,onLogout}) {
  * - 메인 콘텐츠: 선택된 메뉴에 따라 동적 렌더링
  * 
  * 【상태 관리】
- * - activeMenu: 현재 활성화된 메뉴 ID ("profile", "language", "history", "settings")
+ * - activeMenu: 현재 활성화된 메뉴 ID ("profile", "history", "settings")
  * 
  * 【메뉴 구조】
  * 1. 프로필 정보 - ProfileContent
- * 2. 언어 능력 설정 - LanguageSettingsContent
- * 3. 변환 이력 - HistoryContent
- * 4. 계정 설정 - 미실장 (placeholder)
+ * 2. 변환 이력 - HistoryContent
+ * 3. 계정 설정 - SettingsContent
  * 
  * 【고찰】
  * 현재는 단순 조건부 렌더링 방식
@@ -896,7 +806,9 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
       setRouteHydrated(true);
       return;
     }
-    if (route.activeMenu) setActiveMenu(route.activeMenu);
+    if (route.activeMenu) {
+      setActiveMenu(route.activeMenu === "language" ? "profile" : route.activeMenu);
+    }
     if (route.viewerDocId == null) {
       setRouteHydrated(true);
       return;
@@ -1025,7 +937,6 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   //사이드바 메뉴 아이템 정의
   const menuItems = [
     { id: "profile", label: "프로필 정보", icon: ProfileIcon },
-    { id: "language", label: "언어 능력 설정", icon: LanguageIcon },
     { id: "history", label: "변환 이력", icon: HistoryIcon },
     { id: "settings", label: "계정 설정", icon: SettingsIcon },
   ];
@@ -1039,8 +950,6 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
     switch (activeMenu) {
       case "profile":
         return <ProfileContent userData={userData} />;
-      case "language":
-        return <LanguageSettingsContent />;
       case "history":
         return <HistoryContent onDocumentClick={handleDocumentClick} userEmail={userEmail} />;
       case "settings":
