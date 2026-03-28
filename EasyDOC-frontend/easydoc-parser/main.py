@@ -82,7 +82,7 @@ VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
 gemini_model = None
 try:
     project_id = os.getenv("GCP_PROJECT_ID")
-    
+
     if project_id:
         vertexai.init(project=project_id, location=VERTEX_LOCATION)
         gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
@@ -431,7 +431,6 @@ async def analyze_with_gemini(data: dict):
         "from_cache": len(cached_words),
         "from_gemini": len(new_gemini_words),
         "chunks_processed": len(chunks),
-        "token_usage": total_token_usage
     }
 
 
@@ -506,7 +505,6 @@ async def chat(req: ChatRequest):
             system_instruction=system_prompt,
         )
 
-        # 대화 히스토리를 Gemini contents 형식으로 변환
         contents = []
         for msg in req.messages:
             role = "model" if msg.role == "model" else "user"
