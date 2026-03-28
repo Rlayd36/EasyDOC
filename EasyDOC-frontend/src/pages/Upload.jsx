@@ -3,9 +3,13 @@ import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
+import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import "./Upload.css";
 
 export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEmail }) {
+  const [routeSnapshot] = useState(() => loadAppRoute());
+  /** 복원 effect가 끝난 뒤에만 경로를 저장해 새로고침 직후 viewerDocId가 지워지지 않게 함 */
+  const [routeHydrated, setRouteHydrated] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showViewer, setShowViewer] = useState(false);
@@ -48,33 +52,64 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     fetchRecentDocs();
   }, []);
 
+  /** DB 문서 id로 뷰어용 상태 채우기 (최근 문서 클릭 / 새로고침 복원 공통) */
+  const applyDocumentToViewer = async (docId) => {
+    const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+    const docData = response.data;
+    setParseResult({
+      id: docData.id,
+      filename: docData.file_name,
+      text: docData.text,
+      difficult_words: docData.difficult_words
+    });
+    setOcrResult(null);
+    setPdfFileUrl(docData.s3_url || null);
+    setShowViewer(true);
+  };
+
+  /** 브라우저 새로고침 시 업로드+뷰어 화면 복원 (DB에 id가 있는 문서만) */
+  useEffect(() => {
+    const route = routeSnapshot;
+    if (!route || route.page !== "upload" || route.viewerDocId == null) {
+      setRouteHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setShowLoading(true);
+        await applyDocumentToViewer(route.viewerDocId);
+      } catch (error) {
+        console.error("뷰어 복원 실패:", error);
+        saveAppRoute({ page: "upload", viewerDocId: null });
+      } finally {
+        if (!cancelled) {
+          setShowLoading(false);
+          setRouteHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeSnapshot]);
+
+  useEffect(() => {
+    if (!routeHydrated) return;
+    saveAppRoute({
+      page: "upload",
+      viewerDocId: showViewer && parseResult?.id != null ? parseResult.id : null,
+    });
+  }, [routeHydrated, showViewer, parseResult?.id]);
+
   // 최근 문서 목록에서 문서 클릭 시 뷰어 페이지로 이동
   const handleRecentDocClick = async (docId) => {
-    if (!docId) return; // id가 없으면 무시
+    if (!docId) return;
 
     try {
       setShowLoading(true);
-      const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
-      const docData = response.data;
-
-      // Viewer.jsx가 알아들을 수 있는 형태로 데이터 세팅
-      setParseResult({
-        id: docData.id,
-        filename: docData.file_name,
-        text: docData.text,
-        difficult_words: docData.difficult_words
-      });
-      setOcrResult(null);
-
-      // S3 주소가 있으면 PDF 원본 주소로 세팅
-      if (docData.s3_url) {
-        setPdfFileUrl(docData.s3_url);
-      } else {
-        setPdfFileUrl(null);
-      }
-
+      await applyDocumentToViewer(docId);
       setShowLoading(false);
-      setShowViewer(true); // 뷰어 화면으로 전환!
     } catch (error) {
       console.error("문서 상세 불러오기 실패:", error);
       alert("문서를 불러올 수 없습니다.");

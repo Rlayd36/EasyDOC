@@ -20,6 +20,7 @@ import axios from "axios";
 import Viewer from "./Viewer";
 import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
+import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import "./mypage.css";
 
 // ============================================
@@ -862,6 +863,9 @@ function SettingsContent({userEmail,onLogout}) {
  */
 
 export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
+  const [routeSnapshot] = useState(() => loadAppRoute());
+  const [routeHydrated, setRouteHydrated] = useState(false);
+
   // 현재 활성화된 메뉴 상태 (기본값: 프로필)
   const [activeMenu, setActiveMenu] = useState("profile");
   
@@ -869,25 +873,73 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   const [showLoading, setShowLoading] = useState(false);
   const [viewerData, setViewerData] = useState({ parseResult: null, ocrResult: null, pdfFileUrl: null });
 
+  const applyDocumentToViewer = async (docId) => {
+    const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+    const docData = response.data;
+    setViewerData({
+      parseResult: {
+        id: docData.id,
+        filename: docData.file_name,
+        text: docData.text,
+        difficult_words: docData.difficult_words
+      },
+      ocrResult: null,
+      pdfFileUrl: docData.s3_url || null
+    });
+    setShowViewer(true);
+  };
+
+  /** 새로고침 시 마이페이지 + 사이드 메뉴 + 뷰어(문서 id 있을 때) 복원 */
+  useEffect(() => {
+    const route = routeSnapshot;
+    if (!route || route.page !== "mypage") {
+      setRouteHydrated(true);
+      return;
+    }
+    if (route.activeMenu) setActiveMenu(route.activeMenu);
+    if (route.viewerDocId == null) {
+      setRouteHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setShowLoading(true);
+        await applyDocumentToViewer(route.viewerDocId);
+      } catch (error) {
+        console.error("뷰어 복원 실패:", error);
+        saveAppRoute({
+          page: "mypage",
+          activeMenu: route.activeMenu || "profile",
+          viewerDocId: null,
+        });
+      } finally {
+        if (!cancelled) {
+          setShowLoading(false);
+          setRouteHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeSnapshot]);
+
+  useEffect(() => {
+    if (!routeHydrated) return;
+    saveAppRoute({
+      page: "mypage",
+      activeMenu,
+      viewerDocId:
+        showViewer && viewerData.parseResult?.id != null ? viewerData.parseResult.id : null,
+    });
+  }, [routeHydrated, showViewer, activeMenu, viewerData.parseResult?.id]);
+
   const handleDocumentClick = async (docId) => {
     try {
       setShowLoading(true);
-      const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
-      const docData = response.data;
-
-      setViewerData({
-        parseResult: {
-          id: docData.id,
-          filename: docData.file_name,
-          text: docData.text,
-          difficult_words: docData.difficult_words
-        },
-        ocrResult: null,
-        pdfFileUrl: docData.s3_url || null
-      });
-
+      await applyDocumentToViewer(docId);
       setShowLoading(false);
-      setShowViewer(true);
     } catch (error) {
       console.error("문서 상세 로딩 실패:", error);
       alert("문서를 불러올 수 없습니다.");
