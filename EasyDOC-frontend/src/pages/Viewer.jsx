@@ -63,7 +63,7 @@ function HighlightedTextView({ text, highlightWord }) {
   );
 }
 
-export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
+export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
@@ -74,12 +74,8 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     const [isPdf, setIsPdf] = useState(false);
 
     // 최근 문서 목록 상태
-    const [recentDocs, setRecentDocs] = useState([
-        {id: 1, title: '행정기본법.pdf', date: '2024.11.14'},
-        {id: 2, title: '조세특례제한법.pdf', date: '2024.11.13'},
-        {id: 3, title: '도시및주거환경지정비법.pdf', date: '2024.11.13'},
-        {id: 4, title: '건축법시행령.pdf', date: '2024.11.12'},
-    ]);
+    const [recentDocs, setRecentDocs] = useState([]);
+    const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
 
     // 파일 선택을 위한 ref
     const fileInputRef = useRef(null);
@@ -110,8 +106,60 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     const handleCellsFetched = (pages) => setSharedTableCells(pages);
     const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
 
+    // docsinfos DB에서 최근 문서 목록 가져오기
+    useEffect(() => {
+      fetchDocuments();
+    }, []);
+
+    const fetchDocuments = async () => {
+        try {
+            const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
+            setRecentDocs(response.data);
+        } catch (error) {
+            console.error("문서 목록 로딩 실패:", error);
+        }
+    };
+
+    // 사이드바에서 문서 클릭 시 상세 내용 가져오기
+    const handleDocClick = async (id) => {
+        try {
+            setIsLoading(true);
+            const response = await axios.get(`http://localhost:8002/api/documents/${id}`);
+
+            const docData = response.data;
+
+            setSelectedDoc(docData); // 선택된 문서 상태 업데이트
+            //setPdfUrl(null); // PDF 뷰어에서 텍스트 모드로 전환
+            setDocumentName(docData.file_name); // AgentChat용 문서 이름 업데이트
+
+            // 가져온 텍스트를 뷰어 상태에 반영
+            setParsedText(docData.text || "");
+            setOcrText("");
+
+            if (docData.s3_url) {
+              setPdfUrl(docData.s3_url);
+              const isPdfFile = docData.file_type?.toLowerCase() === 'pdf' ||
+                docData.file_name?.toLowerCase().endsWith('.pdf');
+                setIsPdf(isPdfFile);
+            }
+        } catch (error) {
+            console.error("문서 상세 로딩 실패:", error);
+            alert("문서 내용을 불러올 수 없습니다.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 날짜 형식 변환 함수 (2024-11-14 -> 2024.11.14)
+    const formatDate = (dateString) => {
+      if (!dateString) return "";
+      return dateString.substring(0, 10).replace(/-/g, '.');
+    };
+
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
+      if (selectedDoc) return;
+
         if (parsedData) {
             console.log("Viewer가 받은 parsedData:", parsedData);
             setParsedText(parsedData.text || "");
@@ -127,7 +175,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
             setPdfUrl(pdfFileUrl);
             setIsPdf(true);
         }
-    }, [parsedData, ocrData, pdfFileUrl]);
+    }, [parsedData, ocrData, pdfFileUrl, selectedDoc]);
 
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
@@ -196,7 +244,7 @@ const handleFileChange = async (e) => {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
       console.log("6. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
@@ -205,7 +253,7 @@ const handleFileChange = async (e) => {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. 파싱 완료!", parseResponse.data);
       const extractedText = parseResponse.data.text;
@@ -215,20 +263,7 @@ const handleFileChange = async (e) => {
     }
 
     // 최근 문서 목록 업데이트
-    const newDoc = {
-      id: Date.now(),
-      title: file.name,
-      date: new Date().toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month:"2-digit",
-        day: "2-digit",
-      })
-      .replace(/\. /g, ".")
-      .replace(".", "")
-    };
-
-    const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
-    setRecentDocs([newDoc, ...filteredDocs].slice(0, 10));
+   await fetchDocuments();
 
   } catch (error) {
     console.error("파일 처리 오류:", error);
@@ -274,14 +309,18 @@ const handleFileChange = async (e) => {
           </div>
           <ul className="doc-list">
             {recentDocs.map((doc) => (
-              <li key={doc.id} className="doc-item">
+              <li 
+                key={doc.id} 
+                className={`doc-item ${selectedDoc && selectedDoc.id === doc.id ? "active" : ""}`}
+                onClick={() => handleDocClick(doc.id)}
+              >
                 <div className="doc-info">
                   <div className="doc-icon-box">
                     <FileText size={18} />
                   </div>
                   <div className="doc-text">
-                    <span className="doc-title">{doc.title}</span>
-                    <span className="doc-date">{doc.date}</span>
+                    <span className="doc-title">{doc.file_name}</span>
+                    <span className="doc-date">{formatDate(doc.created_at)}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} color="#9ca3af" />
