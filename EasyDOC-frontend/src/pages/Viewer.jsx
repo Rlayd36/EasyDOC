@@ -4,30 +4,7 @@ import { Upload, Clock, FileText, BookOpen, ChevronRight } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
-
-// 로고 아이콘 (Login 페이지의 DocumentIcon 재사용 및 크기 조정)
-function LogoIcon() {
-  return (
-    <svg
-      width="55"
-      height="55"
-      viewBox="0 0 96 96"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* back sheet */}
-      <rect x="16" y="12" width="54" height="68" rx="6" stroke="#000000" strokeWidth="6" />
-      {/* front sheet */}
-      <rect x="28" y="22" width="54" height="68" rx="6" fill="#FFFFFF" stroke="#000000" strokeWidth="6" />
-      {/* small box */}
-      <rect x="38" y="34" width="16" height="12" rx="2" stroke="#000000" strokeWidth="6" />
-      {/* lines */}
-      <line x1="38" y1="54" x2="74" y2="54" stroke="#000000" strokeWidth="6" />
-      <line x1="38" y1="62" x2="74" y2="62" stroke="#000000" strokeWidth="6" />
-      <line x1="38" y1="70" x2="66" y2="70" stroke="#000000" strokeWidth="6" />
-    </svg>
-  );
-}
+import AppBrandLogo from "../components/AppBrandLogo";
 
 // 텍스트를 하이라이트해주는 컴포넌트
 function HighlightedTextView({ text, highlightWord }) {
@@ -63,7 +40,7 @@ function HighlightedTextView({ text, highlightWord }) {
   );
 }
 
-export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
+export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onLogoClick }) {
     // 요약 박스 표시 여부 상태 (기본값: true)
     const [showSummary, setShowSummary] = useState(true);
 
@@ -283,9 +260,7 @@ const handleFileChange = async (e) => {
       <aside className="sidebar sidebar-left">
         {/* 브랜드 로고 */}
         <div className="viewer-brand">
-          <LogoIcon />
-          <span className="brand-text-easy">Easy</span>
-          <span className="brand-text-doc">DOC</span>
+          <AppBrandLogo onClick={onLogoClick} />
         </div>
 
         {/* 업로드 버튼 */}

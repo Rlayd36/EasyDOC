@@ -24,28 +24,6 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.header-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-title {
-  font-size: 24px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin: 0;
-}
-
-.brand-easy {
-  color: #111827;
-}
-
-.brand-doc {
-  color: #3f4b92;
-}
-
 .header-user {
   width: 48px;
   height: 48px;

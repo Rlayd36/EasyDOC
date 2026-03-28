@@ -19,29 +19,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios"; 
 import Viewer from "./Viewer";
 import Loading from "./Loading";
+import AppBrandLogo from "../components/AppBrandLogo";
 import "./mypage.css";
-
-/**
- * 문서 아이콘 - 로고 및 문서 표시용
- */
-function DocumentIcon() {
-  return (
-    <svg
-      width="40"
-      height="40"
-      viewBox="0 0 96 96"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect x="16" y="12" width="54" height="68" rx="6" stroke="#111827" strokeWidth="3" />
-      <rect x="28" y="22" width="54" height="68" rx="6" fill="#FFFFFF" stroke="#111827" strokeWidth="3" />
-      <rect x="38" y="34" width="16" height="12" rx="2" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="54" x2="74" y2="54" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="62" x2="74" y2="62" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="70" x2="66" y2="70" stroke="#111827" strokeWidth="3" />
-    </svg>
-  );
-}
 
 // ============================================
 // 사이드바 네비게이션 아이콘들
@@ -1031,6 +1010,11 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
         ocrData={viewerData.ocrResult} 
         pdfFileUrl={viewerData.pdfFileUrl} 
         userEmail={userEmail}
+        onLogoClick={() => {
+          setShowViewer(false);
+          setViewerData({ parseResult: null, ocrResult: null, pdfFileUrl: null });
+          onNavigateToUpload();
+        }}
       />
     );
   }
@@ -1043,12 +1027,8 @@ return (
       */}
       <aside className="sidebar">
         <div className="sidebar-top">
-          <div className="sidebar-logo" onClick={onNavigateToUpload}>
-            <DocumentIcon />
-            <h1 className="sidebar-title">
-              <span className="title-easy">Easy</span>
-              <span className="title-doc">DOC</span>
-            </h1>
+          <div className="sidebar-logo">
+            <AppBrandLogo onClick={onNavigateToUpload} />
           </div>
 
           {/* 사용자 프로필 미니 카드 */}

@@ -61,32 +61,16 @@
 
 /* 로고 */
 .sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 0 8px;
   margin-bottom: 32px;
-  cursor: pointer;
+}
+
+.sidebar-logo .app-brand-logo {
   transition: opacity 0.2s;
 }
 
-.sidebar-logo:hover{
+.sidebar-logo:hover .app-brand-logo {
   opacity: 0.8;
-}
-
-.sidebar-title {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -1px;
-  margin: 0;
-}
-
-.title-easy {
-  color: #111827;
-}
-
-.title-doc {
-  color: #3f4b92;
 }
 
 /* 사용자 프로필 미니 */

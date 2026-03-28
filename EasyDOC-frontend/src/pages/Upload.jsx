@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
+import AppBrandLogo from "../components/AppBrandLogo";
 import "./Upload.css";
 
-export default function Upload({onNavigateToMyPage, userEmail}) {
+export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEmail }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showViewer, setShowViewer] = useState(false);
@@ -214,22 +215,31 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
     return <Loading title="문서 분석 중" subtitle="문서를 확인하는 중입니다. 잠시만 기다려 주세요" />;
   }
 
+  const handleExitToUpload = () => {
+    setShowViewer(false);
+    setParseResult(null);
+    setOcrResult(null);
+    setParsedText("");
+    setPdfFileUrl(null);
+  };
+
   if (showViewer) {
-    // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
-    return <Viewer parsedData={parseResult} ocrData={ocrResult} pdfFileUrl={pdfFileUrl} userEmail={userEmail} />;
+    return (
+      <Viewer
+        parsedData={parseResult}
+        ocrData={ocrResult}
+        pdfFileUrl={pdfFileUrl}
+        userEmail={userEmail}
+        onLogoClick={handleExitToUpload}
+      />
+    );
   }
 
   return (
     <div className="upload-page">
       {/* Header */}
       <header className="upload-header">
-        <div className="header-logo">
-          <DocumentIcon />
-          <h1 className="header-title">
-            <span className="brand-easy">Easy</span>
-            <span className="brand-doc">DOC</span>
-          </h1>
-        </div>
+        <AppBrandLogo onClick={onNavigateToUpload} />
         <div className="header-user" onClick={onNavigateToMyPage} style={{cursor: "pointer"}}>
           <UserIcon />
         </div>
@@ -324,50 +334,6 @@ export default function Upload({onNavigateToMyPage, userEmail}) {
 }
 
 // Icons
-function DocumentIcon() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 96 96"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="16"
-        y="12"
-        width="54"
-        height="68"
-        rx="6"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <rect
-        x="28"
-        y="22"
-        width="54"
-        height="68"
-        rx="6"
-        fill="#FFFFFF"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <rect
-        x="38"
-        y="34"
-        width="16"
-        height="12"
-        rx="2"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <line x1="38" y1="54" x2="74" y2="54" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="62" x2="74" y2="62" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="70" x2="66" y2="70" stroke="#111827" strokeWidth="3" />
-    </svg>
-  );
-}
-
 function UserIcon() {
   return (
     <svg

@@ -50,17 +50,8 @@
     display: flex;
     align-items: center;
     margin-bottom: 30px;
-    font-size: 50px;
-    font-weight: 800;
     user-select: none;
 }
-/* 아이콘과 텍스트 사이의 간격은 아이콘에 직접 부여 */
-.viewer-brand svg {
-    margin-right: 12px;
-}
-
-.brand-text-easy { color: #000000; }
-.brand-text-doc { color: #3D4B90; }
 
 /* 업로드 버튼 */
 .btn-upload{
