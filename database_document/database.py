@@ -4,34 +4,34 @@ from sqlalchemy.dialects.mysql import LONGTEXT
 from datetime import datetime
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
-"""_search = Path(__file__).resolve().parent
-_env_files = []
-for _ in range(5):  # 최대 5단계 상위 폴더까지 탐색
+_search = Path(__file__).resolve().parent
+for _ in range(8):
     _candidate = _search / ".env"
     if _candidate.exists():
-        _env_files.append(_candidate)
+        load_dotenv(dotenv_path=_candidate, override=True)
+        break
     _search = _search.parent
 
-for _ef in _env_files:
-    load_dotenv(dotenv_path=_ef, override=True)
+# Spring application.properties 와 동일한 환경변수명
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "root")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "3306")
+DB_NAME = os.getenv("DB_NAME", "easydoc")
 
-if _env_files:
-    print(f"✓ database.py: .env 로드 완료 ({[str(f) for f in _env_files]})")"""
+SQLALCHEMY_DATABASE_URL = (
+    f"mysql+pymysql://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}"
+    f"@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+)
 
-# DB 정보 가져오기
-DB_USER = "root"
-DB_PASSWORD = "root"
-DB_HOST = "localhost"
-DB_PORT = "3306"
-DB_NAME = "easydoc"
-
-# MySQL 연결 주소 만들기 (pymysql)
-SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
-
-# DB 엔진 및 세션 생성
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"connect_timeout": 15},
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

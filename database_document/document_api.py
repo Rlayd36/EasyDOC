@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -7,7 +8,7 @@ from pathlib import Path
 
 # --- DB 공유를 위한 경로 설정 ---
 current_file_path = Path(__file__).resolve()
-root_dir = current_file_path.parent.parent 
+root_dir = current_file_path.parent.parent
 
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
@@ -15,16 +16,25 @@ if str(root_dir) not in sys.path:
 from database_document.database import get_db, Document, engine, Base
 # ---------------------------------------------
 
-# 정의된 모델을 바탕으로 docsinfos 테이블이 없으면 자동으로 생성
-Base.metadata.create_all(bind=engine)
 
-# 독립적인 FastAPI 앱 생성
-app = FastAPI(title="Document DB Server")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[document_api] DB 테이블 초기화 실패 (연결 정보·방화벽 확인): {e}")
+    yield
 
-# CORS 설정 (프론트엔드 통신 허용)
+
+app = FastAPI(title="Document DB Server", lifespan=lifespan)
+
+# CORS: allow_origins=["*"] 와 allow_credentials=True 는 스펙상 동시 사용 불가 → 브라우저가 헤더를 버림
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
