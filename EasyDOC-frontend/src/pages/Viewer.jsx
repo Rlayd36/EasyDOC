@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles } from 'lucide-react';
+import { Upload, Clock, FileText, BookOpen, ChevronRight } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -103,24 +103,8 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail }) {
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
     const [externalFillSuggestions, setExternalFillSuggestions] = useState(null); // AgentChat → PdfHighlightViewer
 
-    // 드래그 선택 → 에이전트 설명 브리지
-    const [externalPrompt, setExternalPrompt] = useState(null);
-    const [pendingSelectedText, setPendingSelectedText] = useState(null); // 확인 대화상자용
-
     const handleCellsFetched = (pages) => setSharedTableCells(pages);
     const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
-    const handleTextSelected = (text) => {
-      setPendingSelectedText(text);
-    };
-    const confirmSendToAgent = () => {
-      if (!pendingSelectedText) return;
-      const prompt = `다음 문단을 쉽게 설명해줘:\n\n"${pendingSelectedText}"`;
-      setExternalPrompt({ text: prompt, id: Date.now() });
-      setPendingSelectedText(null);
-    };
-    const cancelSendToAgent = () => {
-      setPendingSelectedText(null);
-    };
 
     // docsinfos DB에서 최근 문서 목록 가져오기
     useEffect(() => {
@@ -398,7 +382,6 @@ const handleFileChange = async (e) => {
                 parsedText={parsedText || ocrText}
                 onCellsFetched={handleCellsFetched}
                 externalSuggestions={externalFillSuggestions}
-                onTextSelected={handleTextSelected}
               />
             ) : (
               <iframe
@@ -418,32 +401,8 @@ const handleFileChange = async (e) => {
         onHighlightWord={setHighlightWord}
         tableCells={sharedTableCells}
         onAgentFill={handleAgentFill}
-        externalPrompt={externalPrompt}
       />
 
-      {/* 드래그 선택 확인 대화상자 */}
-      {pendingSelectedText && (
-        <div className="drag-confirm-overlay" onClick={cancelSendToAgent}>
-          <div className="drag-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="drag-confirm-header">
-              <Lightbulb size={20} color="#3D4B90" />
-              <h4 className="drag-confirm-title">선택한 내용을 AI에게 설명 요청할까요?</h4>
-            </div>
-            <div className="drag-confirm-text-box">
-              <p className="drag-confirm-text">{pendingSelectedText}</p>
-            </div>
-            <div className="drag-confirm-actions">
-              <button className="drag-confirm-btn drag-confirm-btn--cancel" onClick={cancelSendToAgent}>
-                취소
-              </button>
-              <button className="drag-confirm-btn drag-confirm-btn--ok" onClick={confirmSendToAgent}>
-                <Sparkles size={14} />
-                설명 요청
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
