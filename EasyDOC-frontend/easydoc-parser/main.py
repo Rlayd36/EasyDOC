@@ -7,8 +7,7 @@ from typing import List, Optional
 import pdfplumber
 import olefile
 import zlib
-import vertexai
-from vertexai.generative_models import GenerativeModel, Content, Part
+import google.generativeai as genai
 import io
 import re
 import json
@@ -33,18 +32,6 @@ for _ef in _env_files:
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
 
-# GOOGLE_APPLICATION_CREDENTIALS: 상대 경로는 cwd가 아니라 이 파일(easydoc-parser) 기준으로 해석
-_parser_dir = Path(__file__).resolve().parent
-_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-if _gac:
-    _cred_path = Path(_gac)
-    if not _cred_path.is_absolute():
-        _cred_path = (_parser_dir / _gac).resolve()
-    if _cred_path.is_file():
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(_cred_path)
-        print(f"✓ 서비스 계정 키: {_cred_path}")
-    else:
-        print(f"⚠ GOOGLE_APPLICATION_CREDENTIALS 파일 없음: {_cred_path}")
 
 # --- DB 공유를 위한 경로 설정 ---
 current_file_path = Path(__file__).resolve()
@@ -75,24 +62,20 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 
-VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
-VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
-# Vertex AI (Gemini) 설정
+# Gemini API 설정
 gemini_model = None
 try:
-    project_id = os.getenv("GCP_PROJECT_ID")
-    if project_id:
-        vertexai.init(project=project_id, location=VERTEX_LOCATION)
-        gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
-        print(
-            f"✓ Vertex AI Gemini 초기화 성공 "
-            f"(model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION})"
-        )
+    _api_key = os.getenv("GEMINI_API_KEY")
+    if _api_key:
+        genai.configure(api_key=_api_key)
+        gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+        print(f"✓ Gemini API 초기화 성공 (model={GEMINI_MODEL_NAME})")
     else:
-        print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
+        print("⚠ GEMINI_API_KEY가 설정되지 않음 - 사전 기반 설명만 사용")
 except Exception as e:
-    print(f"⚠ Vertex AI API 초기화 실패: {e} - 사전 기반 설명만 사용")
+    print(f"⚠ Gemini API 초기화 실패: {e} - 사전 기반 설명만 사용")
     gemini_model = None
 
 # Gemini 응답 캐시 (gemini_word.csv)
@@ -497,17 +480,15 @@ async def chat(req: ChatRequest):
         system_prompt += f"\n\n## 현재 사용자가 보고 있는 문서 내용:\n{doc_preview}"
 
     try:
-        chat_model = GenerativeModel(
-            VERTEX_GEMINI_MODEL,
+        chat_model = genai.GenerativeModel(
+            GEMINI_MODEL_NAME,
             system_instruction=system_prompt,
         )
 
         contents = []
         for msg in req.messages:
             role = "model" if msg.role == "model" else "user"
-            contents.append(
-                Content(role=role, parts=[Part.from_text(msg.content)])
-            )
+            contents.append({"role": role, "parts": [{"text": msg.content}]})
 
         response = chat_model.generate_content(contents)
         reply = response.text.strip()
