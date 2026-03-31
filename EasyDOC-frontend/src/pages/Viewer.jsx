@@ -71,9 +71,6 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
 
-    // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
-    const [viewMode, setViewMode] = useState("parsed");
-
     // 에이전트 어시스트 ↔ PDF 뷰어 브리지
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
     const [externalFillSuggestions, setExternalFillSuggestions] = useState(null); // AgentChat → PdfHighlightViewer
@@ -323,56 +320,21 @@ const handleFileChange = async (e) => {
           </div>
         </div>
 
-        {/* 뷰 모드 전환 버튼 */}
-        <div className="view-mode-buttons-container">
-          <div className="view-mode-buttons">
-            <button 
-              className={`view-mode-btn ${viewMode === 'parsed' ? 'active' : ''}`}
-              onClick={() => setViewMode('parsed')}
-            >
-              DOC
-            </button>
-            <button 
-              className={`view-mode-btn ${viewMode === 'original' ? 'active' : ''}`}
-              onClick={() => setViewMode('original')}
-            >
-              원본
-            </button>
-          </div>
-        </div>
-
         <div className="pdf-container">
-          {/* 뷰 모드에 따라 문서 표시 */}
-          {viewMode === 'parsed' ? (
-            /* DOC 탭: 파싱된 텍스트 */
-            <div className="parsed-content">
-              {ocrText ? (
-                <HighlightedTextView text={ocrText} highlightWord={highlightWord} />
-              ) : parsedText ? (
-                <HighlightedTextView text={parsedText} highlightWord={highlightWord} />
-              ) : (
-                <div className="no-content">
-                  <p>파일을 업로드하면 파싱된 문서가 여기에 표시됩니다.</p>
-                </div>
-              )}
-            </div>
+          {isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
+            <PdfHighlightViewer
+              pdfUrl={pdfUrl}
+              highlightWord={highlightWord}
+              parsedText={parsedText || ocrText}
+              onCellsFetched={handleCellsFetched}
+              externalSuggestions={externalFillSuggestions}
+            />
           ) : (
-            /* 원본 탭: PDF 원본 이미지 */
-            isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
-              <PdfHighlightViewer
-                pdfUrl={pdfUrl}
-                highlightWord={highlightWord}
-                parsedText={parsedText || ocrText}
-                onCellsFetched={handleCellsFetched}
-                externalSuggestions={externalFillSuggestions}
-              />
-            ) : (
-              <iframe
-                src={pdfUrl}
-                className="pdf-frame"
-                title="Document Viewer"
-              />
-            )
+            <iframe
+              src={pdfUrl}
+              className="pdf-frame"
+              title="Document Viewer"
+            />
           )}
         </div>
       </main>

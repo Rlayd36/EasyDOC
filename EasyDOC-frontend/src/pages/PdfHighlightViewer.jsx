@@ -4,7 +4,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
 import axios from "axios";
-import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X } from "lucide-react";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import "./PdfHighlightViewer.css";
 
 const PARSER_URL = "http://localhost:8000";
@@ -31,7 +31,7 @@ const STICKERS = [
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, importantInfo }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
@@ -50,6 +50,12 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
   const dragStartRef = useRef(null);
   const [fixedSelectionRects, setFixedSelectionRects] = useState([]);
   const [simplifyPopup, setSimplifyPopup] = useState(null);
+
+  // 중요 페이지 메모 토글 + 키워드 하이라이트
+  const [showImportantMemo, setShowImportantMemo] = useState(false);
+  const [importantHighlights, setImportantHighlights] = useState([]);
+  const [activeKeywordIdx, setActiveKeywordIdx] = useState(null);
+  const [charBoxesReady, setCharBoxesReady] = useState(0); // charBoxes 준비 신호용
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -146,6 +152,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
 
         // ref에 저장 (드래그 선택에서 재사용)
         charBoxesRef.current = charBoxes;
+        setCharBoxesReady((v) => v + 1);
 
         if (charBoxes.length === 0) {
           setHasText(false);
@@ -216,6 +223,73 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       }
     };
   }, [pdfDoc, pageNum, containerWidth, highlightWord]);
+
+  // 중요 문장 하이라이팅 (importantInfo가 나중에 도착해도 반영)
+  useEffect(() => {
+    const allChars = charBoxesRef.current;
+    if (!importantInfo?.keywords?.length || !allChars.length) {
+      setImportantHighlights([]);
+      return;
+    }
+
+    console.log(`[중요하이라이트] 페이지 ${pageNum}: ${importantInfo.keywords.length}개 문장`, importantInfo.keywords.map(k => k.keyword.substring(0, 20)));
+    const fullText = allChars.map((c) => c.char).join("");
+    const kwFound = [];
+
+    for (let ki = 0; ki < importantInfo.keywords.length; ki++) {
+      const kw = importantInfo.keywords[ki];
+      const sentence = kw.keyword;
+      const normalizedSentence = sentence.replace(/\s+/g, "");
+      const normalizedFull = fullText.replace(/\s+/g, "");
+
+      let searchPos = 0;
+      let nIdx;
+      console.log(`[중요하이라이트] 검색: "${normalizedSentence.substring(0, 30)}..." found=${normalizedFull.indexOf(normalizedSentence) !== -1}`);
+      while ((nIdx = normalizedFull.indexOf(normalizedSentence, searchPos)) !== -1) {
+        // 정규화된 인덱스를 원본 charBox 인덱스로 변환
+        let origStart = 0, normCount = 0;
+        for (let ci = 0; ci < allChars.length; ci++) {
+          if (allChars[ci].char.trim()) normCount++;
+          if (normCount > nIdx) { origStart = ci; break; }
+        }
+        let origEnd = origStart, matchNorm = 0;
+        for (let ci = origStart; ci < allChars.length; ci++) {
+          if (allChars[ci].char.trim()) matchNorm++;
+          if (matchNorm >= normalizedSentence.length) { origEnd = ci; break; }
+        }
+
+        // charBox 범위에서 줄 단위로 하이라이트 rect 생성
+        const matchBoxes = allChars.slice(origStart, origEnd + 1);
+        if (matchBoxes.length === 0) break;
+        const lineGroups = [];
+        let curLine = [matchBoxes[0]];
+        for (let mi = 1; mi < matchBoxes.length; mi++) {
+          if (Math.abs(matchBoxes[mi].baseY - curLine[0].baseY) < 5) {
+            curLine.push(matchBoxes[mi]);
+          } else {
+            lineGroups.push(curLine);
+            curLine = [matchBoxes[mi]];
+          }
+        }
+        lineGroups.push(curLine);
+
+        for (const lg of lineGroups) {
+          const minX = Math.min(...lg.map((b) => b.x));
+          const maxX = Math.max(...lg.map((b) => b.x + b.w));
+          const minY = Math.min(...lg.map((b) => b.y));
+          const maxH = Math.max(...lg.map((b) => b.h));
+          kwFound.push({
+            x: minX, y: minY, width: maxX - minX, height: maxH,
+            keyword: sentence, explanation: kw.explanation, kwIndex: ki,
+          });
+        }
+
+        searchPos = nIdx + normalizedSentence.length;
+      }
+    }
+    console.log(`[중요하이라이트] 페이지 ${pageNum}: ${kwFound.length}개 하이라이트 생성`);
+    setImportantHighlights(kwFound);
+  }, [importantInfo, pageNum, charBoxesReady]);
 
   // 드래그 영역에서 텍스트 추출
   const extractTextFromRect = useCallback((rect) => {
@@ -548,7 +622,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
 
   return (
     <div
-      className={`pdf-page-wrapper ${memoMode ? "memo-mode" : ""}`}
+      className={`pdf-page-wrapper ${memoMode ? "memo-mode" : ""} ${importantInfo ? `important-page importance-${importantInfo.importance}` : ""}`}
       style={{ width: pageSize.width || "auto" }}
       onClick={handlePageClick}
       onContextMenu={handleContextMenu}
@@ -558,6 +632,91 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       onMouseLeave={handleDragEnd}
     >
       <canvas ref={canvasRef} />
+
+      {/* 중요 페이지 책갈피 배지 + 메모 토글 */}
+      {importantInfo && (
+        <>
+          <div
+            className={`important-page-badge importance-badge-${importantInfo.importance}`}
+            onClick={(e) => { e.stopPropagation(); setShowImportantMemo((v) => !v); }}
+            title="클릭하여 상세 설명 보기"
+            style={{ cursor: "pointer" }}
+          >
+            <BookmarkCheck size={16} />
+            <span className="important-badge-label">
+              {importantInfo.importance === 3 ? "매우 중요" : importantInfo.importance === 2 ? "중요" : "참고"}
+            </span>
+            <span className="important-badge-toggle">{showImportantMemo ? "▲" : "▼"}</span>
+          </div>
+
+          {/* 메모 패널 */}
+          {showImportantMemo && (
+            <div className="important-memo-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+              <div className="important-memo-header">
+                <span>{importantInfo.importance === 3 ? "⚠️" : importantInfo.importance === 2 ? "📌" : "💡"} {importantInfo.reason}</span>
+                <button className="important-memo-close" onClick={() => setShowImportantMemo(false)}>
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="important-memo-body">
+                <p>{importantInfo.summary || importantInfo.reason}</p>
+                {importantInfo.keywords?.length > 0 && (
+                  <div className="important-keywords-list">
+                    <p className="important-keywords-title">주요 키워드</p>
+                    {importantInfo.keywords.map((kw, ki) => (
+                      <div
+                        key={ki}
+                        className={`important-keyword-item ${activeKeywordIdx === ki ? "active" : ""}`}
+                        onClick={() => setActiveKeywordIdx(activeKeywordIdx === ki ? null : ki)}
+                      >
+                        <span className="important-keyword-word">{kw.keyword}</span>
+                        <span className="important-keyword-explain">{kw.explanation}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 중요 키워드 하이라이트 오버레이 + 인라인 설명 토글 */}
+      {importantHighlights.map((h, i) => (
+        <React.Fragment key={`imp-kw-${pageNum}-${i}`}>
+          <span
+            className={`important-keyword-highlight ${activeKeywordIdx === i ? "active-kw" : ""}`}
+            style={{
+              position: "absolute",
+              left: `${h.x}px`,
+              top: `${h.y}px`,
+              width: `${h.width}px`,
+              height: `${h.height}px`,
+            }}
+            onClick={(e) => { e.stopPropagation(); setActiveKeywordIdx(activeKeywordIdx === i ? null : i); }}
+          />
+          {activeKeywordIdx === i && (
+            <div
+              className="important-kw-tooltip"
+              style={{
+                position: "absolute",
+                left: `${Math.min(Math.max(0, h.x), (pageSize.width || 600) - 310)}px`,
+                top: `${h.y + h.height + 4}px`,
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="important-kw-tooltip-header">
+                <span className="important-kw-tooltip-word">{h.keyword}</span>
+                <button className="important-kw-tooltip-close" onClick={() => setActiveKeywordIdx(null)}>
+                  <X size={12} />
+                </button>
+              </div>
+              <p className="important-kw-tooltip-explain">{h.explanation}</p>
+            </div>
+          )}
+        </React.Fragment>
+      ))}
 
       {/* 드래그 선택 영역 */}
       {dragSelection && (
@@ -1306,6 +1465,10 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     setStickers((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  // 중요 페이지 분석 상태
+  const [importantPages, setImportantPages] = useState([]);
+  const [analyzingImportant, setAnalyzingImportant] = useState(false);
+
   // 이미지 관련 상태
   const [images, setImages] = useState([]);   // { id, pageNum, x, y, width, height, src }
   const toolbarImgInputRef = useRef(null);
@@ -1605,6 +1768,50 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     };
   }, [pdfUrl]);
 
+  // 중요 페이지 분석 (PDF 로드 완료 후 자동 실행)
+  useEffect(() => {
+    console.log("[중요페이지] useEffect 진입 - pdfDoc:", !!pdfDoc, "importantPages:", importantPages.length);
+    if (!pdfDoc || importantPages.length > 0) return;
+    let cancelled = false;
+
+    (async () => {
+      setAnalyzingImportant(true);
+      console.log("[중요페이지] 페이지별 텍스트 추출 시작...");
+      try {
+        const pageTexts = [];
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const content = await page.getTextContent();
+          const text = content.items.map((item) => item.str).join(" ");
+          if (text.trim()) {
+            pageTexts.push({ page: i, text });
+          }
+        }
+        console.log(`[중요페이지] 텍스트 추출 완료 - ${pageTexts.length}/${pdfDoc.numPages} 페이지`);
+        if (cancelled || pageTexts.length === 0) {
+          console.log("[중요페이지] 취소됨 또는 텍스트 없음");
+          return;
+        }
+
+        console.log("[중요페이지] API 요청 중...", `${PARSER_URL}/analyze-important-pages`);
+        const res = await axios.post(`${PARSER_URL}/analyze-important-pages`, {
+          pages: pageTexts,
+        });
+        console.log("[중요페이지] API 응답:", res.data);
+        if (!cancelled && res.data.important_pages) {
+          setImportantPages(res.data.important_pages);
+          console.log("[중요페이지] 중요 페이지 설정 완료:", res.data.important_pages);
+        }
+      } catch (err) {
+        console.error("[중요페이지] 분석 실패:", err);
+      } finally {
+        if (!cancelled) setAnalyzingImportant(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [pdfDoc]);
+
   if (loading) {
     return (
       <div className="pdf-highlight-viewer" ref={containerRef}>
@@ -1678,6 +1885,21 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
           <span className="memo-count">🌟 {stickers.length}</span>
         )}
 
+        {/* 중요 페이지 책갈피 */}
+        <div className="bookmark-indicator">
+          {analyzingImportant ? (
+            <span className="memo-tool-btn bookmark-analyzing">
+              <Loader2 size={16} className="spin-icon" />
+              <span>분석 중...</span>
+            </span>
+          ) : importantPages.length > 0 ? (
+            <span className="memo-tool-btn bookmark-result" title={importantPages.map((p) => `p.${p.page}: ${p.reason}`).join("\n")}>
+              <Bookmark size={16} />
+              <span>중요 {importantPages.length}페이지</span>
+            </span>
+          ) : null}
+        </div>
+
         <button
           className="memo-tool-btn"
           onClick={() => toolbarImgInputRef.current?.click()}
@@ -1748,6 +1970,7 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
               cellValues={cellValues}
               pendingCells={pendingCells}
               onCellValueChange={handleCellValueChange}
+              importantInfo={importantPages.find((p) => p.page === pageNum) || null}
             />
           );
         })}

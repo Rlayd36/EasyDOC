@@ -52,3 +52,6 @@ out/
 
 ### OCR ###
 vision-key.json
+
+### GCP 서비스 계정 키 ###
+google-key.json
