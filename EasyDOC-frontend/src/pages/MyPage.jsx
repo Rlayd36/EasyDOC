@@ -371,6 +371,15 @@ function HistoryContent({ onDocumentClick, userEmail }) {
         return;
       }
 
+      let finalFileName = fileName;
+
+      // S3 실제 경로는 .pdf가 포함되어 있는데, 원본 파일명이 .pdf로 끝나지 않는 경우 (이미지 파일인 경우)
+      if (s3Url.toLowerCase().includes('.pdf') && !fileName.toLowerCase().endsWith('.pdf')) {
+        // 기존 확장자를 떼어내고 .pdf를 붙여줍니다.
+        const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+        finalFileName = `${nameWithoutExt}.pdf`;
+      }
+
       // S3에서 파일을 받아와 내 컴퓨터에 저장
       const fileResponse = await fetch(s3Url);
       const blob = await fileResponse.blob();
@@ -378,7 +387,7 @@ function HistoryContent({ onDocumentClick, userEmail }) {
 
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = fileName;
+      link.download = finalFileName;
       document.body.appendChild(link);
       link.click();
 

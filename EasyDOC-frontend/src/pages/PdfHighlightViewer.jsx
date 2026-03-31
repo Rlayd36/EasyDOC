@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
@@ -355,7 +356,12 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         };
         const selectedRects = extractHighlightRectsFromRect(normalizedSelection);
         const popupX = normalizedSelection.startX + (normalizedSelection.endX - normalizedSelection.startX) / 2;
-        const popupY = Math.max(8, normalizedSelection.startY - 12);
+        const wrapperRect = e.currentTarget.getBoundingClientRect();
+        const preferAboveY = wrapperRect.top + Math.max(8, normalizedSelection.startY - 12);
+        const preferBelowY = wrapperRect.top + normalizedSelection.endY + 12;
+        const placeBelow = preferAboveY < 140;
+        const popupClientX = wrapperRect.left + popupX;
+        const popupClientY = placeBelow ? preferBelowY : preferAboveY;
 
         setFixedSelectionRects(selectedRects);
         setSimplifyPopup({
@@ -363,8 +369,9 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           error: null,
           originalText: text.trim(),
           simplifiedText: "",
-          x: popupX,
-          y: popupY,
+          x: popupClientX,
+          y: popupClientY,
+          placement: placeBelow ? "below" : "above",
         });
 
         axios.post(`${PARSER_URL}/chat`, {
@@ -581,42 +588,45 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         />
       ))}
 
-      {/* 쉬운말 변환 팝업 */}
-      {simplifyPopup && (
-        <div
-          className="pdf-simplify-popup"
-          style={{ left: simplifyPopup.x, top: simplifyPopup.y }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="pdf-simplify-popup-header">
-            <Sparkles size={14} />
-            <span>쉬운 표현</span>
-            <button
-              className="pdf-simplify-popup-close"
-              onClick={() => {
-                setSimplifyPopup(null);
-                setFixedSelectionRects([]);
-              }}
-              title="닫기"
+      {/* 쉬운말 변환 팝업 (클리핑 방지: body 포털로 렌더링) */}
+      {simplifyPopup
+        ? createPortal(
+            <div
+              className={`pdf-simplify-popup ${simplifyPopup.placement === "below" ? "pdf-simplify-popup--below" : ""}`}
+              style={{ left: simplifyPopup.x, top: simplifyPopup.y }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
-              <X size={13} />
-            </button>
-          </div>
-          <div className="pdf-simplify-popup-body">
-            <p className="pdf-simplify-popup-label">선택 문장</p>
-            <p className="pdf-simplify-popup-original">{simplifyPopup.originalText}</p>
-            <p className="pdf-simplify-popup-label">변환 결과</p>
-            {simplifyPopup.loading ? (
-              <p className="pdf-simplify-popup-loading">Gemini가 쉬운 표현으로 바꾸는 중...</p>
-            ) : simplifyPopup.error ? (
-              <p className="pdf-simplify-popup-error">{simplifyPopup.error}</p>
-            ) : (
-              <p className="pdf-simplify-popup-result">{simplifyPopup.simplifiedText}</p>
-            )}
-          </div>
-        </div>
-      )}
+              <div className="pdf-simplify-popup-header">
+                <Sparkles size={14} />
+                <span>쉬운 표현</span>
+                <button
+                  className="pdf-simplify-popup-close"
+                  onClick={() => {
+                    setSimplifyPopup(null);
+                    setFixedSelectionRects([]);
+                  }}
+                  title="닫기"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="pdf-simplify-popup-body">
+                <p className="pdf-simplify-popup-label">선택 문장</p>
+                <p className="pdf-simplify-popup-original">{simplifyPopup.originalText}</p>
+                <p className="pdf-simplify-popup-label">변환 결과</p>
+                {simplifyPopup.loading ? (
+                  <p className="pdf-simplify-popup-loading">Gemini가 쉬운 표현으로 바꾸는 중...</p>
+                ) : simplifyPopup.error ? (
+                  <p className="pdf-simplify-popup-error">{simplifyPopup.error}</p>
+                ) : (
+                  <p className="pdf-simplify-popup-result">{simplifyPopup.simplifiedText}</p>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (

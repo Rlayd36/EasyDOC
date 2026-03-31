@@ -640,7 +640,7 @@
 }
 
 .pdf-simplify-popup {
-  position: absolute;
+  position: fixed;
   z-index: 120;
   transform: translate(-50%, -100%);
   width: min(430px, 80vw);
@@ -650,6 +650,10 @@
   border-radius: 10px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+}
+
+.pdf-simplify-popup--below {
+  transform: translate(-50%, 12px);
 }
 
 .pdf-simplify-popup-header {

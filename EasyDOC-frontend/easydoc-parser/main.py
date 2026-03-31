@@ -33,16 +33,6 @@ for _ef in _env_files:
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
 
-# --- DB 공유를 위한 경로 설정 ---
-current_file_path = Path(__file__).resolve()
-root_dir = current_file_path.parent.parent.parent
-
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
-
-from database_document.database import get_db, Document
-# -----------------------------
-
 # GOOGLE_APPLICATION_CREDENTIALS: 상대 경로는 cwd가 아니라 이 파일(easydoc-parser) 기준으로 해석
 _parser_dir = Path(__file__).resolve().parent
 _gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -55,6 +45,16 @@ if _gac:
         print(f"✓ 서비스 계정 키: {_cred_path}")
     else:
         print(f"⚠ GOOGLE_APPLICATION_CREDENTIALS 파일 없음: {_cred_path}")
+
+# --- DB 공유를 위한 경로 설정 ---
+current_file_path = Path(__file__).resolve()
+root_dir = current_file_path.parent.parent.parent
+
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from database_document.database import get_db, Document
+# -----------------------------
 
 app = FastAPI()
 
@@ -82,7 +82,6 @@ VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
 gemini_model = None
 try:
     project_id = os.getenv("GCP_PROJECT_ID")
-
     if project_id:
         vertexai.init(project=project_id, location=VERTEX_LOCATION)
         gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
@@ -385,7 +384,6 @@ async def analyze_with_gemini(data: dict):
         try:
             response = gemini_model.generate_content(prompt)
             response_text = response.text.strip()
-
             # 응답 파싱
             for line in response_text.split("\n"):
                 line = line.strip()

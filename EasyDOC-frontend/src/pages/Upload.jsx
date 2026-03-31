@@ -21,8 +21,8 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
   const [pdfFileUrl, setPdfFileUrl] = useState(null); // PDF 원본 렌더링용 블롭 URL
   const fileInputRef = useRef(null);
 
-  // AWS API Gateway 주소
-  const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+  // S3 presigned URL 발급 서버 (OCR 서버)
+  const API_GATEWAY_URL = "http://localhost:8001/s3/upload-url";
 
   // 최근 문서 목록 가져오기
   const fetchRecentDocs = async () => {
@@ -183,6 +183,10 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
         setOcrResult(ocrResponse.data); // 결과 저장
         setParseResult(null);           // 파싱 데이터는 비움
         setParsedText("");
+
+        if (ocrResponse.data.pdf_url) {
+          setPdfFileUrl(ocrResponse.data.pdf_url);
+        }
       } else {
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);

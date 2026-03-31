@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, BookOpen, ChevronRight } from 'lucide-react';
+import { Upload, Clock, FileText, BookOpen, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -42,9 +42,6 @@ function HighlightedTextView({ text, highlightWord }) {
 }
 
 export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onLogoClick }) {
-    // 요약 박스 표시 여부 상태 (기본값: true)
-    const [showSummary, setShowSummary] = useState(true);
-
     // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
     const [pdfUrl, setPdfUrl] = useState("/sample.pdf");
 
@@ -58,8 +55,8 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 파일 선택을 위한 ref
     const fileInputRef = useRef(null);
 
-    // AWS API Gateway 주소
-    const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+    // S3 presigned URL 발급 서버 (OCR 서버)
+    const API_GATEWAY_URL = "http://localhost:8001/s3/upload-url";
     
     // S3 URL 구성용 상수
     const S3_BUCKET = "easydoc-s3";
@@ -84,24 +81,23 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     const handleCellsFetched = (pages) => setSharedTableCells(pages);
     const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
 
-    // docsinfos DB에서 최근 문서 목록 가져오기
-    useEffect(() => {
-      fetchDocuments();
-    }, []);
-
-    const fetchDocuments = async () => {
+    const fetchDocuments = useCallback(async () => {
         try {
             const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
             setRecentDocs(response.data);
         } catch (error) {
             console.error("문서 목록 로딩 실패:", error);
         }
-    };
+    }, [userEmail]);
+
+    // docsinfos DB에서 최근 문서 목록 가져오기
+    useEffect(() => {
+      fetchDocuments();
+    }, [fetchDocuments]);
 
     // 사이드바에서 문서 클릭 시 상세 내용 가져오기
     const handleDocClick = async (id) => {
         try {
-            setIsLoading(true);
             const response = await axios.get(`http://localhost:8002/api/documents/${id}`);
 
             const docData = response.data;
@@ -117,17 +113,29 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
             if (docData.s3_url) {
               setPdfUrl(docData.s3_url);
               const isPdfFile = docData.file_type?.toLowerCase() === 'pdf' ||
-                docData.file_name?.toLowerCase().endsWith('.pdf');
+                docData.file_type?.toLowerCase() === 'pdf' ||
+                docData.file_name?.toLowerCase().endsWith('.pdf') ||
+                docData.s3_url?.toLowerCase().includes('.pdf');
                 setIsPdf(isPdfFile);
             }
         } catch (error) {
             console.error("문서 상세 로딩 실패:", error);
             alert("문서 내용을 불러올 수 없습니다.");
-        } finally {
-            setIsLoading(false);
         }
     };
 
+    // 파일명에 따라 아이콘과 색상을 다르게 반환
+    const renderFileIcon = (fileName) => {
+      if (!fileName) return <FileText size={18} color="#DC2626" />;
+      const ext = fileName.split(".").pop().toLowerCase();
+      if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) {
+        return <ImageIcon size={18} color="#10B981" />;
+      }
+      if (ext === "hwp") {
+        return <FileText size={18} color="#2563EB" />;
+      }
+      return <FileText size={18} color="#DC2626" />;
+    };
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
       if (selectedDoc) return;
@@ -221,6 +229,11 @@ const handleFileChange = async (e) => {
       console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
+
+      if (ocrResponse.data.pdf_url) {
+        setPdfUrl(ocrResponse.data.pdf_url);
+        setIsPdf(true);
+      }
     } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
@@ -266,9 +279,9 @@ const handleFileChange = async (e) => {
           accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
           onChange={handleFileChange}
         />
-        <button className="btn-upload" onClick={handleUploadBtnClick}>
+        <button className="btn-upload" onClick={handleUploadBtnClick} disabled={isLoading}>
           <Upload size={20} />
-          <span>문서 업로드</span>
+          <span>{isLoading ? "처리 중..." : "문서 업로드"}</span>
         </button>
 
         {/* 최근 문서 목록 */}
@@ -286,7 +299,7 @@ const handleFileChange = async (e) => {
               >
                 <div className="doc-info">
                   <div className="doc-icon-box">
-                    <FileText size={18} />
+                    {renderFileIcon(doc.file_name)}
                   </div>
                   <div className="doc-text">
                     <span className="doc-title">{doc.file_name}</span>

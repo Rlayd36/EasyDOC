@@ -4,8 +4,11 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+import boto3
+import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 
 
 def to_utc_iso(dt):
@@ -29,6 +32,33 @@ if str(root_dir) not in sys.path:
 
 from database_document.database import get_db, Document, engine, Base
 # ---------------------------------------------
+
+AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
+BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "easydoc-s3")
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=AWS_REGION,
+)
+
+
+def build_signed_s3_url(raw_url: str | None) -> str | None:
+    if not raw_url:
+        return raw_url
+    try:
+        parsed = urlparse(raw_url)
+        path = unquote(parsed.path.lstrip("/"))
+        if not path:
+            return raw_url
+        return s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": path},
+            ExpiresIn=3600,
+        )
+    except Exception as e:
+        print(f"[document_api] presigned URL 생성 실패: {e}")
+        return raw_url
 
 
 @asynccontextmanager
@@ -91,7 +121,7 @@ def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
         "id": doc.id,
         "file_name": doc.file_name,
         "text": doc.extracted_text,
-        "s3_url": doc.s3_url,
+        "s3_url": build_signed_s3_url(doc.s3_url),
         "file_type": doc.file_type,
         "difficult_words": doc.difficult_words or [],
         "created_at": to_utc_iso(doc.created_at),
