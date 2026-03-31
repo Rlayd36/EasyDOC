@@ -312,7 +312,11 @@ const handleFileChange = async (e) => {
             ))}
           </ul>
         </div>
-        {/* 왼쪽 패널 접기 버튼 */}
+      </aside>
+
+      {/* 2. 메인 콘텐츠 (문서 뷰어) */}
+      <main className="main-content">
+        {/* 왼쪽 패널 토글 */}
         <button
           className="panel-toggle panel-toggle-left"
           onClick={() => setLeftCollapsed(!leftCollapsed)}
@@ -320,10 +324,14 @@ const handleFileChange = async (e) => {
         >
           {leftCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
-      </aside>
-
-      {/* 2. 메인 콘텐츠 (문서 뷰어) */}
-      <main className="main-content">
+        {/* 오른쪽 패널 토글 */}
+        <button
+          className="panel-toggle panel-toggle-right"
+          onClick={() => setRightCollapsed(!rightCollapsed)}
+          title={rightCollapsed ? "AI 패널 펼치기" : "AI 패널 접기"}
+        >
+          {rightCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+        </button>
         {/* 상단 헤더 */}
         <div className="content-header">
           <div className="header-title">
@@ -353,13 +361,6 @@ const handleFileChange = async (e) => {
 
       {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
       <div className={`sidebar-right-wrapper ${rightCollapsed ? "collapsed" : ""}`}>
-        <button
-          className="panel-toggle panel-toggle-right"
-          onClick={() => setRightCollapsed(!rightCollapsed)}
-          title={rightCollapsed ? "AI 패널 펼치기" : "AI 패널 접기"}
-        >
-          {rightCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
-        </button>
         <AgentChat
           parsedText={parsedText}
           documentName={documentName}
