@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, BookOpen, ChevronRight, Image as ImageIcon } from 'lucide-react';
+import { Upload, Clock, FileText, BookOpen, ChevronRight, Image as ImageIcon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
@@ -70,6 +70,10 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
+
+    // 패널 접기/펼치기 상태
+    const [leftCollapsed, setLeftCollapsed] = useState(false);
+    const [rightCollapsed, setRightCollapsed] = useState(false);
 
     // 에이전트 어시스트 ↔ PDF 뷰어 브리지
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
@@ -262,7 +266,7 @@ const handleFileChange = async (e) => {
     <div className="viewer-page">
       
       {/* 1. 왼쪽 사이드바 */}
-      <aside className="sidebar sidebar-left">
+      <aside className={`sidebar sidebar-left ${leftCollapsed ? "collapsed" : ""}`}>
         {/* 브랜드 로고 */}
         <div className="viewer-brand">
           <AppBrandLogo onClick={onLogoClick} />
@@ -308,6 +312,14 @@ const handleFileChange = async (e) => {
             ))}
           </ul>
         </div>
+        {/* 왼쪽 패널 접기 버튼 */}
+        <button
+          className="panel-toggle panel-toggle-left"
+          onClick={() => setLeftCollapsed(!leftCollapsed)}
+          title={leftCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+        >
+          {leftCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </aside>
 
       {/* 2. 메인 콘텐츠 (문서 뷰어) */}
@@ -340,13 +352,22 @@ const handleFileChange = async (e) => {
       </main>
 
       {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
-      <AgentChat
-        parsedText={parsedText}
-        documentName={documentName}
-        onHighlightWord={setHighlightWord}
-        tableCells={sharedTableCells}
-        onAgentFill={handleAgentFill}
-      />
+      <div className={`sidebar-right-wrapper ${rightCollapsed ? "collapsed" : ""}`}>
+        <button
+          className="panel-toggle panel-toggle-right"
+          onClick={() => setRightCollapsed(!rightCollapsed)}
+          title={rightCollapsed ? "AI 패널 펼치기" : "AI 패널 접기"}
+        >
+          {rightCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+        </button>
+        <AgentChat
+          parsedText={parsedText}
+          documentName={documentName}
+          onHighlightWord={setHighlightWord}
+          tableCells={sharedTableCells}
+          onAgentFill={handleAgentFill}
+        />
+      </div>
 
     </div>
   );

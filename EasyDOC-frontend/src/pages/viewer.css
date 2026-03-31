@@ -35,11 +35,44 @@
 .sidebar-left {
     width: 350px;
     border-right: 1px solid #CACACA;
+    position: relative;
+    transition: width 0.3s ease, padding 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar-left.collapsed {
+    width: 0;
+    padding: 0;
+    border-right: none;
+}
+
+.sidebar-left.collapsed > *:not(.panel-toggle) {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .sidebar-right {
     width: 350px;
     border-left: 1px solid #CACACA;
+}
+
+/* 오른쪽 사이드바 래퍼 */
+.sidebar-right-wrapper {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    transition: width 0.3s ease;
+    width: auto;
+    overflow: hidden;
+}
+
+.sidebar-right-wrapper.collapsed {
+    width: 0;
+}
+
+.sidebar-right-wrapper.collapsed > *:not(.panel-toggle) {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* ===============================
@@ -732,4 +765,47 @@
 
 .drag-confirm-btn--ok:hover {
   background: #2e3a70;
+}
+
+/* ===============================
+   패널 접기/펼치기 토글 버튼
+   =============================== */
+.panel-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 56px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  color: #6b7280;
+  transition: background 0.2s, color 0.2s;
+  padding: 0;
+}
+
+.panel-toggle:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.panel-toggle-left {
+  right: -14px;
+}
+
+.sidebar-left.collapsed .panel-toggle-left {
+  right: -28px;
+}
+
+.panel-toggle-right {
+  left: -14px;
+}
+
+.sidebar-right-wrapper.collapsed .panel-toggle-right {
+  left: -28px;
 }
