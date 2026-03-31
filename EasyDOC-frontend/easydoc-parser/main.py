@@ -7,7 +7,8 @@ from typing import List, Optional
 import pdfplumber
 import olefile
 import zlib
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel, Content, Part
 import io
 import re
 import json
@@ -37,6 +38,19 @@ for _ef in _env_files:
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
 
+
+# GOOGLE_APPLICATION_CREDENTIALS: 상대 경로는 이 파일(easydoc-parser) 기준으로 해석
+_parser_dir = Path(__file__).resolve().parent
+_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gac:
+    _cred_path = Path(_gac)
+    if not _cred_path.is_absolute():
+        _cred_path = (_parser_dir / _gac).resolve()
+    if _cred_path.is_file():
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(_cred_path)
+        print(f"✓ 서비스 계정 키: {_cred_path}")
+    else:
+        print(f"⚠ GOOGLE_APPLICATION_CREDENTIALS 파일 없음: {_cred_path}")
 
 # --- DB 공유를 위한 경로 설정 ---
 current_file_path = Path(__file__).resolve()
