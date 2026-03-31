@@ -81,20 +81,24 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
+VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
 
-# Gemini API 설정
+# Vertex AI (Gemini) 설정
 gemini_model = None
 try:
-    _api_key = os.getenv("GEMINI_API_KEY")
-    if _api_key:
-        genai.configure(api_key=_api_key)
-        gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-        print(f"✓ Gemini API 초기화 성공 (model={GEMINI_MODEL_NAME})")
+    project_id = os.getenv("GCP_PROJECT_ID")
+    if project_id:
+        vertexai.init(project=project_id, location=VERTEX_LOCATION)
+        gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
+        print(
+            f"✓ Vertex AI Gemini 초기화 성공 "
+            f"(model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION})"
+        )
     else:
-        print("⚠ GEMINI_API_KEY가 설정되지 않음 - 사전 기반 설명만 사용")
+        print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
 except Exception as e:
-    print(f"⚠ Gemini API 초기화 실패: {e} - 사전 기반 설명만 사용")
+    print(f"⚠ Vertex AI 초기화 실패: {e} - 사전 기반 설명만 사용")
     gemini_model = None
 
 # Gemini 응답 캐시 (gemini_word.csv)
@@ -623,15 +627,17 @@ async def chat(req: ChatRequest):
         system_prompt += f"\n\n## 현재 사용자가 보고 있는 문서 내용:\n{doc_preview}"
 
     try:
-        chat_model = genai.GenerativeModel(
-            GEMINI_MODEL_NAME,
+        chat_model = GenerativeModel(
+            VERTEX_GEMINI_MODEL,
             system_instruction=system_prompt,
         )
 
         contents = []
         for msg in req.messages:
             role = "model" if msg.role == "model" else "user"
-            contents.append({"role": role, "parts": [{"text": msg.content}]})
+            contents.append(
+                Content(role=role, parts=[Part.from_text(msg.content)])
+            )
 
         response = chat_model.generate_content(contents)
         reply = response.text.strip()
