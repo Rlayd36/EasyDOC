@@ -109,6 +109,14 @@
   box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
 }
 
+.login-error-msg {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
 /* ===============================
    버튼 그룹
    =============================== */

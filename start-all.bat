@@ -1,26 +1,30 @@
 @echo off
 chcp 65001 > nul
+cd /d "%~dp0"
 echo ========================================
 echo    EasyDOC 전체 서버 시작
 echo ========================================
 echo.
 
-REM MySQL 서비스 시작 (관리자 권한 필요)
-echo [1/4] MySQL 서비스 시작 중...
-powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Service MySQL; Write-Host MySQL started; Start-Sleep -Seconds 2'"
-timeout /t 3 /nobreak > nul
+REM 1) 파싱 서버 시작 (포트 8000)
+echo [1/5] 파싱 서버 시작 중... (포트 8000)
+start "EasyDOC Parser Server" powershell -ExecutionPolicy Bypass -NoExit -Command "$envFile = Join-Path '%CD%' '.env'; if (Test-Path $envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }; $parts = $_ -split '=', 2; if ($parts.Length -eq 2) { [Environment]::SetEnvironmentVariable($parts[0], $parts[1], 'Process') } } }; Set-Location 'EasyDOC-frontend\easydoc-parser'; python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
-REM 파싱 서버 시작 (포트 8000)
-echo [2/4] 파싱 서버 시작 중... (포트 8000)
-start "EasyDOC Parser Server" powershell -ExecutionPolicy Bypass -NoExit -Command "cd EasyDOC-frontend\easydoc-parser; uvicorn main:app --reload"
+REM 2) Spring Boot 백엔드 시작 (포트 8080)
+echo [2/5] Spring Boot 백엔드 시작 중... (포트 8080)
+start "EasyDOC Backend Server" powershell -ExecutionPolicy Bypass -NoExit -Command "$envFile = Join-Path '%CD%' '.env'; if (Test-Path $envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }; $parts = $_ -split '=', 2; if ($parts.Length -eq 2) { [Environment]::SetEnvironmentVariable($parts[0], $parts[1], 'Process') } } }; Set-Location 'EasyDOC-backend'; .\gradlew.bat bootRun"
 
-REM 백엔드 Spring Boot 시작 (포트 8080)
-echo [3/4] Spring Boot 백엔드 시작 중... (포트 8080)
-start "EasyDOC Backend Server" powershell -ExecutionPolicy Bypass -NoExit -Command "cd EasyDOC-backend; .\gradlew.bat bootRun"
+REM 3) 최근 문서 서버 시작 (포트 8002)
+echo [3/5] 최근 문서 서버 시작 중... (포트 8002)
+start "EasyDOC Document API Server" powershell -ExecutionPolicy Bypass -NoExit -Command "$envFile = Join-Path '%CD%' '.env'; if (Test-Path $envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }; $parts = $_ -split '=', 2; if ($parts.Length -eq 2) { [Environment]::SetEnvironmentVariable($parts[0], $parts[1], 'Process') } } }; Set-Location '%CD%'; python -m uvicorn database_document.document_api:app --host 0.0.0.0 --port 8002 --reload"
 
-REM 프론트엔드 시작 (포트 5173)
-echo [4/4] 프론트엔드 시작 중... (포트 5173)
-start "EasyDOC Frontend Server" powershell -ExecutionPolicy Bypass -NoExit -Command "cd EasyDOC-frontend; npm run dev"
+REM 4) OCR 서버 시작 (포트 8001)
+echo [4/5] OCR 서버 시작 중... (포트 8001)
+start "EasyDOC OCR Server" powershell -ExecutionPolicy Bypass -NoExit -Command "$envFile = Join-Path '%CD%' '.env'; if (Test-Path $envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }; $parts = $_ -split '=', 2; if ($parts.Length -eq 2) { [Environment]::SetEnvironmentVariable($parts[0], $parts[1], 'Process') } } }; Set-Location 'backend-OCR'; python -m uvicorn ocr_server:app --host 0.0.0.0 --port 8001 --reload"
+
+REM 5) 프론트엔드 시작 (포트 5173)
+echo [5/5] 프론트엔드 시작 중... (포트 5173)
+start "EasyDOC Frontend Server" powershell -ExecutionPolicy Bypass -NoExit -Command "Set-Location 'EasyDOC-frontend'; npm run dev"
 
 echo.
 echo ========================================
@@ -28,6 +32,8 @@ echo    모든 서버가 시작되었습니다!
 echo ========================================
 echo    - 파싱 서버: http://localhost:8000
 echo    - 백엔드: http://localhost:8080
+echo    - 최근 문서 DB: http://localhost:8002
+echo    - OCR 서버:  http://localhost:8001
 echo    - 프론트엔드: http://localhost:5173
 echo ========================================
 echo.

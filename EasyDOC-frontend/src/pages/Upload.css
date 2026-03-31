@@ -3,7 +3,8 @@
    =============================== */
 .upload-page {
   width: 100vw;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #eef2f7;
   display: flex;
   flex-direction: column;
@@ -21,28 +22,6 @@
   justify-content: space-between;
   padding: 0 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.header-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-title {
-  font-size: 24px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin: 0;
-}
-
-.brand-easy {
-  color: #111827;
-}
-
-.brand-doc {
-  color: #3f4b92;
 }
 
 .header-user {
@@ -79,12 +58,14 @@
   flex-direction: column;
   padding: 24px;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
 }
 
 .sidebar-recent {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .recent-header {
@@ -101,6 +82,25 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* 세로 스크롤 추가 */
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 스크롤바 디자인 추가 */
+.recent-list::-webkit-scrollbar {
+  width: 6px;
+}
+.recent-list::-webkit-scrollbar-track {
+  background: transparent; 
+}
+.recent-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+.recent-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 .recent-item {

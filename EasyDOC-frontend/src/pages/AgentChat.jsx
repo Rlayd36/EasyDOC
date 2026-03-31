@@ -175,11 +175,6 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord, t
   const [termInputValue, setTermInputValue] = useState("");
   const [termTags, setTermTags] = useState([]);
 
-  // 토큰 사용량 추적
-  const [sessionTokens, setSessionTokens] = useState(0);
-  const SESSION_TOKEN_LIMIT = 30000; // 세션당 토큰 한도
-  const isTokenLimitReached = sessionTokens >= SESSION_TOKEN_LIMIT;
-
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -293,27 +288,6 @@ ${emptySummary || "  (없음)"}
       document_context: parsedText || "",
     });
 
-    // 토큰 사용량 추출 및 콘솔 출력, 누적
-    if (res.data.token_usage) {
-      const { prompt_tokens, completion_tokens, total_tokens } = res.data.token_usage;
-
-      // Gemini 1.5 Flash 기준 (1M 당: 입력 $0.075 / 출력 $0.3) 예상 비용
-      const costPrompt = (prompt_tokens * 0.075) / 1000000;
-      const costCompletion = (completion_tokens * 0.3) / 1000000;
-      const totalCost = costPrompt + costCompletion;
-
-      console.log(
-        `%c[Gemini API 사용량 및 비용] \n` +
-        `• 입력 토큰: ${prompt_tokens} \n` +
-        `• 출력 토큰: ${completion_tokens} \n` +
-        `• 총 토큰: ${total_tokens} \n` +
-        `• 예상 비용: $${totalCost.toFixed(6)}`,
-        'color: #4CAF50; font-weight: bold;'
-      );
-
-      setSessionTokens((prev) => prev + total_tokens);
-    }
-
     let reply = res.data.reply;
 
     // [FILL_CELLS] 파싱 — 어시스트 모드에서 에이전트가 셀 채우기 지시를 반환할 때
@@ -348,21 +322,6 @@ ${emptySummary || "  (없음)"}
   const sendMessage = useCallback(
     async (text) => {
       if (!text.trim()) return;
-
-      // 토큰 한도 도달 시 차단
-      if (isTokenLimitReached) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            role: "agent",
-            content:
-              "이번 세션의 대화 한도에 도달했습니다.\n정확한 답변을 위해 대화를 초기화한 뒤 다시 질문해주세요.",
-            time: getTime(),
-          },
-        ]);
-        return;
-      }
 
       const userMsg = {
         id: Date.now(),
@@ -402,7 +361,7 @@ ${emptySummary || "  (없음)"}
         setIsTyping(false);
       }
     },
-    [messages, parsedText, persona, isTokenLimitReached, agentAssistMode, tableCells]
+    [messages, parsedText, persona, agentAssistMode, tableCells]
   );
 
   // Enter 전송 (Shift+Enter는 줄바꿈)
@@ -645,13 +604,7 @@ ${emptySummary || "  (없음)"}
           </div>
         )}
 
-        {isTokenLimitReached && (
-          <div className="token-limit-banner">
-            대화 한도에 도달했습니다. 초기화 버튼을 눌러 새 세션을 시작해주세요.
-          </div>
-        )}
-
-        <div className={`input-row ${isTokenLimitReached ? "input-row--disabled" : ""}`}>
+        <div className="input-row">
           <textarea
             ref={textareaRef}
             className="agent-textarea"
@@ -659,29 +612,23 @@ ${emptySummary || "  (없음)"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              isTokenLimitReached
-                ? "대화 한도 도달 — 초기화 후 이용하세요"
-                : agentAssistMode
+              agentAssistMode
                 ? "어떤 항목을 채울지 알려주세요..."
                 : "메시지를 입력하세요..."
             }
             rows={1}
-            disabled={isTyping || isTokenLimitReached}
+            disabled={isTyping}
           />
           <button
             className="send-btn"
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isTyping || isTokenLimitReached}
+            disabled={!input.trim() || isTyping}
             title="전송"
           >
             {isTyping ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
           </button>
         </div>
-        <span className="input-hint">
-          {sessionTokens > 0
-            ? `Enter로 전송 · ${Math.round((sessionTokens / SESSION_TOKEN_LIMIT) * 100)}% 사용`
-            : "Enter로 전송 · Shift+Enter로 줄바꿈"}
-        </span>
+        <span className="input-hint">Enter로 전송 · Shift+Enter로 줄바꿈</span>
       </div>
 
       {/* —— 용어 입력 팝업 —— */}
