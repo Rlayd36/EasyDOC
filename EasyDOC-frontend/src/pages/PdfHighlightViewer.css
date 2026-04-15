@@ -40,21 +40,13 @@
   opacity: 0.6;
 }
 
-/* 난이도별 색상 (1=청, 2=노, 3=주, 4=적) */
-.pdf-word-highlight.level-1 {
-  background-color: #60a5fa;
-}
-
-.pdf-word-highlight.level-2 {
-  background-color: #fbbf24;
-}
-
-.pdf-word-highlight.level-3 {
-  background-color: #f97316;
-}
-
+/* 어려운 단어 하이라이트 (난이도 구분 없이 단일 스타일) */
+.pdf-word-highlight,
+.pdf-word-highlight.level-1,
+.pdf-word-highlight.level-2,
+.pdf-word-highlight.level-3,
 .pdf-word-highlight.level-4 {
-  background-color: #ef4444;
+  background-color: #fbbf24;
 }
 
 /* ===============================

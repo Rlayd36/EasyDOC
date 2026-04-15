@@ -483,25 +483,14 @@
   font-weight: 500;
 }
 
-/* 난이도별 색상 */
-.difficult-word.level-1 {
-  background-color: #dbeafe;
-  color: #1e40af;
-}
-
-.difficult-word.level-2 {
+/* 어려운 단어 하이라이트 (난이도 구분 없이 단일 스타일) */
+.difficult-word,
+.difficult-word.level-1,
+.difficult-word.level-2,
+.difficult-word.level-3,
+.difficult-word.level-4 {
   background-color: #fef3c7;
   color: #92400e;
-}
-
-.difficult-word.level-3 {
-  background-color: #fed7aa;
-  color: #9a3412;
-}
-
-.difficult-word.level-4 {
-  background-color: #fecaca;
-  color: #991b1b;
 }
 
 .difficult-word:hover {

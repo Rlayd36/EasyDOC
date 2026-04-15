@@ -108,8 +108,10 @@ def load_gemini_cache():
         df = pd.read_csv(GEMINI_CACHE_PATH, encoding='utf-8')
         cache = {}
         for _, row in df.iterrows():
+            # 단어 또는 설명이 비어있으면 건너뜀
+            if pd.isna(row.get('단어')) or pd.isna(row.get('설명')):
+                continue
             cache[row['단어']] = {
-                "level": int(row['난이도']),
                 "explanation": row['설명'],
             }
         print(f"✓ Gemini 캐시 로드 완료: {len(cache)}개 단어")
@@ -125,13 +127,15 @@ def save_to_gemini_cache(words_data):
     for item in words_data:
         new_rows.append({
             '단어': item['word'],
-            '난이도': item['level'],
             '설명': item['easy_expression'],
             '생성일': today,
         })
     new_df = pd.DataFrame(new_rows)
     if GEMINI_CACHE_PATH.exists():
         existing = pd.read_csv(GEMINI_CACHE_PATH, encoding='utf-8')
+        # 레거시 '난이도' 컬럼이 있어도 무시하고 병합
+        if '난이도' in existing.columns:
+            existing = existing.drop(columns=['난이도'])
         combined = pd.concat([existing, new_df], ignore_index=True)
         combined.drop_duplicates(subset=['단어'], keep='last', inplace=True)
     else:
@@ -140,7 +144,6 @@ def save_to_gemini_cache(words_data):
     # 메모리 캐시도 업데이트
     for item in words_data:
         gemini_cache[item['word']] = {
-            "level": item['level'],
             "explanation": item['easy_expression'],
         }
     print(f"[Gemini 캐시 저장] {len(words_data)}개 단어 추가 (전체 {len(gemini_cache)}개)")
@@ -322,7 +325,6 @@ async def analyze_with_gemini(data: dict):
         if word in text:
             cached_words.append({
                 "word": word,
-                "level": info["level"],
                 "easy_expression": info["explanation"],
                 "source": "cache"
             })
@@ -356,32 +358,35 @@ async def analyze_with_gemini(data: dict):
             current_exclude = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(seen_words)}"
         
         prompt = f"""## 역할
-당신은 행정/법률 문서를 쉽게 풀어주는 전문가입니다.
+당신은 문해력이 저하된 사회초년생·청년층이 행정/법률/계약 문서를 쉽게 이해하도록 돕는 전문가입니다.
+
+## 대상 독자
+- 만 19~34세 사회초년생 및 청년층
+- 일상 대화에는 문제가 없으나, 설명서·계약서·안내문·법령 등 **한자식 표현과 전문용어**가 섞인 문서를 읽을 때 이해에 어려움을 겪는 집단
 
 ## 작업
-아래 문서 조각에서 일반인이 이해하기 어려운 행정/법률 용어를 **빠짐없이 모두** 찾아 설명해주세요.
+아래 문서 조각에서 **이 대상 독자가 읽었을 때 이해에 걸림이 될 만한 용어**를 찾아 쉬운 말로 설명해주세요.
 
-## 난이도 기준
-- 1단계: 일상 용어 (신청, 제출, 확인 등)
-- 2단계: 기본 행정 용어 (증명서, 민원, 위임장 등)
-- 3단계: 전문 행정 용어 (시행령, 행정심판, 사업타당성 등)
-- 4단계: 고급 법률 용어 (준용, 질권, 의거 처분 등)
+## 선정 기준 (단일 기준, 난이도 구분 없음)
+- 일상 대화에서 거의 쓰지 않는 **한자어·법률용어·행정 전문용어**
+- 뜻은 알아도 **문맥상 의미가 헷갈리는 표현** (예: "준용", "기부채납", "상당한", "해당")
+- 이미 쉬운 단어(신청, 제출, 확인 등)는 **제외**
+- 한 글자 단어는 제외
 
 ## 규칙
-- 한 글자 단어는 제외하세요.
-- 문서에 등장하는 행정/법률 용어를 **빠짐없이 모두** 찾아주세요. 개수 제한 없습니다.
-- 난이도 1~4단계 모두 판정해주세요.
-- 설명은 한 문장으로 짧게 해주세요.{current_exclude}
+- 문서에 등장하는 해당 기준의 용어는 **빠짐없이 모두** 뽑아주세요. 개수 제한 없음.
+- 설명은 **청년 독자에게 말하듯 한 문장**으로 짧게 풀어주세요.
+- 원문의 의미를 왜곡하지 않습니다.{current_exclude}
 
 ## 출력 형식 (반드시 이 형식을 지키세요)
 각 줄에 하나씩, 구분자로 `|||`를 사용:
-단어|||난이도|||설명
+단어|||설명
 
 예시:
-기부채납|||4|||개인 소유의 토지나 건물을 나라나 지방자치단체에 무상으로 주는 거예요.
-사업타당성|||3|||사업을 해도 괜찮은지 돈이나 효과를 미리 따져보는 거예요.
-증명서|||2|||어떤 사실이 맞다는 것을 보여주는 공식 문서예요.
-접수|||1|||서류나 신청서를 받아들이는 것을 말해요.
+기부채납|||개인이 가진 땅이나 건물을 나라·지자체에 공짜로 넘기는 것을 말해요.
+준용|||다른 규정을 그대로 가져다 똑같이 적용한다는 뜻이에요.
+중도 해지 수수료|||계약을 중간에 끊을 때 내야 하는 위약금이에요.
+사업타당성|||사업을 해서 이득이 될지 미리 따져보는 검토를 말해요.
 
 ## 문서 조각 ({idx + 1}/{len(chunks)})
 {chunk}
@@ -390,39 +395,35 @@ async def analyze_with_gemini(data: dict):
         try:
             response = gemini_model.generate_content(prompt)
             response_text = response.text.strip()
-            # 응답 파싱
+            # 응답 파싱 (단어|||설명)
             for line in response_text.split("\n"):
                 line = line.strip()
                 if not line or "|||" not in line:
                     continue
                 parts = line.split("|||")
-                if len(parts) >= 3:
+                if len(parts) >= 2:
                     word = parts[0].strip()
-                    try:
-                        level = int(parts[1].strip())
-                    except ValueError:
-                        level = 3
-                    explanation = parts[2].strip()
-                    
+                    # 레거시 호환: 3필드로 오면 마지막을 설명으로 사용
+                    explanation = parts[-1].strip()
+
                     if word and explanation and word not in seen_words:
                         new_gemini_words.append({
                             "word": word,
-                            "level": level,
                             "easy_expression": explanation,
                             "source": "gemini"
                         })
                         seen_words.add(word)
-            
+
         except Exception as e:
             print(f"[어려운 단어 분석] 청크 {idx + 1} 처리 오류: {e}")
-    
+
     # 4단계: 새 단어를 CSV 캐시에 저장
     if new_gemini_words:
         save_to_gemini_cache(new_gemini_words)
-    
-    # 캐시 + Gemini 신규 결과 병합
+
+    # 캐시 + Gemini 신규 결과 병합 (단어 길이 긴 순)
     all_words = cached_words + new_gemini_words
-    all_words.sort(key=lambda x: x["level"], reverse=True)
+    all_words.sort(key=lambda x: len(x["word"]), reverse=True)
     
     print(
         f"[어려운 단어 분석 완료] 캐시 {len(cached_words)}개 · 신규 {len(new_gemini_words)}개 · "
@@ -566,10 +567,17 @@ KEYWORD|||7|||해약환급금은 납입한 보험료보다 적거나 없을 수 
 # ============================================================
 
 PERSONA_PROMPTS = {
-    "default": """당신은 EasyDOC AI 도우미입니다. 행정/법률 문서를 이해하기 쉽게 설명하는 전문가입니다.
-- 존댓말을 사용합니다.
-- 정확하고 친절하게 답변합니다.
-- 어려운 용어는 쉬운 말로 풀어서 설명합니다.
+    "default": """당신은 EasyDOC AI 도우미입니다. 행정/법률/계약 문서를 이해하기 쉽게 설명하는 전문가입니다.
+
+## 대상 독자
+- 만 19~34세 사회초년생 및 청년층
+- 일상 대화에는 문제없지만 설명서·계약서·안내문·법령 등 한자식 표현과 전문용어가 섞인 문서는 이해에 어려움을 겪는 집단
+- 모든 답변은 이 독자가 한 번에 읽고 이해할 수 있는 수준으로 맞춰주세요.
+
+## 답변 규칙
+- 존댓말 사용.
+- 어려운 한자어·법률용어는 일상 표현으로 풀어서 설명합니다.
+- 정확하고 친절하게, 원문의 의미를 왜곡하지 않습니다.
 - 답변은 간결하되 핵심을 놓치지 않습니다.
 - ★중요★: 사용자가 문서 내 특정 단어나 용어의 의미를 물어봐서 설명해줄 때는, 뷰어에서 하이라이트 처리를 할 수 있도록 응답 텍스트 맨 마지막에 반드시 `[HL:설명한단어]` 포맷으로 출력해주세요. 예: 블라블라 설명입니다. [HL:사업타당성]""",
 
