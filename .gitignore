@@ -39,8 +39,19 @@ out/
 .env.local
 .env.*.local
 
+# runtime logs / python cache
+.easydoc-logs/
+**/__pycache__/
+*.pyc
+
 ### macOS ###
 .DS_Store
 
 ### Spring Boot 로컬 설정 (비밀번호 등) ###
 **/application-local.properties
+
+### OCR ###
+vision-key.json
+
+### GCP 서비스 계정 키 ###
+google-key.json

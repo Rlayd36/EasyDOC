@@ -1,19 +1,82 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./login.css";
 import SignUp from "./SignUp";
 import Upload from "./Upload";
 import Forgotpw from "./Forgotpw";
 import MyPage from "./MyPage";
+import {
+  loadPersistedSession,
+  saveSession,
+  clearSession,
+  isJwtExpired,
+  isIdleExpired,
+  touchActivity,
+} from "../utils/authSession";
+import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 
 export default function Login() {
-  const [currentView, setCurrentView] = useState("login");
+  const [initialAuth] = useState(() => {
+    const s = loadPersistedSession();
+    if (!s) return { currentView: "login", userEmail: "" };
+    const route = loadAppRoute();
+    const page = route?.page === "mypage" ? "mypage" : "upload";
+    return { currentView: page, userEmail: s.email };
+  });
+  const [currentView, setCurrentView] = useState(initialAuth.currentView);
   const [showForgotPw, setShowForgotPw] = useState(false);
-  
-  // 로그인한 사용자 정보 저장
-  const [userEmail, setUserEmail] = useState("");
+  const [userEmail, setUserEmail] = useState(initialAuth.userEmail);
   const [password, setPassword] = useState("");
   const [emailInput, setEmailInput] = useState("");
+  const [loginError, setLoginError] = useState("");
 
+  const goUpload = () => {
+    saveAppRoute({ page: "upload", viewerDocId: null });
+    setCurrentView("upload");
+  };
+
+  const goMyPage = () => {
+    saveAppRoute({ page: "mypage", activeMenu: "profile", viewerDocId: null });
+    setCurrentView("mypage");
+  };
+
+  /** JWT 만료·유휴(무입력) 만료 시 로그인 화면으로 (새로고침 유지와 균형) */
+  useEffect(() => {
+    if (currentView !== "upload" && currentView !== "mypage") return;
+
+    const expireIfNeeded = () => {
+      const token = localStorage.getItem("token");
+      if (!token || isJwtExpired(token) || isIdleExpired()) {
+        clearSession();
+        setUserEmail("");
+        setPassword("");
+        setEmailInput("");
+        setCurrentView("login");
+      }
+    };
+
+    let lastBump = 0;
+    const bumpActivity = () => {
+      const now = Date.now();
+      if (now - lastBump < 15_000) return;
+      lastBump = now;
+      touchActivity();
+    };
+
+    window.addEventListener("mousedown", bumpActivity);
+    window.addEventListener("keydown", bumpActivity);
+    const interval = setInterval(expireIfNeeded, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") expireIfNeeded();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("mousedown", bumpActivity);
+      window.removeEventListener("keydown", bumpActivity);
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [currentView]);
 
   //화면 렌더링
   const renderView = () => {
@@ -21,14 +84,16 @@ export default function Login() {
       case "upload":
         return (
           <Upload 
-            onNavigateToMyPage={() => setCurrentView("mypage")} 
+            onNavigateToMyPage={goMyPage}
+            onNavigateToUpload={goUpload}
+            userEmail={userEmail}
           />
         );
       case "mypage":
         return (
           <MyPage 
             userEmail={userEmail}
-            onNavigateToUpload={() => setCurrentView("upload")}
+            onNavigateToUpload={goUpload}
             onLogout={handleLogout}
           />
         );
@@ -42,7 +107,7 @@ export default function Login() {
 
   //로그아웃
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearSession();
     setUserEmail("");
     setPassword("");
     setEmailInput("");
@@ -56,6 +121,7 @@ export default function Login() {
     //불필요한 공백 제거
     const cleanEmail = String(emailInput || "").trim();
     const cleanPassword = String(password || "").trim();
+    setLoginError("");
 
     //서버로 로그인 요청
     try{
@@ -68,20 +134,19 @@ export default function Login() {
       });
 
       if (response.ok) {
-        const data=await response.json(); //응답을 JSON으로 받기
-        alert("로그인 성공!");
-        
-        localStorage.setItem("token",data.token);
+        const data = await response.json();
+        saveSession(data.token, data.email);
+        saveAppRoute({ page: "upload", viewerDocId: null });
         setUserEmail(data.email);
         setCurrentView("upload");
       } else {
         const errorMsg = await response.text();
         console.log("서버 에러 응답:", errorMsg);
-        alert("로그인 실패: " + errorMsg);
+        setLoginError("이메일 또는 비밀번호가 잘못되었습니다.");
       }
     } catch (error) {
       console.error("Login Error:", error);
-      alert("서버 연결에 실패했습니다.");
+      setLoginError("서버 연결에 실패했습니다.");
     }
   };
 
@@ -117,7 +182,10 @@ export default function Login() {
               type="email"
               placeholder="example@email.com"
               value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
+              onChange={(e) => {
+                setEmailInput(e.target.value);
+                setLoginError("");
+              }}
               required
             />
           </div>
@@ -129,9 +197,17 @@ export default function Login() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setLoginError("");
+              }}
               required
             />
+            {loginError ? (
+              <p className="login-error-msg" role="alert">
+                {loginError}
+              </p>
+            ) : null}
           </div>
 
           <div className="button-group">

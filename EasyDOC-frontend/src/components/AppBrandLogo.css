@@ -1,0 +1,45 @@
+.app-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.app-brand-logo--static {
+  cursor: default;
+}
+
+.app-brand-logo:focus-visible {
+  outline: 2px solid #3f4b92;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-brand-logo__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-brand-logo__title {
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.app-brand-logo__easy {
+  color: #111827;
+}
+
+.app-brand-logo__doc {
+  color: #3f4b92;
+}

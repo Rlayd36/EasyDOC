@@ -1,33 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios"; 
-import { Upload, Clock, FileText, Settings, X, BookOpen, ChevronRight, Lightbulb, Sparkles } from 'lucide-react';
+import { Upload, Clock, FileText, BookOpen, ChevronRight, Image as ImageIcon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
-
-// 로고 아이콘 (Login 페이지의 DocumentIcon 재사용 및 크기 조정)
-function LogoIcon() {
-  return (
-    <svg
-      width="55"
-      height="55"
-      viewBox="0 0 96 96"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* back sheet */}
-      <rect x="16" y="12" width="54" height="68" rx="6" stroke="#000000" strokeWidth="6" />
-      {/* front sheet */}
-      <rect x="28" y="22" width="54" height="68" rx="6" fill="#FFFFFF" stroke="#000000" strokeWidth="6" />
-      {/* small box */}
-      <rect x="38" y="34" width="16" height="12" rx="2" stroke="#000000" strokeWidth="6" />
-      {/* lines */}
-      <line x1="38" y1="54" x2="74" y2="54" stroke="#000000" strokeWidth="6" />
-      <line x1="38" y1="62" x2="74" y2="62" stroke="#000000" strokeWidth="6" />
-      <line x1="38" y1="70" x2="66" y2="70" stroke="#000000" strokeWidth="6" />
-    </svg>
-  );
-}
+import AppBrandLogo from "../components/AppBrandLogo";
+import { formatDocumentDateKo } from "../utils/documentDate";
 
 // 텍스트를 하이라이트해주는 컴포넌트
 function HighlightedTextView({ text, highlightWord }) {
@@ -63,10 +41,7 @@ function HighlightedTextView({ text, highlightWord }) {
   );
 }
 
-export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
-    // 요약 박스 표시 여부 상태 (기본값: true)
-    const [showSummary, setShowSummary] = useState(true);
-
+export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onLogoClick }) {
     // 현재 보고 있는 PDF 경로 상태 (기본값: 샘플)
     const [pdfUrl, setPdfUrl] = useState("/sample.pdf");
 
@@ -74,21 +49,17 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     const [isPdf, setIsPdf] = useState(false);
 
     // 최근 문서 목록 상태
-    const [recentDocs, setRecentDocs] = useState([
-        {id: 1, title: '행정기본법.pdf', date: '2024.11.14'},
-        {id: 2, title: '조세특례제한법.pdf', date: '2024.11.13'},
-        {id: 3, title: '도시및주거환경지정비법.pdf', date: '2024.11.13'},
-        {id: 4, title: '건축법시행령.pdf', date: '2024.11.12'},
-    ]);
+    const [recentDocs, setRecentDocs] = useState([]);
+    const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
 
     // 파일 선택을 위한 ref
     const fileInputRef = useRef(null);
 
-    // AWS API Gateway 주소
-    const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+    // S3 presigned URL 발급 서버 (OCR 서버)
+    const API_GATEWAY_URL = "http://localhost:8001/s3/upload-url";
     
     // S3 URL 구성용 상수
-    const S3_BUCKET = "easydoc-upload-list";
+    const S3_BUCKET = "easydoc-s3";
     const S3_REGION = "ap-northeast-2";
 
     // 분석 관련 상태
@@ -100,34 +71,76 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
 
-    // 뷰 모드 상태 ("parsed": 파싱된 문서, "original": 원본 문서)
-    const [viewMode, setViewMode] = useState("parsed");
+    // 패널 접기/펼치기 상태
+    const [leftCollapsed, setLeftCollapsed] = useState(false);
+    const [rightCollapsed, setRightCollapsed] = useState(false);
 
     // 에이전트 어시스트 ↔ PDF 뷰어 브리지
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
     const [externalFillSuggestions, setExternalFillSuggestions] = useState(null); // AgentChat → PdfHighlightViewer
 
-    // 드래그 선택 → 에이전트 설명 브리지
-    const [externalPrompt, setExternalPrompt] = useState(null);
-    const [pendingSelectedText, setPendingSelectedText] = useState(null); // 확인 대화상자용
-
     const handleCellsFetched = (pages) => setSharedTableCells(pages);
     const handleAgentFill = (suggestions) => setExternalFillSuggestions([...suggestions]);
-    const handleTextSelected = (text) => {
-      setPendingSelectedText(text);
-    };
-    const confirmSendToAgent = () => {
-      if (!pendingSelectedText) return;
-      const prompt = `다음 문단을 쉽게 설명해줘:\n\n"${pendingSelectedText}"`;
-      setExternalPrompt({ text: prompt, id: Date.now() });
-      setPendingSelectedText(null);
-    };
-    const cancelSendToAgent = () => {
-      setPendingSelectedText(null);
+
+    const fetchDocuments = useCallback(async () => {
+        try {
+            const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
+            setRecentDocs(response.data);
+        } catch (error) {
+            console.error("문서 목록 로딩 실패:", error);
+        }
+    }, [userEmail]);
+
+    // docsinfos DB에서 최근 문서 목록 가져오기
+    useEffect(() => {
+      fetchDocuments();
+    }, [fetchDocuments]);
+
+    // 사이드바에서 문서 클릭 시 상세 내용 가져오기
+    const handleDocClick = async (id) => {
+        try {
+            const response = await axios.get(`http://localhost:8002/api/documents/${id}`);
+
+            const docData = response.data;
+
+            setSelectedDoc(docData); // 선택된 문서 상태 업데이트
+            //setPdfUrl(null); // PDF 뷰어에서 텍스트 모드로 전환
+            setDocumentName(docData.file_name); // AgentChat용 문서 이름 업데이트
+
+            // 가져온 텍스트를 뷰어 상태에 반영
+            setParsedText(docData.text || "");
+            setOcrText("");
+
+            if (docData.s3_url) {
+              setPdfUrl(docData.s3_url);
+              const isPdfFile = docData.file_type?.toLowerCase() === 'pdf' ||
+                docData.file_type?.toLowerCase() === 'pdf' ||
+                docData.file_name?.toLowerCase().endsWith('.pdf') ||
+                docData.s3_url?.toLowerCase().includes('.pdf');
+                setIsPdf(isPdfFile);
+            }
+        } catch (error) {
+            console.error("문서 상세 로딩 실패:", error);
+            alert("문서 내용을 불러올 수 없습니다.");
+        }
     };
 
+    // 파일명에 따라 아이콘과 색상을 다르게 반환
+    const renderFileIcon = (fileName) => {
+      if (!fileName) return <FileText size={18} color="#DC2626" />;
+      const ext = fileName.split(".").pop().toLowerCase();
+      if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) {
+        return <ImageIcon size={18} color="#10B981" />;
+      }
+      if (ext === "hwp") {
+        return <FileText size={18} color="#2563EB" />;
+      }
+      return <FileText size={18} color="#DC2626" />;
+    };
     // props로 받은 데이터를 상태에 반영 (Upload에서 넘어올 때)
     useEffect(() => {
+      if (selectedDoc) return;
+
         if (parsedData) {
             console.log("Viewer가 받은 parsedData:", parsedData);
             setParsedText(parsedData.text || "");
@@ -143,7 +156,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl }) {
             setPdfUrl(pdfFileUrl);
             setIsPdf(true);
         }
-    }, [parsedData, ocrData, pdfFileUrl]);
+    }, [parsedData, ocrData, pdfFileUrl, selectedDoc]);
 
     // 버튼 클릭 시 숨겨진 input 실행
     const handleUploadBtnClick = () => {
@@ -212,16 +225,21 @@ const handleFileChange = async (e) => {
       // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
       console.log("6. OCR 서버에 분석 요청...");
       const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. OCR 결과 도착!", ocrResponse.data);
       setOcrText(ocrResponse.data.text || ocrResponse.data);
       setParsedText("");  // 문서 파싱 결과는 비움
+
+      if (ocrResponse.data.pdf_url) {
+        setPdfUrl(ocrResponse.data.pdf_url);
+        setIsPdf(true);
+      }
     } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
       );
       console.log("7. 파싱 완료!", parseResponse.data);
       const extractedText = parseResponse.data.text;
@@ -231,20 +249,7 @@ const handleFileChange = async (e) => {
     }
 
     // 최근 문서 목록 업데이트
-    const newDoc = {
-      id: Date.now(),
-      title: file.name,
-      date: new Date().toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month:"2-digit",
-        day: "2-digit",
-      })
-      .replace(/\. /g, ".")
-      .replace(".", "")
-    };
-
-    const filteredDocs = recentDocs.filter((doc) => doc.title != file.name);
-    setRecentDocs([newDoc, ...filteredDocs].slice(0, 10));
+   await fetchDocuments();
 
   } catch (error) {
     console.error("파일 처리 오류:", error);
@@ -261,12 +266,10 @@ const handleFileChange = async (e) => {
     <div className="viewer-page">
       
       {/* 1. 왼쪽 사이드바 */}
-      <aside className="sidebar sidebar-left">
+      <aside className={`sidebar sidebar-left ${leftCollapsed ? "collapsed" : ""}`}>
         {/* 브랜드 로고 */}
         <div className="viewer-brand">
-          <LogoIcon />
-          <span className="brand-text-easy">Easy</span>
-          <span className="brand-text-doc">DOC</span>
+          <AppBrandLogo onClick={onLogoClick} />
         </div>
 
         {/* 업로드 버튼 */}
@@ -277,9 +280,9 @@ const handleFileChange = async (e) => {
           accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
           onChange={handleFileChange}
         />
-        <button className="btn-upload" onClick={handleUploadBtnClick}>
+        <button className="btn-upload" onClick={handleUploadBtnClick} disabled={isLoading}>
           <Upload size={20} />
-          <span>문서 업로드</span>
+          <span>{isLoading ? "처리 중..." : "문서 업로드"}</span>
         </button>
 
         {/* 최근 문서 목록 */}
@@ -290,14 +293,18 @@ const handleFileChange = async (e) => {
           </div>
           <ul className="doc-list">
             {recentDocs.map((doc) => (
-              <li key={doc.id} className="doc-item">
+              <li 
+                key={doc.id} 
+                className={`doc-item ${selectedDoc && selectedDoc.id === doc.id ? "active" : ""}`}
+                onClick={() => handleDocClick(doc.id)}
+              >
                 <div className="doc-info">
                   <div className="doc-icon-box">
-                    <FileText size={18} />
+                    {renderFileIcon(doc.file_name)}
                   </div>
                   <div className="doc-text">
-                    <span className="doc-title">{doc.title}</span>
-                    <span className="doc-date">{doc.date}</span>
+                    <span className="doc-title">{doc.file_name}</span>
+                    <span className="doc-date">{formatDocumentDateKo(doc.created_at)}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} color="#9ca3af" />
@@ -309,6 +316,22 @@ const handleFileChange = async (e) => {
 
       {/* 2. 메인 콘텐츠 (문서 뷰어) */}
       <main className="main-content">
+        {/* 왼쪽 패널 토글 */}
+        <button
+          className="panel-toggle panel-toggle-left"
+          onClick={() => setLeftCollapsed(!leftCollapsed)}
+          title={leftCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+        >
+          {leftCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+        {/* 오른쪽 패널 토글 */}
+        <button
+          className="panel-toggle panel-toggle-right"
+          onClick={() => setRightCollapsed(!rightCollapsed)}
+          title={rightCollapsed ? "AI 패널 펼치기" : "AI 패널 접기"}
+        >
+          {rightCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+        </button>
         {/* 상단 헤더 */}
         <div className="content-header">
           <div className="header-title">
@@ -317,94 +340,36 @@ const handleFileChange = async (e) => {
           </div>
         </div>
 
-        {/* 뷰 모드 전환 버튼 */}
-        <div className="view-mode-buttons-container">
-          <div className="view-mode-buttons">
-            <button 
-              className={`view-mode-btn ${viewMode === 'parsed' ? 'active' : ''}`}
-              onClick={() => setViewMode('parsed')}
-            >
-              DOC
-            </button>
-            <button 
-              className={`view-mode-btn ${viewMode === 'original' ? 'active' : ''}`}
-              onClick={() => setViewMode('original')}
-            >
-              원본
-            </button>
-          </div>
-        </div>
-
         <div className="pdf-container">
-          {/* 뷰 모드에 따라 문서 표시 */}
-          {viewMode === 'parsed' ? (
-            /* DOC 탭: 파싱된 텍스트 */
-            <div className="parsed-content">
-              {ocrText ? (
-                <HighlightedTextView text={ocrText} highlightWord={highlightWord} />
-              ) : parsedText ? (
-                <HighlightedTextView text={parsedText} highlightWord={highlightWord} />
-              ) : (
-                <div className="no-content">
-                  <p>파일을 업로드하면 파싱된 문서가 여기에 표시됩니다.</p>
-                </div>
-              )}
-            </div>
+          {isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
+            <PdfHighlightViewer
+              pdfUrl={pdfUrl}
+              highlightWord={highlightWord}
+              parsedText={parsedText || ocrText}
+              onCellsFetched={handleCellsFetched}
+              externalSuggestions={externalFillSuggestions}
+            />
           ) : (
-            /* 원본 탭: PDF 원본 이미지 */
-            isPdf && pdfUrl && pdfUrl !== "/sample.pdf" ? (
-              <PdfHighlightViewer
-                pdfUrl={pdfUrl}
-                highlightWord={highlightWord}
-                parsedText={parsedText || ocrText}
-                onCellsFetched={handleCellsFetched}
-                externalSuggestions={externalFillSuggestions}
-                onTextSelected={handleTextSelected}
-              />
-            ) : (
-              <iframe
-                src={pdfUrl}
-                className="pdf-frame"
-                title="Document Viewer"
-              />
-            )
+            <iframe
+              src={pdfUrl}
+              className="pdf-frame"
+              title="Document Viewer"
+            />
           )}
         </div>
       </main>
 
       {/* 3. 오른쪽 사이드바 — AI 에이전트 채팅 */}
-      <AgentChat
-        parsedText={parsedText}
-        documentName={documentName}
-        onHighlightWord={setHighlightWord}
-        tableCells={sharedTableCells}
-        onAgentFill={handleAgentFill}
-        externalPrompt={externalPrompt}
-      />
+      <div className={`sidebar-right-wrapper ${rightCollapsed ? "collapsed" : ""}`}>
+        <AgentChat
+          parsedText={parsedText}
+          documentName={documentName}
+          onHighlightWord={setHighlightWord}
+          tableCells={sharedTableCells}
+          onAgentFill={handleAgentFill}
+        />
+      </div>
 
-      {/* 드래그 선택 확인 대화상자 */}
-      {pendingSelectedText && (
-        <div className="drag-confirm-overlay" onClick={cancelSendToAgent}>
-          <div className="drag-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="drag-confirm-header">
-              <Lightbulb size={20} color="#3D4B90" />
-              <h4 className="drag-confirm-title">선택한 내용을 AI에게 설명 요청할까요?</h4>
-            </div>
-            <div className="drag-confirm-text-box">
-              <p className="drag-confirm-text">{pendingSelectedText}</p>
-            </div>
-            <div className="drag-confirm-actions">
-              <button className="drag-confirm-btn drag-confirm-btn--cancel" onClick={cancelSendToAgent}>
-                취소
-              </button>
-              <button className="drag-confirm-btn drag-confirm-btn--ok" onClick={confirmSendToAgent}>
-                <Sparkles size={14} />
-                설명 요청
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,6 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends
+from sqlalchemy.orm import Session
+import sys
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -6,7 +8,7 @@ import pdfplumber
 import olefile
 import zlib
 import vertexai
-from vertexai.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel, Content, Part
 import io
 import re
 import json
@@ -27,9 +29,38 @@ for _ in range(5):
         _env_files.append(_candidate)
     _search = _search.parent
 for _ef in _env_files:
-    load_dotenv(dotenv_path=_ef, override=True)
+    for _enc in ("utf-8", "euc-kr", "cp949", "latin-1"):
+        try:
+            load_dotenv(dotenv_path=_ef, override=True, encoding=_enc)
+            break
+        except UnicodeDecodeError:
+            continue
 if _env_files:
     print(f"✓ .env 로드 완료: {[str(f) for f in _env_files]}")
+
+
+# GOOGLE_APPLICATION_CREDENTIALS: 상대 경로는 이 파일(easydoc-parser) 기준으로 해석
+_parser_dir = Path(__file__).resolve().parent
+_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gac:
+    _cred_path = Path(_gac)
+    if not _cred_path.is_absolute():
+        _cred_path = (_parser_dir / _gac).resolve()
+    if _cred_path.is_file():
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(_cred_path)
+        print(f"✓ 서비스 계정 키: {_cred_path}")
+    else:
+        print(f"⚠ GOOGLE_APPLICATION_CREDENTIALS 파일 없음: {_cred_path}")
+
+# --- DB 공유를 위한 경로 설정 ---
+current_file_path = Path(__file__).resolve()
+root_dir = current_file_path.parent.parent.parent
+
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from database_document.database import get_db, Document
+# -----------------------------
 
 app = FastAPI()
 
@@ -49,20 +80,25 @@ s3 = boto3.client(
 )
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
+
+VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
+VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
+
 # Vertex AI (Gemini) 설정
 gemini_model = None
 try:
     project_id = os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("GCP_LOCATION", "asia-northeast3")
-    
     if project_id:
-        vertexai.init(project=project_id, location=location)
-        gemini_model = GenerativeModel("gemini-1.5-flash")
-        print("✓ Vertex AI Gemini 초기화 성공")
+        vertexai.init(project=project_id, location=VERTEX_LOCATION)
+        gemini_model = GenerativeModel(VERTEX_GEMINI_MODEL)
+        print(
+            f"✓ Vertex AI Gemini 초기화 성공 "
+            f"(model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION})"
+        )
     else:
         print("⚠ GCP_PROJECT_ID가 설정되지 않음 - 사전 기반 설명만 사용")
 except Exception as e:
-    print(f"⚠ Vertex AI API 초기화 실패: {e} - 사전 기반 설명만 사용")
+    print(f"⚠ Vertex AI 초기화 실패: {e} - 사전 기반 설명만 사용")
     gemini_model = None
 
 # Gemini 응답 캐시 (gemini_word.csv)
@@ -191,8 +227,8 @@ async def parse_hwp(file: UploadFile = File(...)):
 
 
 @app.get("/parse/s3/{file_key:path}")
-async def parse_from_s3(file_key: str):
-    """S3에서 파일 가져와서 파싱"""
+async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depends(get_db)):
+    """S3에서 파일 가져와서 파싱 및 DB 저장"""
     print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
     print(f"[DEBUG] 버킷: {BUCKET_NAME}")
     try:
@@ -212,7 +248,6 @@ async def parse_from_s3(file_key: str):
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
-            return {"filename": filename, "text": text}
         
         elif ext == "hwp":
             ole = olefile.OleFileIO(io.BytesIO(contents))
@@ -222,10 +257,49 @@ async def parse_from_s3(file_key: str):
             else:
                 text = "텍스트를 추출할 수 없습니다."
             ole.close()
-            return {"filename": filename, "text": text.strip()}
+            text = text.strip()
         
         else:
             return {"error": "지원하지 않는 파일 형식입니다."}
+
+        # ================= DB 저장 로직 =================
+        # 파일 크기 계산
+        size_kb = len(contents) / 1024
+        file_size_str = f"{size_kb:.1f} KB"
+
+        # 페이지 수 계산
+        total_pages = 1
+        if ext == "pdf":
+            try:
+                with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                    total_pages = len(pdf.pages)
+            except:
+                total_pages = 1
+        
+        # S3 URL 조립
+        s3_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_DEFAULT_REGION')}.amazonaws.com/{file_key}"
+
+        # DB 모델 생성
+        new_doc = Document(
+            file_name=filename,
+            file_type=ext,
+            s3_url=s3_url,
+            extracted_text=text,
+            file_size=file_size_str,
+            page_count=total_pages,
+            user_email=user_email
+        )
+        
+        # DB에 추가 및 커밋
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+
+        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages})")
+        # ========================================================
+
+        # 저장된 ID와 함께 프론트엔드로 응답
+        return {"id": new_doc.id, "filename": filename, "text": text}
     
     except Exception as e:
         return {"error": str(e)}
@@ -237,7 +311,7 @@ async def analyze_with_gemini(data: dict):
     text = data.get("text", "")
     
     if not text:
-        return {"difficult_words": [], "token_usage": {}}
+        return {"difficult_words": []}
     
     if gemini_model is None:
         return {"difficult_words": [], "error": "Gemini API 키가 설정되지 않았습니다."}
@@ -271,7 +345,6 @@ async def analyze_with_gemini(data: dict):
     if cached_word_set:
         cache_exclude_hint = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(cached_word_set)}"
     
-    total_token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     new_gemini_words = []
     seen_words = set(cached_word_set)  # 중복 방지
     
@@ -317,18 +390,6 @@ async def analyze_with_gemini(data: dict):
         try:
             response = gemini_model.generate_content(prompt)
             response_text = response.text.strip()
-            
-            # 토큰 사용량 집계
-            if hasattr(response, 'usage_metadata'):
-                um = response.usage_metadata
-                p_tok = getattr(um, 'prompt_token_count', 0) or 0
-                c_tok = getattr(um, 'candidates_token_count', 0) or 0
-                t_tok = getattr(um, 'total_token_count', 0) or 0
-                total_token_usage["prompt_tokens"] += p_tok
-                total_token_usage["completion_tokens"] += c_tok
-                total_token_usage["total_tokens"] += t_tok
-                print(f"[Gemini 토큰] 청크 {idx + 1}/{len(chunks)}: 입력={p_tok}, 출력={c_tok}, 합계={t_tok}")
-            
             # 응답 파싱
             for line in response_text.split("\n"):
                 line = line.strip()
@@ -353,7 +414,7 @@ async def analyze_with_gemini(data: dict):
                         seen_words.add(word)
             
         except Exception as e:
-            print(f"[Gemini 청크 {idx + 1} 오류] {e}")
+            print(f"[어려운 단어 분석] 청크 {idx + 1} 처리 오류: {e}")
     
     # 4단계: 새 단어를 CSV 캐시에 저장
     if new_gemini_words:
@@ -363,17 +424,141 @@ async def analyze_with_gemini(data: dict):
     all_words = cached_words + new_gemini_words
     all_words.sort(key=lambda x: x["level"], reverse=True)
     
-    print(f"[Gemini 분석 완료] 캐시={len(cached_words)}개, 신규={len(new_gemini_words)}개, "
-          f"전체={len(all_words)}개, 청크={len(chunks)}개")
-    
+    print(
+        f"[어려운 단어 분석 완료] 캐시 {len(cached_words)}개 · 신규 {len(new_gemini_words)}개 · "
+        f"전체 단어 {len(all_words)}개 · 처리 청크 {len(chunks)}개"
+    )
     return {
         "difficult_words": all_words,
         "total_found": len(all_words),
         "from_cache": len(cached_words),
         "from_gemini": len(new_gemini_words),
         "chunks_processed": len(chunks),
-        "token_usage": total_token_usage
     }
+
+
+# ============================================================
+# 중요 페이지 분석 엔드포인트
+# ============================================================
+
+@app.post("/analyze-important-pages")
+async def analyze_important_pages(data: dict):
+    """페이지별 텍스트를 받아 중요 페이지(독소조항, 핵심 약관 등)를 판별"""
+    pages = data.get("pages", [])
+
+    if not pages:
+        return {"important_pages": []}
+
+    if gemini_model is None:
+        return {"important_pages": [], "error": "Gemini API가 설정되지 않았습니다."}
+
+    pages_block = ""
+    for p in pages:
+        page_num = p.get("page", 0)
+        text = p.get("text", "").strip()
+        if text:
+            pages_block += f"\n--- 페이지 {page_num} ---\n{text}\n"
+
+    if not pages_block.strip():
+        return {"important_pages": []}
+
+    prompt = f"""## 역할
+당신은 보험·금융·행정·법률 문서의 독소조항 및 핵심 약관을 찾아내는 전문가입니다.
+
+## 작업
+아래 문서의 각 페이지를 분석하여, 사용자가 반드시 읽어야 하는 **중요한 페이지**를 찾아주세요.
+
+## 중요 페이지 판단 기준
+- 보험 면책조항, 보장 제한, 감액 규정이 있는 페이지
+- 계약 해지 조건, 위약금, 벌칙 규정이 있는 페이지
+- 보험금 지급 제한 또는 부지급 사유가 있는 페이지
+- 중요한 의무사항 (고지의무, 통지의무 등)이 있는 페이지
+- 보장 내용의 핵심 요약이 있는 페이지
+- 분쟁 해결, 소멸시효, 관할 법원 등 법적 권리에 관한 페이지
+- 기타 소비자에게 불리하거나 반드시 알아야 할 조항이 있는 페이지
+
+## 규칙
+- 단순한 목차, 표지, 서식, 연락처 페이지는 중요하지 않습니다.
+- 각 중요 페이지에 대해 왜 중요한지 한 문장으로 설명해주세요.
+- 중요도를 1~3으로 매겨주세요 (3=매우 중요/독소조항, 2=중요/핵심약관, 1=참고/알아두면 좋음)
+- **반드시 최소 1페이지 이상** 중요한 페이지로 선정해주세요. 독소조항이 없더라도 문서에서 가장 핵심적인 내용이 담긴 페이지를 골라주세요.
+- 각 중요 페이지에서 가장 핵심적인 **문장 또는 문단**을 1~2개 뽑아주세요.
+- 반드시 **문서 원문에 있는 그대로의 문장**을 사용하세요. 단어 하나가 아니라 의미가 통하는 문장 단위로 뽑아야 합니다.
+- 뽑은 문장이 왜 중요한지 쉬운 말로 설명해주세요.
+
+## 출력 형식 (반드시 이 형식을 지키세요)
+각 줄에 하나씩, 구분자로 `|||`를 사용:
+PAGE|||페이지번호|||중요도|||이유|||페이지요약
+KEYWORD|||페이지번호|||원문 문장|||쉬운 설명
+
+PAGE 줄은 중요 페이지 정보, KEYWORD 줄은 해당 페이지에서 뽑은 핵심 문장입니다.
+
+예시:
+PAGE|||3|||3|||보험금 부지급 사유가 명시된 면책조항 페이지|||이 페이지는 보험금이 지급되지 않는 사유를 나열하고 있습니다. 특히 고의사고, 음주운전 등의 면책사유를 확인해야 합니다.
+KEYWORD|||3|||피보험자가 고의로 자신을 해친 경우에는 보험금을 지급하지 않습니다|||본인이 일부러 사고를 내면 보험금을 못 받는다는 뜻입니다.
+PAGE|||7|||2|||계약 해지 시 환급금 규정|||이 페이지는 보험 계약을 중도 해지할 때 돌려받는 금액에 대한 규정입니다.
+KEYWORD|||7|||해약환급금은 납입한 보험료보다 적거나 없을 수 있습니다|||중도 해지하면 낸 돈보다 적게 돌려받거나 아예 못 받을 수 있다는 뜻입니다.
+
+## 문서 내용
+{pages_block}
+"""
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+
+        important_pages = []
+        keywords_by_page = {}
+
+        for line in response_text.split("\n"):
+            line = line.strip()
+            if not line or "|||" not in line:
+                continue
+            parts = line.split("|||")
+
+            if parts[0].strip() == "PAGE" and len(parts) >= 5:
+                try:
+                    page_num = int(parts[1].strip())
+                    importance = int(parts[2].strip())
+                    reason = parts[3].strip()
+                    summary = parts[4].strip() if len(parts) > 4 else reason
+                    important_pages.append({
+                        "page": page_num,
+                        "importance": min(max(importance, 1), 3),
+                        "reason": reason,
+                        "summary": summary,
+                    })
+                except ValueError:
+                    continue
+
+            elif parts[0].strip() == "KEYWORD" and len(parts) >= 4:
+                try:
+                    page_num = int(parts[1].strip())
+                    keyword = parts[2].strip()
+                    explanation = parts[3].strip()
+                    if page_num not in keywords_by_page:
+                        keywords_by_page[page_num] = []
+                    keywords_by_page[page_num].append({
+                        "keyword": keyword,
+                        "explanation": explanation,
+                    })
+                except ValueError:
+                    continue
+
+        # 키워드를 각 페이지에 병합
+        for p in important_pages:
+            p["keywords"] = keywords_by_page.get(p["page"], [])
+
+        important_pages.sort(key=lambda x: (-x["importance"], x["page"]))
+        total_kw = sum(len(v) for v in keywords_by_page.values())
+        print(f"[중요 페이지 분석] {len(important_pages)}개 중요 페이지, 키워드 {total_kw}개 발견")
+        return {"important_pages": important_pages}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[중요 페이지 분석 오류] {e}")
+        return {"important_pages": [], "error": str(e)}
 
 
 # ============================================================
@@ -442,36 +627,31 @@ async def chat(req: ChatRequest):
         system_prompt += f"\n\n## 현재 사용자가 보고 있는 문서 내용:\n{doc_preview}"
 
     try:
-        # system_instruction이 포함된 모델 인스턴스 생성
-        chat_model = genai.GenerativeModel(
-            'gemini-3-flash-preview',
+        chat_model = GenerativeModel(
+            VERTEX_GEMINI_MODEL,
             system_instruction=system_prompt,
         )
 
-        # 대화 히스토리를 Gemini contents 형식으로 변환
         contents = []
         for msg in req.messages:
             role = "model" if msg.role == "model" else "user"
-            contents.append({"role": role, "parts": [{"text": msg.content}]})
+            contents.append(
+                Content(role=role, parts=[Part.from_text(msg.content)])
+            )
 
         response = chat_model.generate_content(contents)
         reply = response.text.strip()
 
-        # 토큰 사용량 추출
-        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-        if hasattr(response, 'usage_metadata'):
-            um = response.usage_metadata
-            token_usage["prompt_tokens"] = getattr(um, 'prompt_token_count', 0) or 0
-            token_usage["completion_tokens"] = getattr(um, 'candidates_token_count', 0) or 0
-            token_usage["total_tokens"] = getattr(um, 'total_token_count', 0) or 0
-
-        print(f"[Chat] persona={req.persona}, msgs={len(req.messages)}, "
-              f"reply_len={len(reply)}, tokens={token_usage['total_tokens']}")
-        return {"reply": reply, "persona": req.persona, "token_usage": token_usage}
+        print(
+            f"[에이전트 채팅] 성격={req.persona}, 대화 {len(req.messages)}턴, 답변 {len(reply)}자"
+        )
+        return {"reply": reply, "persona": req.persona}
 
     except Exception as e:
-        print(f"[Chat 오류] {e}")
-        return {"reply": "응답을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.", "persona": req.persona, "token_usage": None}
+        import traceback
+        traceback.print_exc()
+        print(f"[에이전트 채팅 오류] {e}")
+        return {"reply": f"응답을 생성하지 못했습니다. 오류: {str(e)[:100]}", "persona": req.persona}
 
 
 # ============================================================
@@ -619,8 +799,7 @@ async def fill_cells(req: FillCellsRequest):
 [/FILL_CELLS]"""
 
     try:
-        fill_model = genai.GenerativeModel('gemini-3-flash-preview')
-        response = fill_model.generate_content(prompt)
+        response = gemini_model.generate_content(prompt)
         reply = response.text.strip()
 
         match = re.search(r'\[FILL_CELLS\](.*?)\[/FILL_CELLS\]', reply, re.DOTALL)
@@ -630,11 +809,11 @@ async def fill_cells(req: FillCellsRequest):
             data["suggestions"] = [
                 s for s in data.get("suggestions", []) if s.get("value")
             ]
-            print(f"[fill-cells] 제안 {len(data['suggestions'])}개")
+            print(f"[표 셀 자동 채우기] 제안 {len(data['suggestions'])}개 반영")
             return data
         else:
-            print(f"[fill-cells] JSON 파싱 실패. 응답: {reply[:200]}")
+            print(f"[표 셀 자동 채우기] JSON 파싱 실패 · 응답 앞부분: {reply[:200]}")
             return {"suggestions": [], "message": "AI 응답 파싱에 실패했습니다."}
     except Exception as e:
-        print(f"[fill-cells 오류] {e}")
+        print(f"[표 셀 자동 채우기 오류] {e}")
         return {"error": str(e), "suggestions": []}

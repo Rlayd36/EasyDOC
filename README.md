@@ -8,6 +8,7 @@
 - `EasyDOC-frontend/easydoc-parser/` - FastAPI 파싱 서버 (Python)
 - `EasyDOC-backend/` - Spring Boot 백엔드 (로그인·회원가입·JWT·비밀번호 찾기 등 통합)
 - `backend-OCR/` - FastAPI  OCR 서버 (Python, Google Cloud Vision API)
+- `database_document/` - FastAPI  DB 서버 (Python, 문서 메타데이터 저장 및 사용자별 최근 문서 목록 관리)
 
 ---
 
@@ -72,11 +73,28 @@ pip install -r requirements.txt
 python ocr_server.py
 ```
 
-접속 주소: http://0.0.0.0:8001
+접속 주소: http://localhost:8001
 
 **필요 사항:**
 - 프로젝트 최상위 폴더(`EasyDOC`)에 `.env` 파일 필요 (AWS 키 포함)
-- backend-OCR 폴더 내 `google-key.json` 키 파일 필요
+- backend-OCR 폴더 내 `vision-key.json` 키 파일 필요
+
+---
+
+### 5. 최근 문서 목록 서버 실행 (Python)
+
+```bash
+cd database_document
+python -m venv venv
+.\venv\Scripts\activate (맥은 source venv/bin/activate)
+pip install -r requirements.txt
+python document_api.py
+```
+
+접속 주소: http://localhost:8002
+
+**필요 사항:**
+- 폴더 내의 database.py에 #DB 정보 가져오기 아래에 본인 MySQL DB 정보 입력 (로컬 기본값 채워져 있음)
 
 ---
 
@@ -101,3 +119,4 @@ S3_BUCKET_NAME=your_bucket_name_here
 - S3를 통한 파일 저장
 - 사용자 인증 및 회원가입
 - 문서 파싱/OCR 및 변환
+- 로그인 사용자별 맞춤형 최근 업로드 문서 목록 제공 및 마이페이지 통계 가능

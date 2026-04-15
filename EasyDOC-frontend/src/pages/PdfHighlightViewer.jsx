@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
 import axios from "axios";
-import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X } from "lucide-react";
+import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import "./PdfHighlightViewer.css";
 
 const PARSER_URL = "http://localhost:8000";
@@ -30,7 +31,7 @@ const STICKERS = [
 /* ─────────────────────────────────────────
    PdfPage: 단일 PDF 페이지 렌더링
    ───────────────────────────────────────── */
-function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, onTextSelected }) {
+function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, memos, onAddMemo, onUpdateMemo, onDeleteMemo, onDownload, stickers, onAddSticker, onUpdateSticker, onDeleteSticker, images, onAddImage, onUpdateImage, onDeleteImage, fillMode, fillCells, cellValues, pendingCells, onCellValueChange, importantInfo }) {
   const imgInputRef = useRef(null);   // 우클릭 메뉴에서 이미지 업로드용
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);   // 현재 진행 중인 렌더 작업 추적
@@ -47,6 +48,14 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
   const [dragSelection, setDragSelection] = useState(null); // { startX, startY, endX, endY }
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef(null);
+  const [fixedSelectionRects, setFixedSelectionRects] = useState([]);
+  const [simplifyPopup, setSimplifyPopup] = useState(null);
+
+  // 중요 페이지 메모 토글 + 키워드 하이라이트
+  const [showImportantMemo, setShowImportantMemo] = useState(false);
+  const [importantHighlights, setImportantHighlights] = useState([]);
+  const [activeKeywordIdx, setActiveKeywordIdx] = useState(null);
+  const [charBoxesReady, setCharBoxesReady] = useState(0); // charBoxes 준비 신호용
 
   useEffect(() => {
     if (!pdfDoc || !containerWidth) return;
@@ -143,6 +152,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
 
         // ref에 저장 (드래그 선택에서 재사용)
         charBoxesRef.current = charBoxes;
+        setCharBoxesReady((v) => v + 1);
 
         if (charBoxes.length === 0) {
           setHasText(false);
@@ -214,6 +224,73 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
     };
   }, [pdfDoc, pageNum, containerWidth, highlightWord]);
 
+  // 중요 문장 하이라이팅 (importantInfo가 나중에 도착해도 반영)
+  useEffect(() => {
+    const allChars = charBoxesRef.current;
+    if (!importantInfo?.keywords?.length || !allChars.length) {
+      setImportantHighlights([]);
+      return;
+    }
+
+    console.log(`[중요하이라이트] 페이지 ${pageNum}: ${importantInfo.keywords.length}개 문장`, importantInfo.keywords.map(k => k.keyword.substring(0, 20)));
+    const fullText = allChars.map((c) => c.char).join("");
+    const kwFound = [];
+
+    for (let ki = 0; ki < importantInfo.keywords.length; ki++) {
+      const kw = importantInfo.keywords[ki];
+      const sentence = kw.keyword;
+      const normalizedSentence = sentence.replace(/\s+/g, "");
+      const normalizedFull = fullText.replace(/\s+/g, "");
+
+      let searchPos = 0;
+      let nIdx;
+      console.log(`[중요하이라이트] 검색: "${normalizedSentence.substring(0, 30)}..." found=${normalizedFull.indexOf(normalizedSentence) !== -1}`);
+      while ((nIdx = normalizedFull.indexOf(normalizedSentence, searchPos)) !== -1) {
+        // 정규화된 인덱스를 원본 charBox 인덱스로 변환
+        let origStart = 0, normCount = 0;
+        for (let ci = 0; ci < allChars.length; ci++) {
+          if (allChars[ci].char.trim()) normCount++;
+          if (normCount > nIdx) { origStart = ci; break; }
+        }
+        let origEnd = origStart, matchNorm = 0;
+        for (let ci = origStart; ci < allChars.length; ci++) {
+          if (allChars[ci].char.trim()) matchNorm++;
+          if (matchNorm >= normalizedSentence.length) { origEnd = ci; break; }
+        }
+
+        // charBox 범위에서 줄 단위로 하이라이트 rect 생성
+        const matchBoxes = allChars.slice(origStart, origEnd + 1);
+        if (matchBoxes.length === 0) break;
+        const lineGroups = [];
+        let curLine = [matchBoxes[0]];
+        for (let mi = 1; mi < matchBoxes.length; mi++) {
+          if (Math.abs(matchBoxes[mi].baseY - curLine[0].baseY) < 5) {
+            curLine.push(matchBoxes[mi]);
+          } else {
+            lineGroups.push(curLine);
+            curLine = [matchBoxes[mi]];
+          }
+        }
+        lineGroups.push(curLine);
+
+        for (const lg of lineGroups) {
+          const minX = Math.min(...lg.map((b) => b.x));
+          const maxX = Math.max(...lg.map((b) => b.x + b.w));
+          const minY = Math.min(...lg.map((b) => b.y));
+          const maxH = Math.max(...lg.map((b) => b.h));
+          kwFound.push({
+            x: minX, y: minY, width: maxX - minX, height: maxH,
+            keyword: sentence, explanation: kw.explanation, kwIndex: ki,
+          });
+        }
+
+        searchPos = nIdx + normalizedSentence.length;
+      }
+    }
+    console.log(`[중요하이라이트] 페이지 ${pageNum}: ${kwFound.length}개 하이라이트 생성`);
+    setImportantHighlights(kwFound);
+  }, [importantInfo, pageNum, charBoxesReady]);
+
   // 드래그 영역에서 텍스트 추출
   const extractTextFromRect = useCallback((rect) => {
     const lines = linesRef.current;
@@ -243,6 +320,60 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       }
     }
     return selectedLines.join("\n");
+  }, []);
+
+  // 드래그 영역 중 실제 글자 영역만 추출
+  const extractHighlightRectsFromRect = useCallback((rect) => {
+    const lines = linesRef.current;
+    if (!lines.length) return [];
+
+    const minX = Math.min(rect.startX, rect.endX);
+    const maxX = Math.max(rect.startX, rect.endX);
+    const minY = Math.min(rect.startY, rect.endY);
+    const maxY = Math.max(rect.startY, rect.endY);
+    const LINE_MERGE_GAP = 2;
+    const mergedRects = [];
+
+    for (const line of lines) {
+      const sorted = [...line].sort((a, b) => a.x - b.x);
+      const selectedChars = sorted.filter((c) => {
+        const cx = c.x + c.w / 2;
+        const cy = c.y + c.h / 2;
+        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      });
+      if (!selectedChars.length) continue;
+
+      let start = selectedChars[0];
+      let prev = selectedChars[0];
+
+      for (let i = 1; i < selectedChars.length; i++) {
+        const cur = selectedChars[i];
+        const gap = cur.x - (prev.x + prev.w);
+        const sameLine = Math.abs(cur.baseY - prev.baseY) <= 3;
+        if (sameLine && gap <= LINE_MERGE_GAP) {
+          prev = cur;
+          continue;
+        }
+
+        mergedRects.push({
+          x: start.x,
+          y: Math.min(start.y, prev.y),
+          width: prev.x + prev.w - start.x,
+          height: Math.max(start.h, prev.h),
+        });
+        start = cur;
+        prev = cur;
+      }
+
+      mergedRects.push({
+        x: start.x,
+        y: Math.min(start.y, prev.y),
+        width: prev.x + prev.w - start.x,
+        height: Math.max(start.h, prev.h),
+      });
+    }
+
+    return mergedRects;
   }, []);
 
   // 드래그 선택 핸들러
@@ -288,19 +419,75 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
 
   const handleDragEnd = useCallback((e) => {
     if (!dragStartRef.current) return;
-
     if (isDraggingRef.current && dragSelection) {
       const text = extractTextFromRect(dragSelection);
-      if (text.trim() && onTextSelected) {
-        onTextSelected(text.trim());
+      if (text.trim()) {
+        const normalizedSelection = {
+          startX: Math.min(dragSelection.startX, dragSelection.endX),
+          startY: Math.min(dragSelection.startY, dragSelection.endY),
+          endX: Math.max(dragSelection.startX, dragSelection.endX),
+          endY: Math.max(dragSelection.startY, dragSelection.endY),
+        };
+        const selectedRects = extractHighlightRectsFromRect(normalizedSelection);
+        const popupX = normalizedSelection.startX + (normalizedSelection.endX - normalizedSelection.startX) / 2;
+        const wrapperRect = e.currentTarget.getBoundingClientRect();
+        const preferAboveY = wrapperRect.top + Math.max(8, normalizedSelection.startY - 12);
+        const preferBelowY = wrapperRect.top + normalizedSelection.endY + 12;
+        const placeBelow = preferAboveY < 140;
+        const popupClientX = wrapperRect.left + popupX;
+        const popupClientY = placeBelow ? preferBelowY : preferAboveY;
+
+        setFixedSelectionRects(selectedRects);
+        setSimplifyPopup({
+          loading: true,
+          error: null,
+          originalText: text.trim(),
+          simplifiedText: "",
+          x: popupClientX,
+          y: popupClientY,
+          placement: placeBelow ? "below" : "above",
+        });
+
+        axios.post(`${PARSER_URL}/chat`, {
+          messages: [
+            {
+              role: "user",
+              content:
+                "다음 문장을 원래 의미를 유지하면서 더 쉬운 한국어로 바꿔줘. 답변은 쉬운 문장만 출력해.\n\n" +
+                text.trim(),
+            },
+          ],
+          persona: "default",
+          document_context: "",
+        }).then((res) => {
+          const rawReply = (res.data?.reply || "").trim();
+          const cleanedReply = rawReply.replace(/\[HL:.+?\]/g, "").trim();
+          setSimplifyPopup((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              loading: false,
+              simplifiedText: cleanedReply || "변환 결과가 비어 있습니다.",
+            };
+          });
+        }).catch((err) => {
+          console.error("쉬운말 변환 실패:", err);
+          setSimplifyPopup((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              loading: false,
+              error: "변환에 실패했습니다. 다시 시도해주세요.",
+            };
+          });
+        });
       }
     }
 
     isDraggingRef.current = false;
     dragStartRef.current = null;
-    // 선택 영역은 잠시 유지 후 제거 (시각적 피드백)
-    setTimeout(() => setDragSelection(null), 400);
-  }, [dragSelection, extractTextFromRect, onTextSelected]);
+    setDragSelection(null);
+  }, [dragSelection, extractTextFromRect, extractHighlightRectsFromRect]);
 
   // 메모 모드에서 빈 곳 클릭 시 새 메모 추가
   const handlePageClick = useCallback((e) => {
@@ -435,7 +622,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
 
   return (
     <div
-      className={`pdf-page-wrapper ${memoMode ? "memo-mode" : ""}`}
+      className={`pdf-page-wrapper ${memoMode ? "memo-mode" : ""} ${importantInfo ? `important-page importance-${importantInfo.importance}` : ""}`}
       style={{ width: pageSize.width || "auto" }}
       onClick={handlePageClick}
       onContextMenu={handleContextMenu}
@@ -445,6 +632,91 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       onMouseLeave={handleDragEnd}
     >
       <canvas ref={canvasRef} />
+
+      {/* 중요 페이지 책갈피 배지 + 메모 토글 */}
+      {importantInfo && (
+        <>
+          <div
+            className={`important-page-badge importance-badge-${importantInfo.importance}`}
+            onClick={(e) => { e.stopPropagation(); setShowImportantMemo((v) => !v); }}
+            title="클릭하여 상세 설명 보기"
+            style={{ cursor: "pointer" }}
+          >
+            <BookmarkCheck size={16} />
+            <span className="important-badge-label">
+              {importantInfo.importance === 3 ? "매우 중요" : importantInfo.importance === 2 ? "중요" : "참고"}
+            </span>
+            <span className="important-badge-toggle">{showImportantMemo ? "▲" : "▼"}</span>
+          </div>
+
+          {/* 메모 패널 */}
+          {showImportantMemo && (
+            <div className="important-memo-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+              <div className="important-memo-header">
+                <span>{importantInfo.importance === 3 ? "⚠️" : importantInfo.importance === 2 ? "📌" : "💡"} {importantInfo.reason}</span>
+                <button className="important-memo-close" onClick={() => setShowImportantMemo(false)}>
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="important-memo-body">
+                <p>{importantInfo.summary || importantInfo.reason}</p>
+                {importantInfo.keywords?.length > 0 && (
+                  <div className="important-keywords-list">
+                    <p className="important-keywords-title">주요 키워드</p>
+                    {importantInfo.keywords.map((kw, ki) => (
+                      <div
+                        key={ki}
+                        className={`important-keyword-item ${activeKeywordIdx === ki ? "active" : ""}`}
+                        onClick={() => setActiveKeywordIdx(activeKeywordIdx === ki ? null : ki)}
+                      >
+                        <span className="important-keyword-word">{kw.keyword}</span>
+                        <span className="important-keyword-explain">{kw.explanation}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 중요 키워드 하이라이트 오버레이 + 인라인 설명 토글 */}
+      {importantHighlights.map((h, i) => (
+        <React.Fragment key={`imp-kw-${pageNum}-${i}`}>
+          <span
+            className={`important-keyword-highlight ${activeKeywordIdx === i ? "active-kw" : ""}`}
+            style={{
+              position: "absolute",
+              left: `${h.x}px`,
+              top: `${h.y}px`,
+              width: `${h.width}px`,
+              height: `${h.height}px`,
+            }}
+            onClick={(e) => { e.stopPropagation(); setActiveKeywordIdx(activeKeywordIdx === i ? null : i); }}
+          />
+          {activeKeywordIdx === i && (
+            <div
+              className="important-kw-tooltip"
+              style={{
+                position: "absolute",
+                left: `${Math.min(Math.max(0, h.x), (pageSize.width || 600) - 310)}px`,
+                top: `${h.y + h.height + 4}px`,
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="important-kw-tooltip-header">
+                <span className="important-kw-tooltip-word">{h.keyword}</span>
+                <button className="important-kw-tooltip-close" onClick={() => setActiveKeywordIdx(null)}>
+                  <X size={12} />
+                </button>
+              </div>
+              <p className="important-kw-tooltip-explain">{h.explanation}</p>
+            </div>
+          )}
+        </React.Fragment>
+      ))}
 
       {/* 드래그 선택 영역 */}
       {dragSelection && (
@@ -459,6 +731,61 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           }}
         />
       )}
+
+      {/* 선택 확정 하이라이트 (선택된 글자 영역만 표시) */}
+      {fixedSelectionRects.map((rect, idx) => (
+        <div
+          key={`sel-fixed-${pageNum}-${idx}`}
+          className="pdf-drag-text-highlight"
+          style={{
+            position: "absolute",
+            left: rect.x,
+            top: rect.y,
+            width: rect.width,
+            height: rect.height,
+          }}
+        />
+      ))}
+
+      {/* 쉬운말 변환 팝업 (클리핑 방지: body 포털로 렌더링) */}
+      {simplifyPopup
+        ? createPortal(
+            <div
+              className={`pdf-simplify-popup ${simplifyPopup.placement === "below" ? "pdf-simplify-popup--below" : ""}`}
+              style={{ left: simplifyPopup.x, top: simplifyPopup.y }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="pdf-simplify-popup-header">
+                <Sparkles size={14} />
+                <span>쉬운 표현</span>
+                <button
+                  className="pdf-simplify-popup-close"
+                  onClick={() => {
+                    setSimplifyPopup(null);
+                    setFixedSelectionRects([]);
+                  }}
+                  title="닫기"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="pdf-simplify-popup-body">
+                <p className="pdf-simplify-popup-label">선택 문장</p>
+                <p className="pdf-simplify-popup-original">{simplifyPopup.originalText}</p>
+                <p className="pdf-simplify-popup-label">변환 결과</p>
+                {simplifyPopup.loading ? (
+                  <p className="pdf-simplify-popup-loading">Gemini가 쉬운 표현으로 바꾸는 중...</p>
+                ) : simplifyPopup.error ? (
+                  <p className="pdf-simplify-popup-error">{simplifyPopup.error}</p>
+                ) : (
+                  <p className="pdf-simplify-popup-result">{simplifyPopup.simplifiedText}</p>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
@@ -975,7 +1302,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, onTextSelected }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -1137,6 +1464,10 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
   const handleDeleteSticker = useCallback((id) => {
     setStickers((prev) => prev.filter((s) => s.id !== id));
   }, []);
+
+  // 중요 페이지 분석 상태
+  const [importantPages, setImportantPages] = useState([]);
+  const [analyzingImportant, setAnalyzingImportant] = useState(false);
 
   // 이미지 관련 상태
   const [images, setImages] = useState([]);   // { id, pageNum, x, y, width, height, src }
@@ -1437,6 +1768,50 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     };
   }, [pdfUrl]);
 
+  // 중요 페이지 분석 (PDF 로드 완료 후 자동 실행)
+  useEffect(() => {
+    console.log("[중요페이지] useEffect 진입 - pdfDoc:", !!pdfDoc, "importantPages:", importantPages.length);
+    if (!pdfDoc || importantPages.length > 0) return;
+    let cancelled = false;
+
+    (async () => {
+      setAnalyzingImportant(true);
+      console.log("[중요페이지] 페이지별 텍스트 추출 시작...");
+      try {
+        const pageTexts = [];
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const content = await page.getTextContent();
+          const text = content.items.map((item) => item.str).join(" ");
+          if (text.trim()) {
+            pageTexts.push({ page: i, text });
+          }
+        }
+        console.log(`[중요페이지] 텍스트 추출 완료 - ${pageTexts.length}/${pdfDoc.numPages} 페이지`);
+        if (cancelled || pageTexts.length === 0) {
+          console.log("[중요페이지] 취소됨 또는 텍스트 없음");
+          return;
+        }
+
+        console.log("[중요페이지] API 요청 중...", `${PARSER_URL}/analyze-important-pages`);
+        const res = await axios.post(`${PARSER_URL}/analyze-important-pages`, {
+          pages: pageTexts,
+        });
+        console.log("[중요페이지] API 응답:", res.data);
+        if (!cancelled && res.data.important_pages) {
+          setImportantPages(res.data.important_pages);
+          console.log("[중요페이지] 중요 페이지 설정 완료:", res.data.important_pages);
+        }
+      } catch (err) {
+        console.error("[중요페이지] 분석 실패:", err);
+      } finally {
+        if (!cancelled) setAnalyzingImportant(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [pdfDoc]);
+
   if (loading) {
     return (
       <div className="pdf-highlight-viewer" ref={containerRef}>
@@ -1510,6 +1885,21 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
           <span className="memo-count">🌟 {stickers.length}</span>
         )}
 
+        {/* 중요 페이지 책갈피 */}
+        <div className="bookmark-indicator">
+          {analyzingImportant ? (
+            <span className="memo-tool-btn bookmark-analyzing">
+              <Loader2 size={16} className="spin-icon" />
+              <span>분석 중...</span>
+            </span>
+          ) : importantPages.length > 0 ? (
+            <span className="memo-tool-btn bookmark-result" title={importantPages.map((p) => `p.${p.page}: ${p.reason}`).join("\n")}>
+              <Bookmark size={16} />
+              <span>중요 {importantPages.length}페이지</span>
+            </span>
+          ) : null}
+        </div>
+
         <button
           className="memo-tool-btn"
           onClick={() => toolbarImgInputRef.current?.click()}
@@ -1580,7 +1970,7 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
               cellValues={cellValues}
               pendingCells={pendingCells}
               onCellValueChange={handleCellValueChange}
-              onTextSelected={onTextSelected}
+              importantInfo={importantPages.find((p) => p.page === pageNum) || null}
             />
           );
         })}

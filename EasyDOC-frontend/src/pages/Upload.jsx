@@ -1,10 +1,16 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
+import AppBrandLogo from "../components/AppBrandLogo";
+import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
+import { formatDocumentDateKo } from "../utils/documentDate";
 import "./Upload.css";
 
-export default function Upload({onNavigateToMyPage}) {
+export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEmail }) {
+  const [routeSnapshot] = useState(() => loadAppRoute());
+  /** 복원 effect가 끝난 뒤에만 경로를 저장해 새로고침 직후 viewerDocId가 지워지지 않게 함 */
+  const [routeHydrated, setRouteHydrated] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [showViewer, setShowViewer] = useState(false);
@@ -15,8 +21,95 @@ export default function Upload({onNavigateToMyPage}) {
   const [pdfFileUrl, setPdfFileUrl] = useState(null); // PDF 원본 렌더링용 블롭 URL
   const fileInputRef = useRef(null);
 
-  // AWS API Gateway 주소
-  const API_GATEWAY_URL = "https://28d37e8xg3.execute-api.ap-northeast-2.amazonaws.com/upload-url";
+  // S3 presigned URL 발급 서버 (OCR 서버)
+  const API_GATEWAY_URL = "http://localhost:8001/s3/upload-url";
+
+  // 최근 문서 목록 가져오기
+  const fetchRecentDocs = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
+      
+      // DB 데이터를 화면에 맞게 변환
+      const formattedDocs = response.data.map((doc) => ({
+        id: doc.id,
+        name: doc.file_name,
+        date: formatDocumentDateKo(doc.created_at),
+      }));
+      setRecentDocs(formattedDocs);
+    } catch (error) {
+      console.error("최근 문서 목록 로딩 실패:", error);
+    }
+  };
+
+  // 페이지가 처음 열릴 때 목록 가져오기
+  useEffect(() => {
+    fetchRecentDocs();
+  }, []);
+
+  /** DB 문서 id로 뷰어용 상태 채우기 (최근 문서 클릭 / 새로고침 복원 공통) */
+  const applyDocumentToViewer = async (docId) => {
+    const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+    const docData = response.data;
+    setParseResult({
+      id: docData.id,
+      filename: docData.file_name,
+      text: docData.text,
+      difficult_words: docData.difficult_words
+    });
+    setOcrResult(null);
+    setPdfFileUrl(docData.s3_url || null);
+    setShowViewer(true);
+  };
+
+  /** 브라우저 새로고침 시 업로드+뷰어 화면 복원 (DB에 id가 있는 문서만) */
+  useEffect(() => {
+    const route = routeSnapshot;
+    if (!route || route.page !== "upload" || route.viewerDocId == null) {
+      setRouteHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setShowLoading(true);
+        await applyDocumentToViewer(route.viewerDocId);
+      } catch (error) {
+        console.error("뷰어 복원 실패:", error);
+        saveAppRoute({ page: "upload", viewerDocId: null });
+      } finally {
+        if (!cancelled) {
+          setShowLoading(false);
+          setRouteHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeSnapshot]);
+
+  useEffect(() => {
+    if (!routeHydrated) return;
+    saveAppRoute({
+      page: "upload",
+      viewerDocId: showViewer && parseResult?.id != null ? parseResult.id : null,
+    });
+  }, [routeHydrated, showViewer, parseResult?.id]);
+
+  // 최근 문서 목록에서 문서 클릭 시 뷰어 페이지로 이동
+  const handleRecentDocClick = async (docId) => {
+    if (!docId) return;
+
+    try {
+      setShowLoading(true);
+      await applyDocumentToViewer(docId);
+      setShowLoading(false);
+    } catch (error) {
+      console.error("문서 상세 불러오기 실패:", error);
+      alert("문서를 불러올 수 없습니다.");
+      setShowLoading(false);
+    }
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -26,8 +119,6 @@ export default function Upload({onNavigateToMyPage}) {
   };
 
   const handleUpload = async () => {
-    alert("업로드 버튼이 클릭되었습니다! (파일 유무: " + (selectedFile ? "있음" : "없음") + ")");
-
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
@@ -86,17 +177,21 @@ export default function Upload({onNavigateToMyPage}) {
         // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
         console.log("6. OCR 서버에 분석 요청...");
         const ocrResponse = await axios.get(
-          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}`
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
         );
         console.log("7. OCR 결과 도착!", ocrResponse.data);
         setOcrResult(ocrResponse.data); // 결과 저장
         setParseResult(null);           // 파싱 데이터는 비움
         setParsedText("");
+
+        if (ocrResponse.data.pdf_url) {
+          setPdfFileUrl(ocrResponse.data.pdf_url);
+        }
       } else {
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);
         const parseResponse = await axios.get(
-          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}`
+          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
         );
         console.log("7. 파싱 완료!", parseResponse.data);
         
@@ -116,32 +211,13 @@ export default function Upload({onNavigateToMyPage}) {
       // console.log("파싱 결과:", parseResponse.data.text);
 
       // UPDATE: UI 업데이트 (최근 문서 목록에 추가)
-      const fileInfo = {
-        name: selectedFile.name,
-        date: new Date()
-          .toLocaleDateString("ko-KR", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          })
-          .replace(/\./g, "."),
-      };
-
-      const filteredDocs = recentDocs.filter(
-        (doc) => doc.name !== selectedFile.name
-      );
-      setRecentDocs([fileInfo, ...filteredDocs.slice(0, 9)]);
-
-      // 파일 저장 (나중에 백엔드 API로 대체)
-      //console.log("업로드 성공", selectedFile.name);
+      await fetchRecentDocs();
 
       // 초기화
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-
-      alert("파일 업로드 성공!");
     } catch (error) {
       console.error("파일 업로드 오류:", error);
       setShowLoading(false);
@@ -169,25 +245,34 @@ export default function Upload({onNavigateToMyPage}) {
     return "default";
   };
   if (showLoading) {
-    return <Loading title="문서 분석 중" subtitle="업로드된 문서를 파싱하고 있습니다" />;
+    return <Loading title="문서 분석 중" subtitle="문서를 확인하는 중입니다. 잠시만 기다려 주세요" />;
   }
 
+  const handleExitToUpload = () => {
+    setShowViewer(false);
+    setParseResult(null);
+    setOcrResult(null);
+    setParsedText("");
+    setPdfFileUrl(null);
+  };
+
   if (showViewer) {
-    // Viewer 컴포넌트에 파싱 데이터와 OCR 데이터를 넘겨준다
-    return <Viewer parsedData={parseResult} ocrData={ocrResult} pdfFileUrl={pdfFileUrl} />;
+    return (
+      <Viewer
+        parsedData={parseResult}
+        ocrData={ocrResult}
+        pdfFileUrl={pdfFileUrl}
+        userEmail={userEmail}
+        onLogoClick={handleExitToUpload}
+      />
+    );
   }
 
   return (
     <div className="upload-page">
       {/* Header */}
       <header className="upload-header">
-        <div className="header-logo">
-          <DocumentIcon />
-          <h1 className="header-title">
-            <span className="brand-easy">Easy</span>
-            <span className="brand-doc">DOC</span>
-          </h1>
-        </div>
+        <AppBrandLogo onClick={onNavigateToUpload} />
         <div className="header-user" onClick={onNavigateToMyPage} style={{cursor: "pointer"}}>
           <UserIcon />
         </div>
@@ -203,7 +288,12 @@ export default function Upload({onNavigateToMyPage}) {
             </div>
             <div className="recent-list">
               {recentDocs.map((doc, index) => (
-                <div key={index} className="recent-item">
+                <div 
+                  key={doc.id || index} 
+                  className="recent-item"
+                  onClick={() => handleRecentDocClick(doc.id)}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="recent-item-icon">
                     {getFileIcon(doc.name) === "pdf" && <PDFIcon />}
                     {getFileIcon(doc.name) === "hwp" && <HWPIcon />}
@@ -252,7 +342,7 @@ export default function Upload({onNavigateToMyPage}) {
 
             {selectedFile && (
               <div className="selected-file">
-                선택된 파일: {selectedFile.name}
+                {selectedFile.name}
               </div>
             )}
 
@@ -267,7 +357,7 @@ export default function Upload({onNavigateToMyPage}) {
 
             <button className="upload-btn" onClick={handleUpload} type="button">
               <UploadIcon />
-              <span>문서 업로드</span>
+              <span>{selectedFile ? "업로드 시작" : "문서 불러오기"}</span>
             </button>
           </div>
         </main>
@@ -277,50 +367,6 @@ export default function Upload({onNavigateToMyPage}) {
 }
 
 // Icons
-function DocumentIcon() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 96 96"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="16"
-        y="12"
-        width="54"
-        height="68"
-        rx="6"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <rect
-        x="28"
-        y="22"
-        width="54"
-        height="68"
-        rx="6"
-        fill="#FFFFFF"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <rect
-        x="38"
-        y="34"
-        width="16"
-        height="12"
-        rx="2"
-        stroke="#111827"
-        strokeWidth="3"
-      />
-      <line x1="38" y1="54" x2="74" y2="54" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="62" x2="74" y2="62" stroke="#111827" strokeWidth="3" />
-      <line x1="38" y1="70" x2="66" y2="70" stroke="#111827" strokeWidth="3" />
-    </svg>
-  );
-}
-
 function UserIcon() {
   return (
     <svg
