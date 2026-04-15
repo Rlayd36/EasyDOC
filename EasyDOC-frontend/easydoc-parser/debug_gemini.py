@@ -32,7 +32,7 @@ if _gac:
 
 project_id = os.getenv("GCP_PROJECT_ID")
 location = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
-model_name = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
+model_name = os.getenv("GCP_GEMINI_MODEL", "gemini-3-pro-preview")
 print(f"[2] 프로젝트: {project_id}, 리전: {location}, 모델: {model_name}")
 
 # Vertex AI 실제 호출 테스트

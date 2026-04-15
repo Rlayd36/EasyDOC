@@ -81,8 +81,15 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 
-VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
+VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-3-pro-preview")
 VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
+
+
+def call_gemini(prompt_text, *, tag: str = ""):
+    """Gemini 호출 공통 래퍼 — 어떤 엔드포인트가 어느 모델을 썼는지 콘솔에 기록"""
+    label = f"[{tag}] " if tag else ""
+    print(f"🔮 {label}Gemini 호출 → model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION}")
+    return gemini_model.generate_content(prompt_text)
 
 # Vertex AI (Gemini) 설정
 gemini_model = None
@@ -393,7 +400,7 @@ async def analyze_with_gemini(data: dict):
 """
         
         try:
-            response = gemini_model.generate_content(prompt)
+            response = call_gemini(prompt, tag=f"analyze-with-gemini ch{idx+1}/{len(chunks)}")
             response_text = response.text.strip()
             # 응답 파싱 (단어|||설명)
             for line in response_text.split("\n"):
@@ -505,7 +512,7 @@ KEYWORD|||7|||해약환급금은 납입한 보험료보다 적거나 없을 수 
 """
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = call_gemini(prompt, tag="analyze-important-pages")
         response_text = response.text.strip()
 
         important_pages = []
@@ -647,6 +654,10 @@ async def chat(req: ChatRequest):
                 Content(role=role, parts=[Part.from_text(msg.content)])
             )
 
+        print(
+            f"🔮 [chat persona={req.persona}] Gemini 호출 → "
+            f"model={VERTEX_GEMINI_MODEL}, location={VERTEX_LOCATION}"
+        )
         response = chat_model.generate_content(contents)
         reply = response.text.strip()
 
@@ -807,7 +818,7 @@ async def fill_cells(req: FillCellsRequest):
 [/FILL_CELLS]"""
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = call_gemini(prompt, tag="chat/fill-cells")
         reply = response.text.strip()
 
         match = re.search(r'\[FILL_CELLS\](.*?)\[/FILL_CELLS\]', reply, re.DOTALL)
