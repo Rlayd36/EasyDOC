@@ -17,11 +17,12 @@
   background: #fff;
   line-height: 0;       /* 캔버스 아래 여백 제거 */
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .pdf-page-wrapper canvas {
   display: block;
+  border-radius: 4px;
 }
 
 /* ===============================
@@ -101,6 +102,10 @@
   max-width: 900px;
   margin-left: auto;
   margin-right: auto;
+
+  position: sticky;
+  top: 0;
+  z-index: 110;
 }
 
 .memo-tool-btn {
@@ -506,6 +511,10 @@
   font-size: 12.5px;
   color: #1d4ed8;
   line-height: 1.4;
+
+  position: sticky;
+  top: 56px;
+  z-index: 109;
 }
 .fill-mode-banner span {
   flex: 1;
@@ -632,8 +641,8 @@
 }
 
 .pdf-simplify-popup {
-  position: fixed;
-  z-index: 120;
+  position: absolute;
+  z-index: 105;
   transform: translate(-50%, -100%);
   width: min(430px, 80vw);
   max-height: 280px;
