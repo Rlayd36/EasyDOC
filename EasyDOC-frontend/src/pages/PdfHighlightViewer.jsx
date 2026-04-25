@@ -1742,11 +1742,22 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     if (!pdfUrl) return;
     let cancelled = false;
 
+    // 새 문서 로드 시 상태 초기화
+    setPdfDoc(null);
+    setLoading(true);
+    setError(null);
+    setImportantPages([]);
+    setMemos([]);
+    setStickers([]);
+    setImages([]);
+    setTableCells([]);
+    setCellValues({});
+    setPendingCells(new Set());
+    setFillMode(false);
+    setFillMessage("");
+
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
-
         const doc = await pdfjsLib.getDocument({
           url: pdfUrl,
           cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/cmaps/`,
