@@ -81,7 +81,7 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 
-VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-3-pro-preview")
+VERTEX_GEMINI_MODEL = os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
 VERTEX_LOCATION = os.getenv("GCP_VERTEX_LOCATION", "asia-northeast3")
 
 
