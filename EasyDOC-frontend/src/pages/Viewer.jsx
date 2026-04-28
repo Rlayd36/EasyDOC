@@ -51,6 +51,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 최근 문서 목록 상태
     const [recentDocs, setRecentDocs] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
+    const viewerDocId = selectedDoc?.id ?? parsedData?.id ?? null;
 
     // 파일 선택을 위한 ref
     const fileInputRef = useRef(null);
@@ -348,6 +349,8 @@ const handleFileChange = async (e) => {
               parsedText={parsedText || ocrText}
               onCellsFetched={handleCellsFetched}
               externalSuggestions={externalFillSuggestions}
+              docId={viewerDocId}
+              userEmail={userEmail}
             />
           ) : (
             <iframe
