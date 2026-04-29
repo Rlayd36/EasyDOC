@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "default_id": "default",
+  "types": [
+    {
+      "id": "insurance",
+      "label": "보험 약관",
+      "icon": "📋",
+      "description": "보험 가입서·약관·면책조항·보장내용 안내문"
+    },
+    {
+      "id": "legal",
+      "label": "법률 문서",
+      "icon": "⚖️",
+      "description": "법령·판결문·법률 안내 등 법률 일반"
+    },
+    {
+      "id": "contract",
+      "label": "계약서",
+      "icon": "📑",
+      "description": "근로·임대차·서비스 이용 계약 등"
+    },
+    {
+      "id": "admin",
+      "label": "행정·민원",
+      "icon": "🏛️",
+      "description": "관공서 안내문·고시·민원 서식"
+    },
+    {
+      "id": "finance",
+      "label": "금융·세무",
+      "icon": "💳",
+      "description": "대출 약정·금융 상품·세금 안내문"
+    },
+    {
+      "id": "medical",
+      "label": "의료·건강",
+      "icon": "🏥",
+      "description": "진료 안내문·의료비·건강보험 관련"
+    },
+    {
+      "id": "education",
+      "label": "교육·학습 자료",
+      "icon": "📘",
+      "description": "강의 자료·교과서·학습 안내"
+    },
+    {
+      "id": "default",
+      "label": "잘 모르겠어요",
+      "icon": "❓",
+      "description": "어떤 유형인지 모르겠을 때 (일반 모드)"
+    }
+  ]
+}

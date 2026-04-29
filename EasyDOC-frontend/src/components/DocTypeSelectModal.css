@@ -1,0 +1,199 @@
+/* signup.css 의 모달 베이스가 로드되지 않은 화면(Upload 등)에서도
+   동작하도록 같은 클래스명을 자체 정의해 둔다. signup.css 와 함께
+   로드되더라도 동일 속성이라 충돌하지 않는다. */
+.terms-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.terms-modal-content {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 720px;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+}
+
+.terms-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.terms-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.terms-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.terms-modal-close:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.doctype-modal-content {
+  max-width: 720px;
+  width: calc(100vw - 40px);
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+.doctype-modal-body {
+  padding: 20px 24px 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.doctype-modal-subtitle {
+  margin: 0 0 16px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.doctype-modal-filename {
+  color: #6b7280;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.doctype-modal-loading,
+.doctype-modal-error {
+  padding: 24px 12px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.doctype-modal-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.doctype-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.doctype-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.05s;
+  font-family: inherit;
+}
+
+.doctype-card:hover {
+  border-color: #93c5fd;
+  background: #f8faff;
+}
+
+.doctype-card.selected {
+  border-color: #4a90fa;
+  background: #eef4ff;
+  box-shadow: 0 0 0 3px rgba(74, 144, 250, 0.15);
+}
+
+.doctype-card:active {
+  transform: translateY(1px);
+}
+
+.doctype-card-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.doctype-card-label {
+  font-weight: 700;
+  font-size: 15px;
+  color: #111827;
+}
+
+.doctype-card-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.doctype-modal-footer {
+  padding: 14px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.doctype-btn-secondary,
+.doctype-btn-primary {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.doctype-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.doctype-btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.doctype-btn-primary {
+  background: linear-gradient(135deg, #4a90fa, #6c5ce7);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(74, 144, 250, 0.3);
+}
+
+.doctype-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.doctype-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}

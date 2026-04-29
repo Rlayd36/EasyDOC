@@ -48,6 +48,7 @@ class Document(Base):
     page_count = Column(Integer, default=0)
     file_size = Column(String(50))
     user_email = Column(String(255), index=True)
+    doc_type = Column(String(50), nullable=True, default="default")
 
 # DB 연결 세션을 가져오는 함수 (FastAPI에서 사용)
 def get_db():

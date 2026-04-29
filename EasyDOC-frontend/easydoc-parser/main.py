@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends
+from fastapi import FastAPI, UploadFile, File, Depends, Query
 from sqlalchemy.orm import Session
 import sys
 from fastapi.middleware.cors import CORSMiddleware
@@ -158,9 +158,114 @@ def save_to_gemini_cache(words_data):
 gemini_cache = load_gemini_cache()
 
 
+# ============================================================
+# 문서 유형(doc_type)별 프롬프트 로더
+# ============================================================
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+
+
+def load_prompts():
+    """prompts/registry.json + _base.json + types/*.json 를 메모리에 로드"""
+    registry_path = PROMPTS_DIR / "registry.json"
+    base_path = PROMPTS_DIR / "_base.json"
+    types_dir = PROMPTS_DIR / "types"
+
+    if not registry_path.exists():
+        print(f"⚠ 프롬프트 registry 없음: {registry_path}")
+        return {"registry": {"types": [], "default_id": "default"}, "base": {}, "types": {}}
+
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    base = json.loads(base_path.read_text(encoding="utf-8")) if base_path.exists() else {}
+
+    types_data = {}
+    for type_meta in registry.get("types", []):
+        tid = type_meta["id"]
+        type_file = types_dir / f"{tid}.json"
+        if type_file.exists():
+            types_data[tid] = json.loads(type_file.read_text(encoding="utf-8"))
+        else:
+            print(f"⚠ 프롬프트 파일 없음: {type_file} (registry에는 있음)")
+
+    print(f"✓ 프롬프트 로드 완료: {len(types_data)}개 유형 ({list(types_data.keys())})")
+    return {"registry": registry, "base": base, "types": types_data}
+
+
+PROMPTS = load_prompts()
+DEFAULT_DOC_TYPE = PROMPTS["registry"].get("default_id", "default")
+
+
+def resolve_doc_type(doc_type: Optional[str]) -> str:
+    """알 수 없는 doc_type 은 default 로 폴백"""
+    if doc_type and doc_type in PROMPTS["types"]:
+        return doc_type
+    return DEFAULT_DOC_TYPE
+
+
+def build_analyze_words_prompt(doc_type: str, chunk: str, idx: int, total: int, exclude: str) -> str:
+    """어려운 단어 추출 프롬프트 (유형별)"""
+    tid = resolve_doc_type(doc_type)
+    type_block = PROMPTS["types"][tid]["analyze_words"]
+    base = PROMPTS["base"].get("analyze_words", {})
+    audience = PROMPTS["base"].get("audience", "")
+
+    return f"""## 역할
+{type_block.get("role", "")}
+
+## 대상 독자
+{audience}
+
+## 작업
+아래 문서 조각에서 **이 대상 독자가 읽었을 때 이해에 걸림이 될 만한 용어**를 찾아 쉬운 말로 설명해주세요.
+
+{type_block.get("selection_criteria", "")}
+
+## 규칙
+{base.get("common_rules", "")}{exclude}
+
+{base.get("output_format", "")}
+
+{type_block.get("examples", "")}
+
+## 문서 조각 ({idx + 1}/{total})
+{chunk}
+"""
+
+
+def build_important_pages_prompt(doc_type: str, pages_block: str) -> str:
+    """중요 페이지 분석 프롬프트 (유형별)"""
+    tid = resolve_doc_type(doc_type)
+    type_block = PROMPTS["types"][tid]["analyze_important_pages"]
+    base = PROMPTS["base"].get("analyze_important_pages", {})
+
+    return f"""## 역할
+{type_block.get("role", "")}
+
+## 작업
+아래 문서의 각 페이지를 분석하여, 사용자가 반드시 읽어야 하는 **중요한 페이지**를 찾아주세요.
+
+{type_block.get("criteria", "")}
+
+## 규칙
+{base.get("common_rules", "")}
+
+{base.get("output_format", "")}
+
+{type_block.get("examples", "")}
+
+## 문서 내용
+{pages_block}
+"""
+
+
 @app.get("/")
 def root():
     return {"message": "EasyDOC Parser API 작동 중!"}
+
+
+@app.get("/document-types")
+def document_types():
+    """프론트가 업로드 모달에 표시할 문서 유형 목록"""
+    return PROMPTS["registry"]
 
 
 @app.get("/debug/s3-list")
@@ -237,7 +342,12 @@ async def parse_hwp(file: UploadFile = File(...)):
 
 
 @app.get("/parse/s3/{file_key:path}")
-async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depends(get_db)):
+async def parse_from_s3(
+    file_key: str,
+    user_email: str = "",
+    doc_type: str = Query(default="default"),
+    db: Session = Depends(get_db),
+):
     """S3에서 파일 가져와서 파싱 및 DB 저장"""
     print(f"[DEBUG] 파싱 요청 받음 - 파일 키: {file_key}")
     print(f"[DEBUG] 버킷: {BUCKET_NAME}")
@@ -290,6 +400,7 @@ async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depen
         s3_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_DEFAULT_REGION')}.amazonaws.com/{file_key}"
 
         # DB 모델 생성
+        resolved_type = resolve_doc_type(doc_type)
         new_doc = Document(
             file_name=filename,
             file_type=ext,
@@ -297,7 +408,8 @@ async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depen
             extracted_text=text,
             file_size=file_size_str,
             page_count=total_pages,
-            user_email=user_email
+            user_email=user_email,
+            doc_type=resolved_type,
         )
         
         # DB에 추가 및 커밋
@@ -305,11 +417,11 @@ async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depen
         db.commit()
         db.refresh(new_doc)
 
-        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages})")
+        print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages}, 유형: {resolved_type})")
         # ========================================================
 
         # 저장된 ID와 함께 프론트엔드로 응답
-        return {"id": new_doc.id, "filename": filename, "text": text}
+        return {"id": new_doc.id, "filename": filename, "text": text, "doc_type": resolved_type}
     
     except Exception as e:
         return {"error": str(e)}
@@ -319,7 +431,8 @@ async def parse_from_s3(file_key: str, user_email: str = "", db: Session = Depen
 async def analyze_with_gemini(data: dict):
     """Gemini가 텍스트를 받아 어려운 단어 추출 + 설명을 한 번에 처리 (캐시 우선, 청크 분할)"""
     text = data.get("text", "")
-    
+    doc_type = resolve_doc_type(data.get("doc_type"))
+
     if not text:
         return {"difficult_words": []}
     
@@ -363,44 +476,17 @@ async def analyze_with_gemini(data: dict):
         current_exclude = ""
         if seen_words:
             current_exclude = f"\n\n## 이미 설명된 단어 (제외하세요)\n{', '.join(seen_words)}"
-        
-        prompt = f"""## 역할
-당신은 문해력이 저하된 사회초년생·청년층이 행정/법률/계약 문서를 쉽게 이해하도록 돕는 전문가입니다.
 
-## 대상 독자
-- 만 19~34세 사회초년생 및 청년층
-- 일상 대화에는 문제가 없으나, 설명서·계약서·안내문·법령 등 **한자식 표현과 전문용어**가 섞인 문서를 읽을 때 이해에 어려움을 겪는 집단
+        prompt = build_analyze_words_prompt(
+            doc_type=doc_type,
+            chunk=chunk,
+            idx=idx,
+            total=len(chunks),
+            exclude=current_exclude,
+        )
 
-## 작업
-아래 문서 조각에서 **이 대상 독자가 읽었을 때 이해에 걸림이 될 만한 용어**를 찾아 쉬운 말로 설명해주세요.
-
-## 선정 기준 (단일 기준, 난이도 구분 없음)
-- 일상 대화에서 거의 쓰지 않는 **한자어·법률용어·행정 전문용어**
-- 뜻은 알아도 **문맥상 의미가 헷갈리는 표현** (예: "준용", "기부채납", "상당한", "해당")
-- 이미 쉬운 단어(신청, 제출, 확인 등)는 **제외**
-- 한 글자 단어는 제외
-
-## 규칙
-- 문서에 등장하는 해당 기준의 용어는 **빠짐없이 모두** 뽑아주세요. 개수 제한 없음.
-- 설명은 **청년 독자에게 말하듯 한 문장**으로 짧게 풀어주세요.
-- 원문의 의미를 왜곡하지 않습니다.{current_exclude}
-
-## 출력 형식 (반드시 이 형식을 지키세요)
-각 줄에 하나씩, 구분자로 `|||`를 사용:
-단어|||설명
-
-예시:
-기부채납|||개인이 가진 땅이나 건물을 나라·지자체에 공짜로 넘기는 것을 말해요.
-준용|||다른 규정을 그대로 가져다 똑같이 적용한다는 뜻이에요.
-중도 해지 수수료|||계약을 중간에 끊을 때 내야 하는 위약금이에요.
-사업타당성|||사업을 해서 이득이 될지 미리 따져보는 검토를 말해요.
-
-## 문서 조각 ({idx + 1}/{len(chunks)})
-{chunk}
-"""
-        
         try:
-            response = call_gemini(prompt, tag=f"analyze-with-gemini ch{idx+1}/{len(chunks)}")
+            response = call_gemini(prompt, tag=f"analyze-with-gemini[{doc_type}] ch{idx+1}/{len(chunks)}")
             response_text = response.text.strip()
             # 응답 파싱 (단어|||설명)
             for line in response_text.split("\n"):
@@ -453,6 +539,7 @@ async def analyze_with_gemini(data: dict):
 async def analyze_important_pages(data: dict):
     """페이지별 텍스트를 받아 중요 페이지(독소조항, 핵심 약관 등)를 판별"""
     pages = data.get("pages", [])
+    doc_type = resolve_doc_type(data.get("doc_type"))
 
     if not pages:
         return {"important_pages": []}
@@ -470,49 +557,10 @@ async def analyze_important_pages(data: dict):
     if not pages_block.strip():
         return {"important_pages": []}
 
-    prompt = f"""## 역할
-당신은 보험·금융·행정·법률 문서의 독소조항 및 핵심 약관을 찾아내는 전문가입니다.
-
-## 작업
-아래 문서의 각 페이지를 분석하여, 사용자가 반드시 읽어야 하는 **중요한 페이지**를 찾아주세요.
-
-## 중요 페이지 판단 기준
-- 보험 면책조항, 보장 제한, 감액 규정이 있는 페이지
-- 계약 해지 조건, 위약금, 벌칙 규정이 있는 페이지
-- 보험금 지급 제한 또는 부지급 사유가 있는 페이지
-- 중요한 의무사항 (고지의무, 통지의무 등)이 있는 페이지
-- 보장 내용의 핵심 요약이 있는 페이지
-- 분쟁 해결, 소멸시효, 관할 법원 등 법적 권리에 관한 페이지
-- 기타 소비자에게 불리하거나 반드시 알아야 할 조항이 있는 페이지
-
-## 규칙
-- 단순한 목차, 표지, 서식, 연락처 페이지는 중요하지 않습니다.
-- 각 중요 페이지에 대해 왜 중요한지 한 문장으로 설명해주세요.
-- 중요도를 1~3으로 매겨주세요 (3=매우 중요/독소조항, 2=중요/핵심약관, 1=참고/알아두면 좋음)
-- **반드시 최소 1페이지 이상** 중요한 페이지로 선정해주세요. 독소조항이 없더라도 문서에서 가장 핵심적인 내용이 담긴 페이지를 골라주세요.
-- 각 중요 페이지에서 가장 핵심적인 **문장 또는 문단**을 1~2개 뽑아주세요.
-- 반드시 **문서 원문에 있는 그대로의 문장**을 사용하세요. 단어 하나가 아니라 의미가 통하는 문장 단위로 뽑아야 합니다.
-- 뽑은 문장이 왜 중요한지 쉬운 말로 설명해주세요.
-
-## 출력 형식 (반드시 이 형식을 지키세요)
-각 줄에 하나씩, 구분자로 `|||`를 사용:
-PAGE|||페이지번호|||중요도|||이유|||페이지요약
-KEYWORD|||페이지번호|||원문 문장|||쉬운 설명
-
-PAGE 줄은 중요 페이지 정보, KEYWORD 줄은 해당 페이지에서 뽑은 핵심 문장입니다.
-
-예시:
-PAGE|||3|||3|||보험금 부지급 사유가 명시된 면책조항 페이지|||이 페이지는 보험금이 지급되지 않는 사유를 나열하고 있습니다. 특히 고의사고, 음주운전 등의 면책사유를 확인해야 합니다.
-KEYWORD|||3|||피보험자가 고의로 자신을 해친 경우에는 보험금을 지급하지 않습니다|||본인이 일부러 사고를 내면 보험금을 못 받는다는 뜻입니다.
-PAGE|||7|||2|||계약 해지 시 환급금 규정|||이 페이지는 보험 계약을 중도 해지할 때 돌려받는 금액에 대한 규정입니다.
-KEYWORD|||7|||해약환급금은 납입한 보험료보다 적거나 없을 수 있습니다|||중도 해지하면 낸 돈보다 적게 돌려받거나 아예 못 받을 수 있다는 뜻입니다.
-
-## 문서 내용
-{pages_block}
-"""
+    prompt = build_important_pages_prompt(doc_type=doc_type, pages_block=pages_block)
 
     try:
-        response = call_gemini(prompt, tag="analyze-important-pages")
+        response = call_gemini(prompt, tag=f"analyze-important-pages[{doc_type}]")
         response_text = response.text.strip()
 
         important_pages = []

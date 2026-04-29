@@ -3,6 +3,7 @@ import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
+import DocTypeSelectModal from "../components/DocTypeSelectModal";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import { formatDocumentDateKo } from "../utils/documentDate";
 import "./Upload.css";
@@ -19,6 +20,7 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
   const [parsedText, setParsedText] = useState("");
   const [ocrResult, setOcrResult] = useState(null); // OCR 상태
   const [pdfFileUrl, setPdfFileUrl] = useState(null); // PDF 원본 렌더링용 블롭 URL
+  const [showDocTypeModal, setShowDocTypeModal] = useState(false);
   const fileInputRef = useRef(null);
 
   // S3 presigned URL 발급 서버 (OCR 서버)
@@ -54,7 +56,8 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
       id: docData.id,
       filename: docData.file_name,
       text: docData.text,
-      difficult_words: docData.difficult_words
+      difficult_words: docData.difficult_words,
+      doc_type: docData.doc_type || "default",
     });
     setOcrResult(null);
     setPdfFileUrl(docData.s3_url || null);
@@ -118,11 +121,23 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!selectedFile) {
       fileInputRef.current?.click();
       return;
     }
+    // 파일이 골라진 상태에서는 곧바로 업로드를 시작하지 않고
+    // 문서 유형 선택 모달부터 띄운다.
+    setShowDocTypeModal(true);
+  };
+
+  const handleDocTypeCancel = () => {
+    setShowDocTypeModal(false);
+  };
+
+  const handleDocTypeConfirm = async (docType) => {
+    setShowDocTypeModal(false);
+    if (!selectedFile) return;
 
     // PDF 파일이면 원본 렌더링을 위해 블롭 URL 저장
     if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
@@ -133,7 +148,7 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
 
     try {
       // AWS Lambda에 업로드 URL 요청
-      console.log("1. URL 요청 중...");
+      console.log(`1. URL 요청 중... (doc_type=${docType})`);
       const response = await axios.get(API_GATEWAY_URL, {
         params: {
           fileName: selectedFile.name,
@@ -191,14 +206,14 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);
         const parseResponse = await axios.get(
-          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
+          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=${encodeURIComponent(docType)}`
         );
         console.log("7. 파싱 완료!", parseResponse.data);
-        
+
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
-        
-        setParseResult(parseResponse.data);
+
+        setParseResult({ ...parseResponse.data, doc_type: parseResponse.data.doc_type || docType });
         setOcrResult(null);  // OCR 데이터는 비움
       }
 
@@ -362,6 +377,13 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
           </div>
         </main>
       </div>
+
+      <DocTypeSelectModal
+        open={showDocTypeModal}
+        fileName={selectedFile?.name}
+        onConfirm={handleDocTypeConfirm}
+        onCancel={handleDocTypeCancel}
+      />
     </div>
   );
 }

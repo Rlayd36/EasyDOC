@@ -71,6 +71,9 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 에이전트가 설명한 특정 단어 강조 표시용
     const [highlightWord, setHighlightWord] = useState("");
 
+    // 업로드 모달에서 선택했거나 DB에서 가져온 문서 유형
+    const [currentDocType, setCurrentDocType] = useState(parsedData?.doc_type || "default");
+
     // 패널 접기/펼치기 상태
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -106,6 +109,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
             setSelectedDoc(docData); // 선택된 문서 상태 업데이트
             //setPdfUrl(null); // PDF 뷰어에서 텍스트 모드로 전환
             setDocumentName(docData.file_name); // AgentChat용 문서 이름 업데이트
+            setCurrentDocType(docData.doc_type || "default");
 
             // 가져온 텍스트를 뷰어 상태에 반영
             setParsedText(docData.text || "");
@@ -145,6 +149,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
             console.log("Viewer가 받은 parsedData:", parsedData);
             setParsedText(parsedData.text || "");
             setOcrText("");  // 파싱 데이터가 있으면 OCR은 비움
+            if (parsedData.doc_type) setCurrentDocType(parsedData.doc_type);
         } else if (ocrData) {
             console.log("Viewer가 받은 ocrData:", ocrData);
             setOcrText(ocrData.text || ocrData || "");
@@ -237,13 +242,16 @@ const handleFileChange = async (e) => {
       }
     } else {
       // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
+      // 사이드바 업로드는 빠른 재업로드 경로이므로 doc_type은 기본값으로 보낸다.
+      // 유형 지정이 필요한 경우 메인 업로드 페이지를 사용한다.
       console.log("6. 파싱 요청 중..., S3 키:", s3Key);
       const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
+        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=default`
       );
       console.log("7. 파싱 완료!", parseResponse.data);
       const extractedText = parseResponse.data.text;
       setParsedText(extractedText);  // 파싱 결과 저장
+      setCurrentDocType(parseResponse.data.doc_type || "default");
 
       setOcrText("");  // OCR 결과는 비움
     }
@@ -348,6 +356,7 @@ const handleFileChange = async (e) => {
               parsedText={parsedText || ocrText}
               onCellsFetched={handleCellsFetched}
               externalSuggestions={externalFillSuggestions}
+              docType={currentDocType}
             />
           ) : (
             <iframe

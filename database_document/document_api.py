@@ -125,6 +125,7 @@ def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
         "file_type": doc.file_type,
         "difficult_words": doc.difficult_words or [],
         "created_at": to_utc_iso(doc.created_at),
+        "doc_type": doc.doc_type or "default",
     }
 
 # 어려운 단어 DB에 저장

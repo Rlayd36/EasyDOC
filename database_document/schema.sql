@@ -12,5 +12,9 @@ CREATE TABLE IF NOT EXISTS docsinfos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP	-- 업로드된 시간 (자동 기록)
     page_count INT DEFAULT 0,                       -- 문서 총 페이지 수
     file_size VARCHAR(50),                          -- 문서 파일 용량
-    user_email VARCHAR(255);                        -- 사용자 구분용 이메일
+    user_email VARCHAR(255),                        -- 사용자 구분용 이메일
+    doc_type VARCHAR(50) DEFAULT 'default'          -- 문서 유형 (insurance, legal, contract, admin, finance, medical, education, default)
 );
+
+-- 운영 DB에 컬럼만 추가할 때:
+-- ALTER TABLE docsinfos ADD COLUMN doc_type VARCHAR(50) DEFAULT 'default';

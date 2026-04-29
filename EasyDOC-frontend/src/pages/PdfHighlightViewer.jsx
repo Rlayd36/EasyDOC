@@ -1306,7 +1306,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, docType = "default" }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -1797,9 +1797,10 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
           return;
         }
 
-        console.log("[중요페이지] API 요청 중...", `${PARSER_URL}/analyze-important-pages`);
+        console.log(`[중요페이지] API 요청 중... (doc_type=${docType})`, `${PARSER_URL}/analyze-important-pages`);
         const res = await axios.post(`${PARSER_URL}/analyze-important-pages`, {
           pages: pageTexts,
+          doc_type: docType,
         });
         console.log("[중요페이지] API 응답:", res.data);
         if (!cancelled && res.data.important_pages) {
@@ -1814,7 +1815,7 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     })();
 
     return () => { cancelled = true; };
-  }, [pdfDoc]);
+  }, [pdfDoc, docType]);
 
   if (loading) {
     return (
