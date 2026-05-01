@@ -1,54 +1,182 @@
 {
-  "version": 1,
+  "version": 2,
   "default_id": "default",
-  "types": [
+  "categories": [
     {
-      "id": "insurance",
-      "label": "보험 약관",
-      "icon": "📋",
-      "description": "보험 가입서·약관·면책조항·보장내용 안내문"
-    },
-    {
-      "id": "legal",
-      "label": "법률 문서",
+      "id": "law-contract",
+      "label": "법률·계약",
       "icon": "⚖️",
-      "description": "법령·판결문·법률 안내 등 법률 일반"
+      "description": "법령, 판결문, 약관, 계약서 등"
     },
     {
-      "id": "contract",
-      "label": "계약서",
-      "icon": "📑",
-      "description": "근로·임대차·서비스 이용 계약 등"
-    },
-    {
-      "id": "admin",
-      "label": "행정·민원",
-      "icon": "🏛️",
-      "description": "관공서 안내문·고시·민원 서식"
-    },
-    {
-      "id": "finance",
+      "id": "money",
       "label": "금융·세무",
       "icon": "💳",
-      "description": "대출 약정·금융 상품·세금 안내문"
+      "description": "대출, 금융 상품, 세금 안내"
+    },
+    {
+      "id": "public",
+      "label": "행정·민원",
+      "icon": "🏛️",
+      "description": "관공서 안내, 고시, 민원 서식"
     },
     {
       "id": "medical",
       "label": "의료·건강",
       "icon": "🏥",
-      "description": "진료 안내문·의료비·건강보험 관련"
+      "description": "진료 안내, 의료비, 건강보험"
     },
     {
       "id": "education",
+      "label": "교육·학습",
+      "icon": "📘",
+      "description": "교과서, 강의 자료, 학습 안내"
+    }
+  ],
+  "types": [
+    {
+      "id": "legal",
+      "category": "law-contract",
+      "label": "법률 문서",
+      "icon": "⚖️",
+      "description": "법령·판결문·법률 안내 등 법률 일반",
+      "keywords": ["법률", "법령", "판결", "조항", "판례"]
+    },
+    {
+      "id": "contract",
+      "category": "law-contract",
+      "label": "계약서",
+      "icon": "📑",
+      "description": "근로·임대차·서비스 이용 계약 등",
+      "keywords": ["계약", "근로", "임대", "임차", "서비스이용"]
+    },
+    {
+      "id": "insurance",
+      "category": "law-contract",
+      "label": "보험 약관",
+      "icon": "📋",
+      "description": "보험 가입서·약관·면책조항·보장내용 안내문",
+      "keywords": ["보험", "약관", "면책", "보장", "특약"]
+    },
+    {
+      "id": "finance-loan",
+      "category": "money",
+      "label": "대출",
+      "icon": "💸",
+      "description": "신용·주담대·학자금·카드론 등 대출 약정서",
+      "keywords": ["대출", "주담대", "신용대출", "학자금", "LTV", "DSR", "DTI", "거치", "원리금", "기한이익상실"]
+    },
+    {
+      "id": "finance-card",
+      "category": "money",
+      "label": "신용카드",
+      "icon": "💳",
+      "description": "신용·체크카드 회원 약관·결제·청구",
+      "keywords": ["신용카드", "체크카드", "리볼빙", "할부", "가맹점", "CVC", "FDS", "분실"]
+    },
+    {
+      "id": "finance-invest",
+      "category": "money",
+      "label": "투자·증권",
+      "icon": "📈",
+      "description": "펀드·ETF·ELS·주식계좌 약관 및 상품 설명서",
+      "keywords": ["펀드", "ETF", "ELS", "MMF", "투자", "위험등급", "환매", "NAV", "주식"]
+    },
+    {
+      "id": "finance-tax",
+      "category": "money",
+      "label": "세무·연말정산",
+      "icon": "🧾",
+      "description": "종합소득세·연말정산·세액공제 등 국세 관련 안내",
+      "keywords": ["세무", "연말정산", "소득세", "세액공제", "원천징수", "환급", "가산세", "홈택스", "NTS"]
+    },
+    {
+      "id": "finance-pension",
+      "category": "money",
+      "label": "연금·퇴직",
+      "icon": "🏦",
+      "description": "IRP·연금저축·퇴직연금(DB/DC) 안내·약관",
+      "keywords": ["연금", "퇴직", "IRP", "연금저축", "DB", "DC", "TDF", "노후"]
+    },
+    {
+      "id": "finance",
+      "category": "money",
+      "label": "기타 금융",
+      "icon": "🏧",
+      "description": "위 분류에 들어가지 않는 일반 금융 안내문",
+      "keywords": ["금융", "안내문", "약관", "상품설명서"]
+    },
+    {
+      "id": "admin-welfare",
+      "category": "public",
+      "label": "복지·수당",
+      "icon": "🤝",
+      "description": "복지·수당·연금 신청 및 안내 문서",
+      "keywords": ["복지", "수당", "연금", "기초생활", "기준중위소득", "청년수당", "양육수당", "생계급여"]
+    },
+    {
+      "id": "admin-resident",
+      "category": "public",
+      "label": "주민·가족관계",
+      "icon": "🪪",
+      "description": "주민등록·가족관계·인감 등 신원 관련 문서",
+      "keywords": ["주민등록", "등본", "초본", "가족관계증명서", "전입신고", "인감", "세대주"]
+    },
+    {
+      "id": "admin-tax-civic",
+      "category": "public",
+      "label": "지방세·공과금",
+      "icon": "💰",
+      "description": "재산세·자동차세·과태료 등 지방세 고지서",
+      "keywords": ["지방세", "재산세", "자동차세", "주민세", "과태료", "고지서", "공과금", "체납", "가산금"]
+    },
+    {
+      "id": "admin-permit",
+      "category": "public",
+      "label": "인허가·자격·면허",
+      "icon": "📜",
+      "description": "사업자 등록·영업허가·자격·면허 문서",
+      "keywords": ["인허가", "자격", "면허", "사업자등록", "영업허가", "갱신", "결격사유"]
+    },
+    {
+      "id": "admin-notice",
+      "category": "public",
+      "label": "고시·공고·공람",
+      "icon": "📢",
+      "description": "행정 고시·공고·공람·입법예고 문서",
+      "keywords": ["고시", "공고", "공람", "입법예고", "행정예고", "공시", "송달"]
+    },
+    {
+      "id": "admin",
+      "category": "public",
+      "label": "기타 행정·민원",
+      "icon": "🏛️",
+      "description": "위 분류에 들어가지 않는 일반 행정·민원 서식",
+      "keywords": ["행정", "민원", "관공서", "신청서", "안내문"]
+    },
+    {
+      "id": "medical",
+      "category": "medical",
+      "label": "의료·건강",
+      "icon": "🏥",
+      "description": "진료 안내문·의료비·건강보험 관련",
+      "keywords": ["진료", "의료", "병원", "건강보험", "처방"]
+    },
+    {
+      "id": "education",
+      "category": "education",
       "label": "교육·학습 자료",
       "icon": "📘",
-      "description": "강의 자료·교과서·학습 안내"
+      "description": "강의 자료·교과서·학습 안내",
+      "keywords": ["강의", "교과서", "학습", "수업", "교육"]
     },
     {
       "id": "default",
+      "category": null,
       "label": "잘 모르겠어요",
       "icon": "❓",
-      "description": "어떤 유형인지 모르겠을 때 (일반 모드)"
+      "description": "어떤 유형인지 모르겠을 때 (일반 모드)",
+      "keywords": []
     }
   ]
 }

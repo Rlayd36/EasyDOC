@@ -165,26 +165,40 @@ PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 
 def load_prompts():
-    """prompts/registry.json + _base.json + types/*.json 를 메모리에 로드"""
+    """prompts/registry.json + _base.json + types/**/*.json 를 메모리에 로드.
+
+    types 디렉토리는 카테고리별 하위 폴더(예: types/law-contract/legal.json)로
+    구성될 수 있으며, 파일은 `id` 기준으로 평탄하게 인덱싱됩니다.
+    """
     registry_path = PROMPTS_DIR / "registry.json"
     base_path = PROMPTS_DIR / "_base.json"
     types_dir = PROMPTS_DIR / "types"
 
     if not registry_path.exists():
         print(f"⚠ 프롬프트 registry 없음: {registry_path}")
-        return {"registry": {"types": [], "default_id": "default"}, "base": {}, "types": {}}
+        return {
+            "registry": {"types": [], "categories": [], "default_id": "default"},
+            "base": {},
+            "types": {},
+        }
 
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     base = json.loads(base_path.read_text(encoding="utf-8")) if base_path.exists() else {}
 
+    # types/**/*.json 을 한 번에 인덱싱 (id → 경로). 동일 id가 두 곳에 있으면 마지막 승리.
+    file_index = {}
+    if types_dir.exists():
+        for path in types_dir.rglob("*.json"):
+            file_index[path.stem] = path
+
     types_data = {}
     for type_meta in registry.get("types", []):
         tid = type_meta["id"]
-        type_file = types_dir / f"{tid}.json"
-        if type_file.exists():
+        type_file = file_index.get(tid)
+        if type_file and type_file.exists():
             types_data[tid] = json.loads(type_file.read_text(encoding="utf-8"))
         else:
-            print(f"⚠ 프롬프트 파일 없음: {type_file} (registry에는 있음)")
+            print(f"⚠ 프롬프트 파일 없음: {tid}.json (registry에는 있음)")
 
     print(f"✓ 프롬프트 로드 완료: {len(types_data)}개 유형 ({list(types_data.keys())})")
     return {"registry": registry, "base": base, "types": types_data}
