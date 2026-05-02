@@ -17,7 +17,9 @@ if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 # ---------------------------------------------
 
-from database_document.database import get_db, Document  
+import hashlib
+
+from database_document.database import get_db, upsert_document_by_identity
 
 load_dotenv()
 
@@ -90,6 +92,10 @@ def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
         # S3에 있는 파일을 FastAPI 서버로 다운로드
         s3_client.download_file(BUCKET_NAME, decoded_filename, local_path)
 
+        with open(local_path, "rb") as _src:
+            source_bytes = _src.read()
+        content_hash = hashlib.sha256(source_bytes).hexdigest()
+
         print("OCR 분석 시작...")
         # 다운받은 파일로 OCR 수행
         text_result = ocr_engine.extract_text_and_make_pdf(local_path, local_pdf_path)
@@ -116,21 +122,19 @@ def run_ocr(filename: str, user_email: str = "", db: Session = Depends(get_db)):
 
         file_extension = pure_filename.split('.')[-1].lower() if '.' in pure_filename else "unknown"
         
-        # DB에 넣을 데이터 포장 (INSERT 문과 동일한 역할)
-        new_doc = Document(
-            file_name = pure_filename,
-            file_type = file_extension,
-            s3_url = s3_pdf_url,
-            extracted_text=text_result,
-            file_size = file_size_str,
-            page_count = total_pages,
-            user_email = user_email
+        new_doc = upsert_document_by_identity(
+            db,
+            user_email=user_email,
+            file_name=pure_filename,
+            content_hash=content_hash,
+            fields={
+                "file_type": file_extension,
+                "s3_url": s3_pdf_url,
+                "extracted_text": text_result,
+                "file_size": file_size_str,
+                "page_count": total_pages,
+            },
         )
-
-        # DB에 추가하고 저장
-        db.add(new_doc)
-        db.commit()
-        db.refresh(new_doc) #MySQL이 방금 발급해준 고유 ID 번호를 가져온다
 
         print(f"DB 저장 성공! (문서 번호: {new_doc.id}, PDF URL: {s3_pdf_url})")
         # ===================================================
