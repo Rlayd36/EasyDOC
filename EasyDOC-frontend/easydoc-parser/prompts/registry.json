@@ -31,6 +31,12 @@
       "label": "교육·학습",
       "icon": "📘",
       "description": "교과서, 강의 자료, 학습 안내"
+    },
+    {
+      "id": "labor",
+      "label": "노동·고용",
+      "icon": "👷",
+      "description": "급여, 취업규칙, 실업급여, 산재, 노동분쟁"
     }
   ],
   "types": [
@@ -169,6 +175,46 @@
       "icon": "📘",
       "description": "강의 자료·교과서·학습 안내",
       "keywords": ["강의", "교과서", "학습", "수업", "교육"]
+    },
+    {
+      "id": "labor-payslip",
+      "category": "labor",
+      "label": "급여명세서",
+      "icon": "💰",
+      "description": "급여명세서·임금 계산서·공제 내역",
+      "keywords": ["급여", "임금", "월급", "세전", "세후", "실수령액", "공제", "통상임금", "4대보험"]
+    },
+    {
+      "id": "labor-rules",
+      "category": "labor",
+      "label": "취업규칙·사규",
+      "icon": "📋",
+      "description": "사내 복무규정·취업규칙·인사규정",
+      "keywords": ["취업규칙", "사규", "복무", "징계", "해고", "경업금지", "포괄임금", "인사규정"]
+    },
+    {
+      "id": "labor-unemploy",
+      "category": "labor",
+      "label": "고용보험·실업급여",
+      "icon": "🪙",
+      "description": "실업급여·고용보험 수급 자격 및 절차 안내",
+      "keywords": ["실업급여", "고용보험", "구직급여", "수급자격", "대기기간", "고용센터", "피보험단위기간"]
+    },
+    {
+      "id": "labor-accident",
+      "category": "labor",
+      "label": "산업재해",
+      "icon": "🦺",
+      "description": "산재보험·요양급여·업무상 재해 안내",
+      "keywords": ["산재", "업무상재해", "요양급여", "휴업급여", "장해급여", "근로복지공단", "산재보험"]
+    },
+    {
+      "id": "labor-dispute",
+      "category": "labor",
+      "label": "노동분쟁·권리구제",
+      "icon": "⚖️",
+      "description": "부당해고·임금체불·노동위원회 권리구제 서류",
+      "keywords": ["부당해고", "임금체불", "노동위원회", "구제신청", "진정서", "체당금", "원직복직"]
     },
     {
       "id": "default",
