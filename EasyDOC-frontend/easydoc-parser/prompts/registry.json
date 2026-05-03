@@ -37,6 +37,12 @@
       "label": "노동·고용",
       "icon": "👷",
       "description": "급여, 취업규칙, 실업급여, 산재, 노동분쟁"
+    },
+    {
+      "id": "realestate",
+      "label": "부동산",
+      "icon": "🏠",
+      "description": "전세·월세 계약, 등기부등본, 청약"
     }
   ],
   "types": [
@@ -215,6 +221,38 @@
       "icon": "⚖️",
       "description": "부당해고·임금체불·노동위원회 권리구제 서류",
       "keywords": ["부당해고", "임금체불", "노동위원회", "구제신청", "진정서", "체당금", "원직복직"]
+    },
+    {
+      "id": "realestate-jeonse",
+      "category": "realestate",
+      "label": "전세계약",
+      "icon": "🏠",
+      "description": "전세계약서·전세보증보험·임차권등기 서류",
+      "keywords": ["전세", "전세보증금", "확정일자", "대항력", "임차권등기", "HUG", "SGI", "깡통전세", "우선변제"]
+    },
+    {
+      "id": "realestate-monthly",
+      "category": "realestate",
+      "label": "월세계약",
+      "icon": "🏡",
+      "description": "월세·반전세 임대차계약서",
+      "keywords": ["월세", "보증금", "차임", "관리비", "묵시적갱신", "계약갱신청구권", "원상복구", "반전세"]
+    },
+    {
+      "id": "realestate-registry",
+      "category": "realestate",
+      "label": "등기부등본",
+      "icon": "📑",
+      "description": "토지·건물 등기사항전부증명서",
+      "keywords": ["등기부등본", "갑구", "을구", "근저당", "가압류", "압류", "전세권", "채권최고액", "말소기준권리"]
+    },
+    {
+      "id": "realestate-subscription",
+      "category": "realestate",
+      "label": "청약",
+      "icon": "🎯",
+      "description": "아파트 청약 공고·분양 안내문",
+      "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
     },
     {
       "id": "default",
