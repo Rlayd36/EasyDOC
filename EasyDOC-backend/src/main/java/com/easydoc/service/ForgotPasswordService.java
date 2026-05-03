@@ -20,18 +20,18 @@ public class ForgotPasswordService {
 	private final UserRepository userRepository;
 	private final UserInfoRepository userInfoRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final PasswordResetNotificationService passwordResetNotificationService;
 
 	private static final int TOKEN_VALID_MINUTES = 30;
 
-	
 	@Transactional
-	public Optional<String> requestReset(String email) {
+	public void requestReset(String email) {
 		if (email == null || email.isBlank()) {
-			return Optional.empty();
+			return;
 		}
 		String trimmedEmail = email.trim().toLowerCase();
 		if (userRepository.findByEmail(trimmedEmail).isEmpty()) {
-			return Optional.empty();
+			return;
 		}
 		// 기존 같은 이메일 토큰은 삭제
 		userInfoRepository.findByEmail(trimmedEmail).forEach(userInfoRepository::delete);
@@ -42,7 +42,12 @@ public class ForgotPasswordService {
 		info.setResetToken(token);
 		info.setExpiresAt(LocalDateTime.now().plusMinutes(TOKEN_VALID_MINUTES));
 		userInfoRepository.save(info);
-		return Optional.of(token);
+		try {
+			passwordResetNotificationService.sendResetLink(trimmedEmail, token);
+		} catch (RuntimeException e) {
+			userInfoRepository.delete(info);
+			throw e;
+		}
 	}
 
 	/**

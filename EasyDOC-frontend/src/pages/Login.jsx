@@ -23,7 +23,12 @@ export default function Login() {
     return { currentView: page, userEmail: s.email };
   });
   const [currentView, setCurrentView] = useState(initialAuth.currentView);
-  const [showForgotPw, setShowForgotPw] = useState(false);
+  const [forgotUrlToken] = useState(
+    () => new URLSearchParams(window.location.search).get("resetToken") || "",
+  );
+  const [showForgotPw, setShowForgotPw] = useState(
+    () => !!new URLSearchParams(window.location.search).get("resetToken"),
+  );
   const [userEmail, setUserEmail] = useState(initialAuth.userEmail);
   const [password, setPassword] = useState("");
   const [emailInput, setEmailInput] = useState("");
@@ -155,7 +160,21 @@ export default function Login() {
   }
 
   if (showForgotPw) {
-    return <Forgotpw onBackToLogin={() => setShowForgotPw(false)} />;
+    return (
+      <Forgotpw
+        initialResetToken={forgotUrlToken}
+        onBackToLogin={() => {
+          setShowForgotPw(false);
+          const u = new URL(window.location.href);
+          u.searchParams.delete("resetToken");
+          window.history.replaceState(
+            {},
+            "",
+            u.pathname + (u.search || "") + (u.hash || ""),
+          );
+        }}
+      />
+    );
   }
 
   return (

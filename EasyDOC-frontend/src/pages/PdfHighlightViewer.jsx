@@ -6,6 +6,7 @@ import { jsPDF } from "jspdf";
 import axios from "axios";
 import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import "./PdfHighlightViewer.css";
+import { loadBookmark, saveBookmark } from "../utils/bookmark";
 
 const PARSER_URL = "http://localhost:8000";
 
@@ -1306,13 +1307,16 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions }) {
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, docId, userEmail }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const restoreDoneRef = useRef(false);
+  const saveTimerRef = useRef(null);
 
   // 메모 관련 상태
   const [memoMode, setMemoMode] = useState(false);
@@ -1737,6 +1741,89 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     return () => observer.disconnect();
   }, []);
 
+  // 스크롤 기반 현재 페이지 계산
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const wrappers = el.querySelectorAll(".pdf-page-wrapper");
+        if (!wrappers?.length) return;
+
+        const elRect = el.getBoundingClientRect();
+        const topY = elRect.top + 90; // 툴바 + 여백 감안
+
+        let bestPage = 1;
+        let bestDist = Infinity;
+        wrappers.forEach((w, idx) => {
+          const r = w.getBoundingClientRect();
+          const d = Math.abs(r.top - topY);
+          if (d < bestDist) {
+            bestDist = d;
+            bestPage = idx + 1;
+          }
+        });
+        setCurrentPage((prev) => (prev === bestPage ? prev : bestPage));
+      });
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [loading, numPages]);
+
+  // 책갈피 저장 (디바운스)
+  useEffect(() => {
+    if (!userEmail || docId == null) return;
+    if (!Number.isFinite(Number(currentPage)) || currentPage < 1) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveBookmark(userEmail, docId, currentPage);
+    }, 500);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [currentPage, userEmail, docId]);
+
+  // 책갈피 복원 (문서 로드 후 최초 1회)
+  useEffect(() => {
+    if (!userEmail || docId == null) return;
+    if (loading) return;
+    if (restoreDoneRef.current) return;
+
+    const bm = loadBookmark(userEmail, docId);
+    const page = Number(bm?.page);
+    if (!Number.isFinite(page) || page < 1) {
+      restoreDoneRef.current = true;
+      return;
+    }
+
+    // DOM이 그려진 뒤 스크롤 (페이지 wrapper가 실제로 생긴 다음)
+    const el = containerRef.current;
+    if (!el) return;
+    const doScroll = () => {
+      const wrappers = el.querySelectorAll(".pdf-page-wrapper");
+      const idx = Math.min(Math.max(0, page - 1), Math.max(0, wrappers.length - 1));
+      const target = wrappers[idx];
+      if (!target) return;
+      target.scrollIntoView({ block: "start" });
+      setCurrentPage(idx + 1);
+      restoreDoneRef.current = true;
+    };
+
+    const t = setTimeout(doScroll, 0);
+    return () => clearTimeout(t);
+  }, [loading, userEmail, docId, numPages, containerWidth]);
+
   // PDF 문서 로드
   useEffect(() => {
     if (!pdfUrl) return;
@@ -1768,6 +1855,8 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
           setPdfDoc(doc);
           setNumPages(doc.numPages);
           setLoading(false);
+          restoreDoneRef.current = false;
+          setCurrentPage(1);
         }
       } catch (err) {
         if (!cancelled) {
@@ -1943,6 +2032,10 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
           <Download size={16} />
           <span>{downloading ? "저장 중..." : "다운로드"}</span>
         </button>
+
+        <span className="memo-count" title="마지막으로 읽은 페이지를 자동 저장합니다.">
+          p.{currentPage}/{numPages || "-"}
+        </span>
       </div>
 
       {/* 양식 채우기 안내 배너 */}
