@@ -13,6 +13,8 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 public class ForgotPasswordController {
 
+	private static final String FORGOT_OK_MESSAGE = "이메일이 등록되어 있으면 비밀번호 재설정 안내를 보냈습니다.";
+
 	private final ForgotPasswordService forgotPasswordService;
 
 	/**
@@ -21,11 +23,16 @@ public class ForgotPasswordController {
 	@PostMapping("/forgot-password")
 	public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
 		String email = body != null ? body.get("email") : null;
-		var optToken = forgotPasswordService.requestReset(email);
-		if (optToken.isPresent()) {
-			return ResponseEntity.ok(Map.of("token", optToken.get()));
+		if (email == null || email.isBlank() || !email.contains("@")) {
+			return ResponseEntity.badRequest().body("유효한 이메일을 입력하세요.");
 		}
-		return ResponseEntity.badRequest().body("등록된 이메일이 없거나 요청을 처리할 수 없습니다.");
+		try {
+			forgotPasswordService.requestReset(email);
+		} catch (RuntimeException e) {
+			return ResponseEntity.internalServerError().body("메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+		}
+		// enumeration(이메일 존재 여부 추정) 완화: 항상 동일 응답
+		return ResponseEntity.ok(Map.of("ok", true, "message", FORGOT_OK_MESSAGE));
 	}
 
 	/**

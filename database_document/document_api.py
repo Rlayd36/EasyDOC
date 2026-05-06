@@ -94,7 +94,10 @@ def get_document_list(user_email: str = Query(...), db: Session = Depends(get_db
         Document.page_count,
         Document.file_size,
         Document.file_type,
-    ).filter(Document.user_email == user_email).order_by(Document.id.desc()).all()
+    ).filter(Document.user_email == user_email).order_by(
+        Document.created_at.desc(),
+        Document.id.desc(),
+    ).all()
 
     result = [
         {

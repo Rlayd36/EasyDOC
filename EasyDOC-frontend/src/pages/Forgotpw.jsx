@@ -1,16 +1,32 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./Forgotpw.css";
 
 const API_BASE = "http://localhost:8080/api/users";
 
-export default function Forgotpw({ onBackToLogin }) {
-  const [step, setStep] = useState(1);
+function getInitialToken(initialResetToken) {
+  if (initialResetToken) return initialResetToken;
+  return new URLSearchParams(window.location.search).get("resetToken") || "";
+}
+
+export default function Forgotpw({ onBackToLogin, initialResetToken = "" }) {
+  const [step, setStep] = useState(() =>
+    getInitialToken(initialResetToken) ? 2 : 1,
+  );
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [token] = useState(() => getInitialToken(initialResetToken));
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mailRequestDone, setMailRequestDone] = useState(false);
+
+  // 링크에서 들어왔을 때 주소창 토큰 제거(복사/리퍼러 노출 완화)
+  useEffect(() => {
+    if (!getInitialToken(initialResetToken)) return;
+    const u = new URL(window.location.href);
+    u.searchParams.delete("resetToken");
+    window.history.replaceState({}, "", u.pathname + u.search + u.hash);
+  }, [initialResetToken]);
 
   // 1단계: 이메일로 재설정 요청
   const onRequestReset = async (e) => {
@@ -24,14 +40,13 @@ export default function Forgotpw({ onBackToLogin }) {
         body: JSON.stringify({ email: email.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.token) {
-        setToken(data.token);
-        setStep(2);
+      if (res.ok && data.ok) {
+        setMailRequestDone(true);
       } else {
         setError(
           typeof data === "string"
             ? data
-            : "등록된 이메일이 없거나 요청을 처리할 수 없습니다.",
+            : "요청을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.",
         );
       }
     } catch (err) {
@@ -103,10 +118,10 @@ export default function Forgotpw({ onBackToLogin }) {
         <div className="forgotpw-card">
           <h2 className="forgotpw-title">비밀번호 재설정</h2>
 
-          {step === 1 && (
+          {step === 1 && !mailRequestDone && (
             <>
               <p className="forgotpw-desc">
-                가입한 이메일을 입력하시면 재설정 절차를 안내합니다.
+                가입한 이메일을 입력하시면 재설정 링크를 보내 드립니다.
               </p>
               <form className="form" onSubmit={onRequestReset}>
                 <div className="field">
@@ -133,11 +148,35 @@ export default function Forgotpw({ onBackToLogin }) {
             </>
           )}
 
+          {step === 1 && mailRequestDone && (
+            <>
+              <p className="forgotpw-desc">
+                이메일이 등록되어 있으면 비밀번호 재설정 링크를 보냈습니다. 메일함(스팸함 포함)을 확인해
+                주세요. 링크는 30분 동안 유효합니다.
+              </p>
+              <button
+                type="button"
+                className="btn btn-submit"
+                onClick={() => {
+                  setMailRequestDone(false);
+                  setEmail("");
+                }}
+              >
+                다른 이메일로 다시 요청
+              </button>
+            </>
+          )}
+
           {step === 2 && (
             <>
               <p className="forgotpw-desc">
-                새 비밀번호를 입력해주세요. (토큰은 이미 확인되었습니다)
+                이메일에 받은 링크로 이동한 화면입니다. 새 비밀번호를 입력해 주세요.
               </p>
+              {!token && (
+                <p className="forgotpw-error">
+                  유효한 재설정 링크가 아닙니다. 비밀번호 찾기를 다시 시도해 주세요.
+                </p>
+              )}
               <form className="form" onSubmit={onSubmit}>
                 <div className="field">
                   <label className="label">새 비밀번호</label>
@@ -149,7 +188,7 @@ export default function Forgotpw({ onBackToLogin }) {
                     onChange={(e) => setNewPassword(e.target.value)}
                     minLength={8}
                     required
-                    disabled={loading}
+                    disabled={loading || !token}
                   />
                 </div>
                 <div className="field">
@@ -162,14 +201,14 @@ export default function Forgotpw({ onBackToLogin }) {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     minLength={8}
                     required
-                    disabled={loading}
+                    disabled={loading || !token}
                   />
                 </div>
                 {error && <p className="forgotpw-error">{error}</p>}
                 <button
                   className="btn btn-submit"
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !token}
                 >
                   {loading ? "처리 중..." : "비밀번호 재설정"}
                 </button>

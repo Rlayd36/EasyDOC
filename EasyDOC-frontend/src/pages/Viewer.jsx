@@ -51,6 +51,7 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 최근 문서 목록 상태
     const [recentDocs, setRecentDocs] = useState([]);
     const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
+    const viewerDocId = selectedDoc?.id ?? parsedData?.id ?? null;
 
     // 파일 선택을 위한 ref
     const fileInputRef = useRef(null);
@@ -109,7 +110,11 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
             setSelectedDoc(docData); // 선택된 문서 상태 업데이트
             //setPdfUrl(null); // PDF 뷰어에서 텍스트 모드로 전환
             setDocumentName(docData.file_name); // AgentChat용 문서 이름 업데이트
+<<<<<<< HEAD
             setCurrentDocType(docData.doc_type || "default");
+=======
+            setHighlightWord(""); // 문서가 바뀔 때 강조 단어 초기화
+>>>>>>> origin/develop
 
             // 가져온 텍스트를 뷰어 상태에 반영
             setParsedText(docData.text || "");
@@ -180,10 +185,11 @@ const handleFileChange = async (e) => {
   const fileIsPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   setIsPdf(fileIsPdf);
   setDocumentName(file.name);
+  setHighlightWord(""); // 새 파일 업로드 시 강조 단어 초기화
   setIsLoading(true);  // 로딩 시작
 
   try {
-    // AWS Lambda에 업로드 URL 요청
+    // URL 발급 (AWS S3) - Presigned URL
     console.log("1. URL 요청 중...");
     const response = await axios.get(API_GATEWAY_URL, {
       params: {
@@ -194,33 +200,25 @@ const handleFileChange = async (e) => {
 
     const {uploadUrl, key} = response.data;
     console.log("2. URL 발급 완료:", uploadUrl);
-    console.log("   Lambda 응답 전체:", response.data);
+    
+    // AWS Lambda 응답 key 혹은 임시 파싱한 key
+    let s3Key = key || decodeURIComponent(new URL(uploadUrl).pathname.substring(1));
+    console.log("3. S3 키:", s3Key);
 
-    // Lambda가 반환한 key를 사용하거나, 없으면 URL에서 추출
-    let s3Key;
-    if (key) {
-      s3Key = key;
-      console.log("3. S3 키 (Lambda 제공):", s3Key);
-    } else {
-      // uploadUrl에서 경로 부분만 추출
-      const urlObj = new URL(uploadUrl);
-      s3Key = decodeURIComponent(urlObj.pathname.substring(1)); // 맨 앞 '/' 제거 후 디코딩
-      console.log("3. S3 키 (URL 추출):", s3Key);
-    }
-
-    // S3로 파일 업로드
+    // S3 업로드
     console.log("4. S3로 파일 전송 중...");
     await axios.put(uploadUrl, file, {
-      headers: {
-        "Content-Type": file.type,
-      },
+      headers: { "Content-Type": file.type },
     });
     console.log("5. 업로드 성공!");
-    
-    // S3 공개 URL 생성 및 저장
-    const s3Url = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${encodeURIComponent(s3Key)}`;
-    setPdfUrl(s3Url);  // S3 URL로 업데이트
-    console.log("원본 문서 URL:", s3Url);
+
+    // PDF.js가 로드할 수 있도록 Presigned URL 자체를 pdfUrl로 지정.
+    // (S3 객체가 'public-read' 권한이 없을 수도 있어서, 접근 가능한 URL을 써줘야 합니다)
+    // 업로드 직후 사용할 수 있도록 뷰어용 URL은 서명된 URL에서 쿼리파라미터를 잠시 제거한 원본이 아닌 GET용 Presigned URL을 새로 받아오거나,
+    // S3 버킷 권한 설정에 따라 그냥 s3Url로도 가능할 수 있습니다. 하지만 업로드가 완료된 presigned url을 뷰어에서 다시 fetch로 불러오려 하면 403이 뜰 수 있습니다.
+    // 임시로 그냥 로컬 objectUrl을 유지합니다. 서버 파싱이 완료되면 s3 기반으로 넘어가든가 선택하세요.
+    setPdfUrl(objectUrl);
+    console.log("원본 문서 임시 URL (업로드 뷰):", objectUrl);
 
     // S3 업로드 완료를 위한 짧은 대기
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -356,7 +354,12 @@ const handleFileChange = async (e) => {
               parsedText={parsedText || ocrText}
               onCellsFetched={handleCellsFetched}
               externalSuggestions={externalFillSuggestions}
+<<<<<<< HEAD
               docType={currentDocType}
+=======
+              docId={viewerDocId}
+              userEmail={userEmail}
+>>>>>>> origin/develop
             />
           ) : (
             <iframe

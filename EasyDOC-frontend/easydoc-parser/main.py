@@ -59,7 +59,8 @@ root_dir = current_file_path.parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-from database_document.database import get_db, Document
+from database_document.database import get_db, Document, upsert_document_by_identity
+import hashlib
 # -----------------------------
 
 app = FastAPI()
@@ -413,6 +414,7 @@ async def parse_from_s3(
         # S3 URL 조립
         s3_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_DEFAULT_REGION')}.amazonaws.com/{file_key}"
 
+<<<<<<< ours
         # DB 모델 생성
         resolved_type = resolve_doc_type(doc_type)
         new_doc = Document(
@@ -424,12 +426,22 @@ async def parse_from_s3(
             page_count=total_pages,
             user_email=user_email,
             doc_type=resolved_type,
+=======
+        content_hash = hashlib.sha256(contents).hexdigest()
+        new_doc = upsert_document_by_identity(
+            db,
+            user_email=user_email,
+            file_name=filename,
+            content_hash=content_hash,
+            fields={
+                "file_type": ext,
+                "s3_url": s3_url,
+                "extracted_text": text,
+                "file_size": file_size_str,
+                "page_count": total_pages,
+            },
+>>>>>>> theirs
         )
-        
-        # DB에 추가 및 커밋
-        db.add(new_doc)
-        db.commit()
-        db.refresh(new_doc)
 
         print(f"[DEBUG] DB 저장 성공! (문서 번호: {new_doc.id}, 크기: {file_size_str}, 페이지: {total_pages}, 유형: {resolved_type})")
         # ========================================================
