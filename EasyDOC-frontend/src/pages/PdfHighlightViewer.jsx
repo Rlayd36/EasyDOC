@@ -432,11 +432,10 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
         const selectedRects = extractHighlightRectsFromRect(normalizedSelection);
         const popupX = normalizedSelection.startX + (normalizedSelection.endX - normalizedSelection.startX) / 2;
         const wrapperRect = e.currentTarget.getBoundingClientRect();
-        const preferAboveY = wrapperRect.top + Math.max(8, normalizedSelection.startY - 12);
-        const preferBelowY = wrapperRect.top + normalizedSelection.endY + 12;
-        const placeBelow = preferAboveY < 140;
-        const popupClientX = wrapperRect.left + popupX;
-        const popupClientY = placeBelow ? preferBelowY : preferAboveY;
+        const absoluteTopInViewport = wrapperRect.top + normalizedSelection.startY;
+        const placeBelow = absoluteTopInViewport < 140;
+        const popupLocalX = popupX;
+        const popupLocalY = placeBelow ? normalizedSelection.endY + 12 : Math.max(8, normalizedSelection.startY - 12);
 
         setFixedSelectionRects(selectedRects);
         setSimplifyPopup({
@@ -444,8 +443,8 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
           error: null,
           originalText: text.trim(),
           simplifiedText: "",
-          x: popupClientX,
-          y: popupClientY,
+          x: popupLocalX,
+          y: popupLocalY,
           placement: placeBelow ? "below" : "above",
         });
 
@@ -753,8 +752,7 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
       ))}
 
       {/* 쉬운말 변환 팝업 (클리핑 방지: body 포털로 렌더링) */}
-      {simplifyPopup
-        ? createPortal(
+      {simplifyPopup && (
             <div
               className={`pdf-simplify-popup ${simplifyPopup.placement === "below" ? "pdf-simplify-popup--below" : ""}`}
               style={{ left: simplifyPopup.x, top: simplifyPopup.y }}
@@ -787,10 +785,8 @@ function PdfPage({ pdfDoc, pageNum, containerWidth, highlightWord, memoMode, mem
                   <p className="pdf-simplify-popup-result">{simplifyPopup.simplifiedText}</p>
                 )}
               </div>
-            </div>,
-            document.body,
-          )
-        : null}
+            </div>
+      )}
 
       {/* 텍스트 레이어 없음 안내 */}
       {!hasText && (
