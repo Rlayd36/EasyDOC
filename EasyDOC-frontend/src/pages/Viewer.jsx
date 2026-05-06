@@ -110,11 +110,8 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
             setSelectedDoc(docData); // 선택된 문서 상태 업데이트
             //setPdfUrl(null); // PDF 뷰어에서 텍스트 모드로 전환
             setDocumentName(docData.file_name); // AgentChat용 문서 이름 업데이트
-<<<<<<< HEAD
             setCurrentDocType(docData.doc_type || "default");
-=======
             setHighlightWord(""); // 문서가 바뀔 때 강조 단어 초기화
->>>>>>> origin/develop
 
             // 가져온 텍스트를 뷰어 상태에 반영
             setParsedText(docData.text || "");
@@ -354,12 +351,9 @@ const handleFileChange = async (e) => {
               parsedText={parsedText || ocrText}
               onCellsFetched={handleCellsFetched}
               externalSuggestions={externalFillSuggestions}
-<<<<<<< HEAD
               docType={currentDocType}
-=======
               docId={viewerDocId}
               userEmail={userEmail}
->>>>>>> origin/develop
             />
           ) : (
             <iframe
