@@ -1303,11 +1303,7 @@ function ImageBox({ image, onUpdate, onDelete }) {
 /* ─────────────────────────────────────────
    PdfHighlightViewer: PDF 전체 페이지 뷰어
    ───────────────────────────────────────── */
-<<<<<<< HEAD
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, docType = "default" }) {
-=======
-export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, docId, userEmail }) {
->>>>>>> origin/develop
+export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, onCellsFetched, externalSuggestions, docId, userEmail, docType = "default" }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
