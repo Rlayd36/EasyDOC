@@ -43,6 +43,12 @@
       "label": "부동산",
       "icon": "🏠",
       "description": "전세·월세 계약, 등기부등본, 청약"
+    },
+    {
+      "id": "network",
+      "label": "컴퓨터 네트워크",
+      "icon": "🌐",
+      "description": "프로토콜·장비 설정·NAS·보안"
     }
   ],
   "types": [
@@ -253,6 +259,38 @@
       "icon": "🎯",
       "description": "아파트 청약 공고·분양 안내문",
       "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
+    },
+    {
+      "id": "network-protocol",
+      "category": "network",
+      "label": "프로토콜·이론",
+      "icon": "📡",
+      "description": "TCP/IP·OSI·HTTP 교재 및 프로토콜 명세서",
+      "keywords": ["TCP", "UDP", "IP", "HTTP", "DNS", "DHCP", "OSI", "NAT", "CIDR", "소켓", "프로토콜"]
+    },
+    {
+      "id": "network-device",
+      "category": "network",
+      "label": "장비 설정",
+      "icon": "🔧",
+      "description": "공유기·스위치·AP 설정 매뉴얼",
+      "keywords": ["공유기", "스위치", "AP", "SSID", "VLAN", "QoS", "DDNS", "포트포워딩", "WPA3", "PoE"]
+    },
+    {
+      "id": "network-nas",
+      "category": "network",
+      "label": "NAS·스토리지",
+      "icon": "💾",
+      "description": "Synology·QNAP·TrueNAS·헤놀로지 설정서",
+      "keywords": ["NAS", "RAID", "SMB", "NFS", "DSM", "Synology", "QNAP", "XPEnology", "헤놀로지", "Plex", "iSCSI"]
+    },
+    {
+      "id": "network-security",
+      "category": "network",
+      "label": "네트워크 보안",
+      "icon": "🔐",
+      "description": "방화벽·VPN·IDS/IPS 정책서 및 설정 문서",
+      "keywords": ["방화벽", "VPN", "IDS", "IPS", "ACL", "DMZ", "SSL", "TLS", "제로트러스트", "WireGuard"]
     },
     {
       "id": "default",
