@@ -49,6 +49,12 @@
       "label": "컴퓨터 네트워크",
       "icon": "🌐",
       "description": "프로토콜·장비 설정·NAS·보안"
+    },
+    {
+      "id": "cs",
+      "label": "컴퓨터공학",
+      "icon": "🖥️",
+      "description": "컴퓨터 구조·OS·알고리즘·DB·소프트웨어공학"
     }
   ],
   "types": [
@@ -291,6 +297,46 @@
       "icon": "🔐",
       "description": "방화벽·VPN·IDS/IPS 정책서 및 설정 문서",
       "keywords": ["방화벽", "VPN", "IDS", "IPS", "ACL", "DMZ", "SSL", "TLS", "제로트러스트", "WireGuard"]
+    },
+    {
+      "id": "cs-architecture",
+      "category": "cs",
+      "label": "컴퓨터 구조",
+      "icon": "⚙️",
+      "description": "CPU·메모리·캐시·ISA 구조 교재",
+      "keywords": ["컴퓨터구조", "CPU", "ALU", "ISA", "RISC", "CISC", "캐시", "파이프라이닝", "가상메모리", "TLB"]
+    },
+    {
+      "id": "cs-os",
+      "category": "cs",
+      "label": "운영체제",
+      "icon": "🖥️",
+      "description": "프로세스·스케줄링·메모리관리·파일시스템 교재",
+      "keywords": ["운영체제", "프로세스", "스레드", "스케줄링", "세마포어", "데드락", "페이징", "시스템콜"]
+    },
+    {
+      "id": "cs-algorithm",
+      "category": "cs",
+      "label": "알고리즘·자료구조",
+      "icon": "🧮",
+      "description": "정렬·탐색·그래프·동적계획법 알고리즘 교재",
+      "keywords": ["알고리즘", "자료구조", "시간복잡도", "BFS", "DFS", "동적계획법", "정렬", "트리", "그래프", "O표기법"]
+    },
+    {
+      "id": "cs-database",
+      "category": "cs",
+      "label": "데이터베이스",
+      "icon": "🗄️",
+      "description": "SQL·정규화·트랜잭션·인덱스 교재 및 명세",
+      "keywords": ["데이터베이스", "SQL", "정규화", "트랜잭션", "ACID", "인덱스", "JOIN", "ERD", "NoSQL"]
+    },
+    {
+      "id": "cs-software",
+      "category": "cs",
+      "label": "소프트웨어공학",
+      "icon": "🔩",
+      "description": "설계 패턴·개발 방법론·UML·테스트 교재 및 명세서",
+      "keywords": ["소프트웨어공학", "애자일", "스크럼", "SOLID", "디자인패턴", "UML", "CI/CD", "TDD", "리팩토링"]
     },
     {
       "id": "default",
