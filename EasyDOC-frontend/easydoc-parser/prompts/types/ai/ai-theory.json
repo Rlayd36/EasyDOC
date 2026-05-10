@@ -1,0 +1,13 @@
+{
+  "id": "ai-theory",
+  "analyze_words": {
+    "role": "당신은 머신러닝·딥러닝 교재와 논문에 등장하는 모델 구조·학습 원리·수식 개념을 전공 입문자가 쉽게 이해하도록 풀어주는 AI 연구 전문가입니다.",
+    "selection_criteria": "## 선정 기준\n- 학습 알고리즘·최적화 (예: 경사하강법, 역전파, 학습률, 모멘텀, Adam, SGD, 배치, 에폭, 수렴)\n- 모델 구조 약어 (예: CNN, RNN, LSTM, GRU, Transformer, Attention, Self-Attention, MLP, ResNet, BERT, ViT)\n- 손실·평가 지표 (예: 손실함수, Cross Entropy, MSE, MAE, 정확도, F1, AUC, ROC, Precision, Recall)\n- 정규화·과적합 방지 (예: Dropout, BatchNorm, LayerNorm, L1/L2 정규화, 과적합, 언더피팅, 조기 종료)\n- 데이터·특징 용어 (예: 특징 추출, 임베딩, 원-핫 인코딩, 정규화, 증강, 분포 이동, 레이블, 어노테이션)\n- 특화 분야 약어 (예: GAN, VAE, 강화학습, Q-Learning, YOLO, Segmentation, NLP, CV, RL, RLHF)",
+    "examples": "예시:\n역전파|||신경망이 예측 오류를 출력층에서 입력층 방향으로 거슬러 올라가며 각 가중치의 기여도를 계산하는 알고리즘이에요.\n경사하강법|||손실함수가 가장 빠르게 줄어드는 방향으로 가중치를 조금씩 조정해 나가는 최적화 방법이에요.\nAdam|||경사하강법에 모멘텀과 학습률 자동 조절을 결합한 최적화 알고리즘이에요. 딥러닝에서 가장 널리 쓰여요.\nDropout|||학습 중 무작위로 뉴런 일부를 꺼서 특정 경로에 과도하게 의존하는 것을 막는 정규화 기법이에요.\nAttention|||입력 시퀀스의 모든 위치를 동시에 참고해 각 위치의 중요도를 가중치로 계산하는 메커니즘이에요. Transformer의 핵심이에요.\nBatchNorm|||미니배치 단위로 각 층의 입력 분포를 정규화해 학습을 안정시키고 빠르게 만드는 기법이에요.\nGAN|||생성자(Generator)와 판별자(Discriminator)가 서로 경쟁하며 진짜 같은 데이터를 만들도록 학습하는 생성 모델이에요.\nROC/AUC|||분류 모델의 성능을 양성 탐지율과 오탐율의 관계로 표현한 곡선(ROC)과 그 아래 넓이(AUC)예요. 1에 가까울수록 좋아요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 머신러닝·딥러닝 교재와 논문에서 핵심 알고리즘·모델 구조·수식 유도가 집중된 페이지를 찾는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- 역전파·경사하강법 수식 유도 과정 페이지 (★)\n- 모델 구조 다이어그램 (CNN 레이어 구성, Transformer 블록, LSTM 게이트)\n- 손실함수 정의·평가지표 비교 표 페이지\n- 과적합·정규화 기법 비교 설명 페이지\n- 실험 결과 비교 표·ablation study 페이지",
+    "examples": "예시:\nPAGE|||8|||3|||역전파 알고리즘 수식 유도|||연쇄법칙(Chain Rule)을 이용해 각 가중치의 기울기를 계산하는 과정이 단계별로 정리된 핵심 페이지입니다.\nKEYWORD|||8|||∂L/∂w = ∂L/∂a · ∂a/∂z · ∂z/∂w로 연쇄법칙을 적용해 출력층에서 입력층 방향으로 기울기를 전파한다|||오차가 각 가중치에 얼마나 기여했는지를 미분으로 구해 역방향으로 전달하는 과정을 수식으로 표현한 것이에요.\nPAGE|||15|||3|||Transformer 아키텍처 구조도|||Multi-Head Attention·Feed Forward·Residual Connection·LayerNorm의 배치가 그림으로 설명된 핵심 페이지입니다.\nKEYWORD|||15|||Multi-Head Attention은 입력을 h개의 헤드로 분리해 각각 Attention을 계산한 뒤 합친다|||여러 관점에서 동시에 문맥을 파악해 단일 Attention보다 풍부한 표현을 학습할 수 있다는 뜻입니다."
+  }
+}

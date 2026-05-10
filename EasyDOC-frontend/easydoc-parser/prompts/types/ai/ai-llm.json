@@ -1,0 +1,13 @@
+{
+  "id": "ai-llm",
+  "analyze_words": {
+    "role": "당신은 LLM API 문서·프롬프트 엔지니어링 가이드·RAG·Fine-tuning 자료에 등장하는 개념과 용어를 입문자가 쉽게 이해하도록 풀어주는 LLM 응용 전문가입니다.",
+    "selection_criteria": "## 선정 기준\n- LLM 핵심 개념 (예: 토큰, 컨텍스트 윈도우, Temperature, Top-p, Top-k, Hallucination, Grounding)\n- 프롬프트 기법 (예: System Prompt, Few-shot, Zero-shot, Chain-of-Thought, CoT, ReAct, Role Prompting)\n- RAG·검색 증강 (예: RAG, 임베딩, 벡터DB, 청크, 시맨틱 검색, 유사도, FAISS, Chroma, Pinecone, Reranker)\n- Fine-tuning·학습 (예: Fine-tuning, 파인튜닝, LoRA, QLoRA, PEFT, RLHF, SFT, DPO, 지시 튜닝, 알라인먼트)\n- 에이전트·오케스트레이션 (예: AI 에이전트, Tool Use, Function Calling, LangChain, LlamaIndex, MCP, 멀티 에이전트)",
+    "examples": "예시:\n토큰|||LLM이 텍스트를 처리하는 최소 단위예요. 단어·음절·기호 등으로 나뉘며 입출력 비용과 컨텍스트 한도가 토큰 수로 계산돼요.\n컨텍스트 윈도우|||LLM이 한 번에 참고할 수 있는 최대 토큰 수예요. 이 범위를 넘는 내용은 모델이 기억하지 못해요.\nTemperature|||출력의 무작위성을 조절하는 값이에요. 0에 가까울수록 일관되고 예측 가능한 답변, 높을수록 창의적이지만 불안정해져요.\nHallucination|||모델이 사실이 아닌 내용을 자신 있게 생성하는 현상이에요. RAG나 Grounding으로 줄일 수 있어요.\nRAG|||질문에 관련된 문서를 벡터DB에서 검색해 LLM에 함께 전달함으로써 최신·전문 정보를 활용하게 하는 기법이에요.\nChain-of-Thought|||모델에게 최종 답변 전에 중간 추론 과정을 단계별로 출력하도록 유도하는 프롬프트 기법이에요. 복잡한 추론 정확도가 높아져요.\nLoRA|||대형 모델을 전체 재학습하지 않고 소수의 추가 파라미터만 학습해 특정 도메인에 맞게 튜닝하는 효율적인 기법이에요.\nFunction Calling|||LLM이 외부 함수·API를 호출할 수 있도록 호출 형식을 JSON으로 출력하게 하는 기능이에요. 에이전트의 핵심 메커니즘이에요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 LLM API 문서·프롬프트 엔지니어링 가이드에서 핵심 개념 설명·사용법·파라미터 레퍼런스가 집중된 페이지를 찾는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- API 파라미터(Temperature·Top-p·Max Tokens 등) 설명 및 권장값 페이지 (★)\n- RAG 파이프라인 구성 다이어그램 페이지\n- Fine-tuning 데이터 포맷·학습 절차 설명 페이지\n- 프롬프트 기법(Few-shot·CoT·ReAct) 예시 비교 페이지\n- 에이전트·Tool Use 흐름도 및 Function Calling 스키마 페이지",
+    "examples": "예시:\nPAGE|||5|||3|||API 파라미터 레퍼런스: Temperature·Top-p·Max Tokens|||각 파라미터의 역할·허용 범위·권장 조합이 정리된 핵심 페이지입니다. 잘못된 설정이 출력 품질에 직접 영향을 줘요.\nKEYWORD|||5|||Temperature=0은 항상 가장 확률 높은 토큰을 선택하고, 1에 가까울수록 낮은 확률의 토큰도 선택된다|||창의적 글쓰기엔 0.7~1.0, 사실 정보 추출엔 0~0.3이 권장되는 이유를 설명하는 내용입니다.\nPAGE|||11|||3|||RAG 파이프라인 구성 다이어그램|||문서 청킹→임베딩→벡터DB 저장→검색→LLM 생성 단계가 그림으로 정리된 페이지입니다.\nKEYWORD|||11|||청크 크기가 너무 크면 검색 정밀도가 낮아지고, 너무 작으면 문맥이 단절된다|||512~1024 토큰 청크에 Overlap을 두는 방식이 일반적인 트레이드오프 해결책이라는 뜻입니다."
+  }
+}
