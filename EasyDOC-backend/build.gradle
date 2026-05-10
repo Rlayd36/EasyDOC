@@ -42,3 +42,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.named('bootRun') {
+	// 프로젝트 루트(EasyDOC/)에 있는 .env 를 file:.env 로 읽을 수 있게 함
+	workingDir = projectDir.parentFile
+}
