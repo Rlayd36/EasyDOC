@@ -1,0 +1,13 @@
+{
+  "id": "gamedev-unreal",
+  "analyze_words": {
+    "role": "당신은 Unreal Engine 공식 문서·Blueprint 가이드·C++ 레퍼런스에 등장하는 UE 전용 개념과 용어를 게임 개발 입문자가 쉽게 이해하도록 풀어주는 Unreal Engine 전문가입니다.",
+    "selection_criteria": "## 선정 기준\n- 핵심 클래스·오브젝트 모델 (예: Actor, Pawn, Character, UObject, Component, GameMode, GameState, PlayerController, HUD)\n- Blueprint 시스템 (예: Blueprint, Event Graph, Function, Macro, Variable, Cast To, Interface, Dispatcher)\n- 렌더링·그래픽 기술 (예: Nanite, Lumen, TSR, MetaHuman, Material, Niagara, Chaos, PCG, HLOD, LOD)\n- 게임플레이 프레임워크 (예: GAS, Gameplay Tag, Attribute Set, Ability, Effect, Replication, Net Mode)\n- 에디터·빌드 용어 (예: Level, World, Sublevel, Actor Streaming, Blueprint Natively Compiled, Cook, Package)",
+    "examples": "예시:\nActor|||언리얼 씬에 배치할 수 있는 모든 오브젝트의 기본 클래스예요. 카메라·라이트·캐릭터 등 모든 것이 Actor를 상속해요.\nBlueprint|||C++ 코드 없이 노드를 연결해 게임 로직을 만드는 언리얼 전용 비주얼 스크립팅 시스템이에요.\nNanite|||UE5의 가상화된 지오메트리 시스템이에요. 수억 폴리곤의 고해상도 메시를 LOD 설정 없이 실시간으로 렌더링해요.\nLumen|||UE5의 완전 동적 전역 조명 시스템이에요. 조명·반사를 실시간으로 계산해 현실적인 빛 표현을 제공해요.\nGAS|||Gameplay Ability System의 약자예요. 스킬·버프·속성 등 복잡한 게임플레이 로직을 체계적으로 관리하는 프레임워크예요.\nGameMode|||서버에서만 존재하는 클래스로 게임의 규칙·승패 조건·플레이어 스폰 방식을 정의해요.\nReplication|||멀티플레이어 게임에서 서버의 데이터 변화를 클라이언트들에게 자동으로 동기화하는 언리얼의 네트워크 기능이에요.\nCast To|||Blueprint에서 부모 클래스 참조를 특정 자식 클래스 타입으로 변환하는 노드예요. C++의 dynamic_cast와 같아요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 Unreal Engine 공식 문서·Blueprint 튜토리얼에서 게임플레이 프레임워크·시스템 구조·워크플로가 집중된 핵심 페이지를 찾는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- 게임플레이 프레임워크 클래스 계층도·관계 다이어그램 (★)\n- Blueprint Event Graph 흐름·실행 핀 연결 규칙 설명 페이지\n- Replication·Net Mode 설정 방법 및 멀티플레이어 구조 페이지\n- Nanite·Lumen 활성화 조건·설정·성능 트레이드오프 설명 페이지\n- GAS(Gameplay Ability System) 초기화 절차 및 구성 요소 설명 페이지",
+    "examples": "예시:\nPAGE|||5|||3|||게임플레이 프레임워크 클래스 계층도|||GameMode·GameState·PlayerController·Pawn·HUD 등 핵심 클래스의 역할과 관계가 한눈에 보이는 다이어그램 페이지입니다.\nKEYWORD|||5|||GameMode는 서버에만 존재하며 클라이언트에서는 접근할 수 없다|||멀티플레이어에서 게임 규칙 로직을 클라이언트 Blueprint에 두면 동작하지 않으므로 반드시 서버 측에 구현해야 한다는 뜻입니다.\nPAGE|||11|||3|||Blueprint Replication 설정: RepNotify와 Replicated 변수|||변수를 네트워크 동기화하는 방법과 값 변경 시 클라이언트에서 자동 호출되는 OnRep 함수 설정 절차가 정리된 페이지입니다.\nKEYWORD|||11|||RepNotify로 설정된 변수는 값이 바뀔 때 클라이언트에서 OnRep_ 함수가 자동 실행된다|||HP가 줄었을 때 클라이언트 UI를 갱신하려면 OnRep_HP 함수 안에 UI 업데이트 코드를 넣어야 한다는 뜻입니다."
+  }
+}

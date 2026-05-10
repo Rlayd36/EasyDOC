@@ -55,6 +55,12 @@
       "label": "컴퓨터공학",
       "icon": "🖥️",
       "description": "컴퓨터 구조·OS·알고리즘·DB·소프트웨어공학"
+    },
+    {
+      "id": "gamedev",
+      "label": "게임 개발",
+      "icon": "🎮",
+      "description": "Unity·Unreal·Godot·Cocos2d·RPG Maker 엔진 문서"
     }
   ],
   "types": [
@@ -337,6 +343,46 @@
       "icon": "🔩",
       "description": "설계 패턴·개발 방법론·UML·테스트 교재 및 명세서",
       "keywords": ["소프트웨어공학", "애자일", "스크럼", "SOLID", "디자인패턴", "UML", "CI/CD", "TDD", "리팩토링"]
+    },
+    {
+      "id": "gamedev-unity",
+      "category": "gamedev",
+      "label": "Unity",
+      "icon": "🟦",
+      "description": "Unity 엔진 매뉴얼·C# 스크립팅·API 레퍼런스",
+      "keywords": ["Unity", "유니티", "MonoBehaviour", "Prefab", "프리팹", "Coroutine", "GameObject", "Inspector", "ScriptableObject", "Rigidbody", "Animator", "Canvas", "NavMesh", "Shader", "UGUI"]
+    },
+    {
+      "id": "gamedev-unreal",
+      "category": "gamedev",
+      "label": "Unreal Engine",
+      "icon": "🎯",
+      "description": "UE5·Blueprint·C++ 공식 문서 및 가이드",
+      "keywords": ["Unreal", "언리얼", "UE5", "Blueprint", "블루프린트", "Actor", "Component", "GameMode", "PlayerController", "Nanite", "Lumen", "GAS", "MetaHuman", "HLOD", "AI"]
+    },
+    {
+      "id": "gamedev-godot",
+      "category": "gamedev",
+      "label": "Godot",
+      "icon": "🤖",
+      "description": "Godot 엔진 공식 문서·GDScript·씬 시스템",
+      "keywords": ["Godot", "고도", "GDScript", "Node", "Scene", "Signal", "Export", "CharacterBody2D", "Area2D", "AnimationPlayer", "Tween", "Autoload", "Resource", "Inspector"]
+    },
+    {
+      "id": "gamedev-cocos",
+      "category": "gamedev",
+      "label": "Cocos2d / Creator",
+      "icon": "🥥",
+      "description": "Cocos Creator 공식 문서·TypeScript·모바일 게임",
+      "keywords": ["Cocos", "코코스", "Cocos Creator", "CocosCreator", "cc.Node", "Component", "Prefab", "Action", "Scheduler", "Physics", "TypeScript", "Scene", "Layer", "Animation"]
+    },
+    {
+      "id": "gamedev-rpgmaker",
+      "category": "gamedev",
+      "label": "RPG Maker / 쯔꾸르",
+      "icon": "⚔️",
+      "description": "RPG Maker MV/MZ 매뉴얼·플러그인·이벤트 가이드",
+      "keywords": ["RPG Maker", "쯔꾸르", "RMMV", "RMMZ", "MV", "MZ", "이벤트", "플러그인", "스위치", "변수", "공통이벤트", "트룹", "타일셋", "JavaScript", "Plugin"]
     },
     {
       "id": "default",
