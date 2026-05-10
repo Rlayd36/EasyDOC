@@ -43,6 +43,42 @@
       "label": "부동산",
       "icon": "🏠",
       "description": "전세·월세 계약, 등기부등본, 청약"
+    },
+    {
+      "id": "digital-subscription",
+      "label": "구독 서비스",
+      "icon": "📱",
+      "description": "OTT, 소프트웨어 등 정기결제 서비스 약관"
+    },
+    {
+      "id": "content-creator",
+      "label": "콘텐츠 제작·저작권",
+      "icon": "🎬",
+      "description": "MCN 계약, 스폰서십, 저작권, 방송 플랫폼 약관"
+    },
+    {
+      "id": "trade-overseas",
+      "label": "해외직구·통관",
+      "icon": "📦",
+      "description": "수입신고필증, 관세 고지서, 인보이스"
+    },
+    {
+      "id": "travel-airline",
+      "label": "여행·항공권",
+      "icon": "✈️",
+      "description": "e-티켓, 숙박 예약서, 여행자 보험"
+    },
+    {
+      "id": "pet",
+      "label": "반려동물",
+      "icon": "🐾",
+      "description": "반려동물 입양, 진료비, 펫보험 약관"
+    },
+    {
+      "id": "beauty-wellness",
+      "label": "뷰티·시술",
+      "icon": "✨",
+      "description": "피부과 시술 동의서, 미용·네일샵 정액권 약관"
     }
   ],
   "types": [
@@ -253,6 +289,166 @@
       "icon": "🎯",
       "description": "아파트 청약 공고·분양 안내문",
       "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
+    },
+    {
+      "id": "sub-media",
+      "category": "digital-subscription",
+      "label": "콘텐츠·미디어 구독",
+      "icon": "📺",
+      "description": "OTT, 멤버십, 음원 스트리밍 서비스 이용 및 해지 약관",
+      "keywords": ["OTT", "스트리밍", "멤버십", "정기결제", "청약철회", "해지", "환불", "콘텐츠", "미디어", "저작권"]
+    },
+    {
+      "id": "sub-software",
+      "category": "digital-subscription",
+      "label": "소프트웨어·클라우드 서비스",
+      "icon": "💻",
+      "description": "소프트웨어 및 클라우드 스토리지 라이선스 및 구독 약관",
+      "keywords": ["소프트웨어", "SaaS", "클라우드", "스토리지", "라이선스", "구독", "정기결제", "자동결제", "환불", "기능제한"]
+    },
+    {
+      "id": "creator-mcn",
+      "category": "content-creator",
+      "label": "MCN·소속사 계약",
+      "icon": "📝",
+      "description": "크리에이터 소속사 전속 계약서, 수익 분배 약정서",
+      "keywords": ["MCN", "소속사", "전속계약", "수익분배", "계약기간", "해지", "페널티", "정산", "위약금"]
+    },
+    {
+      "id": "creator-sponsor",
+      "category": "content-creator",
+      "label": "광고·스폰서십 계약",
+      "icon": "📢",
+      "description": "게임 협찬, 제품 리뷰, 브랜디드 콘텐츠 제작 및 스폰서십 계약서",
+      "keywords": ["광고", "스폰서십", "협찬", "제품리뷰", "브랜디드콘텐츠", "계약서", "대가", "성과보수", "비밀유지", "NDA"]
+    },
+    {
+      "id": "creator-license",
+      "category": "content-creator",
+      "label": "저작권·에셋 라이선스",
+      "icon": "🎨",
+      "description": "캐릭터 디자인, 음원, 폰트 등 콘텐츠 사용 허락 및 2차창작 저작물 약관",
+      "keywords": ["저작권", "라이선스", "에셋", "BGM", "폰트", "초상권", "2차창작", "가이드라인", "사용범위", "저작물"]
+    },
+    {
+      "id": "creator-platform",
+      "category": "content-creator",
+      "label": "플랫폼 약관",
+      "icon": "▶️",
+      "description": "유튜브, 치지직 등 방송 플랫폼 이용 약관, 수익 창출 및 커뮤니티 가이드라인",
+      "keywords": ["유튜브", "치지직", "SOOP", "방송플랫폼", "스트리밍", "이용약관", "수익창출", "저작권침해", "콘텐츠ID", "페널티"]
+    },
+    {
+      "id": "overseas-customs",
+      "category": "trade-overseas",
+      "label": "수입신고·관세",
+      "icon": "🏢",
+      "description": "해외 직구 물품 수입신고필증 및 관세·부가세 납부 고지서",
+      "keywords": ["수입신고필증", "관세", "부가세", "통관", "개인통관고유부호", "유니패스", "관세법인"]
+    },
+    {
+      "id": "overseas-invoice",
+      "category": "trade-overseas",
+      "label": "인보이스·영수증",
+      "icon": "🧾",
+      "description": "해외 쇼핑몰 구매 내역서 및 인보이스, 배송 대행지 신청서",
+      "keywords": ["인보이스", "Invoice", "영수증", "배대지", "트래킹", "RMA", "해외직구", "구매내역"]
+    },
+    {
+      "id": "overseas-rma",
+      "category": "trade-overseas",
+      "label": "반품·교환·AS",
+      "icon": "🔄",
+      "description": "해외 쇼핑몰 반품·교환·AS 신청서, 반품 라벨 및 안내문",
+      "keywords": ["RMA", "반품", "교환", "AS", "리턴라벨", "해외배송", "불량", "파손", "환불"]
+    },
+    {
+      "id": "travel-flight",
+      "category": "travel-airline",
+      "label": "항공권·e-티켓",
+      "icon": "🎫",
+      "description": "전자 항공권, 여정 안내서, 수하물 규정 및 취소 수수료 안내문",
+      "keywords": ["항공권", "e-티켓", "여정안내서", "수하물규정", "취소수수료", "환불규정", "체크인", "탑승권", "보딩패스", "마일리지"]
+    },
+    {
+      "id": "travel-hotel",
+      "category": "travel-airline",
+      "label": "숙박 예약 확인서",
+      "icon": "🏨",
+      "description": "호텔 예약 확인서, 취소 및 환불 정책 안내문",
+      "keywords": ["숙박예약", "예약확인서", "취소정책", "환불정책", "체크인", "체크아웃", "노쇼", "연박", "조식", "보증금"]
+    },
+    {
+      "id": "travel-insurance",
+      "category": "travel-airline",
+      "label": "해외여행보험·여행자보험",
+      "icon": "⛑️",
+      "description": "해외/국내 여행자 보험 가입 증명서 및 휴대품 파손 보상 청구 서류",
+      "keywords": ["여행자보험", "해외여행보험", "국내여행보험", "가입증명서", "휴대품파손", "보상청구", "긴급지원", "의료비보상", "여행취소", "면책금"]
+    },
+    {
+      "id": "travel-rental",
+      "category": "travel-airline",
+      "label": "렌터카·교통패스",
+      "icon": "🚗",
+      "description": "렌터카 대여 계약서, 국제운전면허증, 교통패스 이용 약관 및 환불 정책 안내문",
+      "keywords": ["렌터카", "교통패스", "대여계약서", "국제운전면허증", "이용약관", "환불정책", "보험", "면책조항", "연료정책", "면책금"]
+    },
+    {
+      "id": "travel-visa",
+      "category": "travel-airline",
+      "label": "비자·출입국 신고서",
+      "icon": "🛂",
+      "description": "비자 신청서, 세관 신고서, 출입국 신고서 및 심사 관련 안내문",
+      "keywords": ["비자", "출입국신고서", "세관신고서", "입국심사", "ESTA", "비자면제", "체류기간", "재입국허가", "면세한도"]
+    },
+    {
+    "id": "pet-adoption",
+    "category": "pet",
+    "label": "분양·입양 계약서",
+    "icon": "🐶",
+    "description": "반려동물 분양 계약서 및 유기동물 입양 책임 서약서",
+    "keywords": ["분양", "입양", "유기동물", "책임서약", "반려동물", "동물보호법", "예방접종", "중성화", "혈통서", "예방접종"]
+    },
+    {
+      "id": "pet-hospital",
+      "category": "pet",
+      "label": "동물병원·펫보험",
+      "icon": "🏥",
+      "description": "동물병원 진료 안내문, 수술 동의서, 펫보험 약관 및 보상 청구 서류",
+      "keywords": ["동물병원", "펫보험", "진료안내", "수술동의서", "보상청구", "면책조항", "예방접종"]
+    },
+    {
+      "id": "pet-service",
+      "category": "pet",
+      "label": "반려동물 서비스",
+      "icon": "✂️",
+      "description": "애견미용, 펫시터, 훈련소, 위탁 호텔 등 반려동물 서비스 이용 약관",
+      "keywords": ["애견미용", "펫시터", "훈련소", "위탁호텔", "위탁", "이용약관", "예약취소", "환불정책", "면책조항"]
+    },
+    {
+      "id": "beauty-clinic",
+      "category": "beauty-wellness",
+      "label": "피부과·시술 동의서",
+      "icon": "💉",
+      "description": "레이저, 쁘띠 시술 등 피부과 시술 동의서, 부작용 안내문, 시술 후 관리 지침",
+      "keywords": ["피부과", "성형외과", "시술동의서", "레이저", "부작용", "사후관리", "환불", "회원권"]
+    },
+    {
+      "id": "beauty-shop",
+      "category": "beauty-wellness",
+      "label": "미용실·네일·에스테틱",
+      "icon": "💅",
+      "description": "헤어, 네일샵, 피부관리실 다회권/정액권 결제 및 중도 해지 환불 약관",
+      "keywords": ["미용실", "네일샵", "에스테틱", "다회권", "정액권", "결제약관", "환불약관", "중도해지", "회원권"]
+    },
+    {
+      "id": "beauty-tattoo",
+      "category": "beauty-wellness",
+      "label": "타투·반영구 시술",
+      "icon": "🖋️",
+      "description": "타투, 반영구 화장 시술 전 주의사항 안내, 리터치 규정 및 동의서",
+      "keywords": ["타투", "반영구", "시술동의서", "주의사항", "예약", "리터치", "환불정책", "사후관리", "알레르기", "감염"]
     },
     {
       "id": "default",
