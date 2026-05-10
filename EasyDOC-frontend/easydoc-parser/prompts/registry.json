@@ -49,6 +49,12 @@
       "label": "스포츠",
       "icon": "⚽",
       "description": "대회 참가, 시설 이용, 경기 규칙, 학교 체육, 스포츠 보험"
+    },
+    {
+      "id": "military",
+      "label": "병역",
+      "icon": "🎖️",
+      "description": "병역판정·입영, 현역·보충역, 예비역·동원훈련 안내"
     }
   ],
   "types": [
@@ -299,6 +305,46 @@
       "icon": "🛡️",
       "description": "단체 상해보험·클럽 가입 보장·면책·자기부담금",
       "keywords": ["상해", "보험금", "면책", "자기부담금", "특별약관", "단체보험", "후유장해", "치료비"]
+    },
+    {
+      "id": "military-exam",
+      "category": "military",
+      "label": "병역판정·신체검사",
+      "icon": "📋",
+      "description": "병역판정검사 통지·등위급·재검·판정 변경 안내",
+      "keywords": ["병역판정검사", "신체등위급", "현역", "보충역", "재신체검사", "재판정", "병무청", "면제"]
+    },
+    {
+      "id": "military-call",
+      "category": "military",
+      "label": "입영·소집",
+      "icon": "📨",
+      "description": "입영통지·입영 연기·입영일·소집 해제 안내",
+      "keywords": ["입영통지", "입영연기", "소집해제", "입영훈련소", "징병검사", "복무기간산정"]
+    },
+    {
+      "id": "military-active",
+      "category": "military",
+      "label": "현역 복무",
+      "icon": "🪖",
+      "description": "현역 입대 준비·복무 기간·휴가·외박·포상·징계 안내",
+      "keywords": ["현역", "입대", "복무기간", "휴가", "외박", "포상", "징계", "전역", "부대"]
+    },
+    {
+      "id": "military-alternative",
+      "category": "military",
+      "label": "보충역·대체역",
+      "icon": "🏢",
+      "description": "사회복무요원·산업기능요원 등 배치·복무·교육 안내",
+      "keywords": ["사회복무요원", "산업기능요원", "보충역", "대체역", "복무기관", "복무관", "소집해제일"]
+    },
+    {
+      "id": "military-reserve",
+      "category": "military",
+      "label": "예비역·동원",
+      "icon": "📯",
+      "description": "예비역 편입·동원훈련·교육소집 통지 및 안내",
+      "keywords": ["예비역", "동원훈련", "교육소집", "민방위", "소집통지", "동원지정"]
     },
     {
       "id": "default",
