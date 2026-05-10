@@ -43,6 +43,36 @@
       "label": "부동산",
       "icon": "🏠",
       "description": "전세·월세 계약, 등기부등본, 청약"
+    },
+    {
+      "id": "business",
+      "label": "사업",
+      "icon": "💼",
+      "description": "정책자금 지원 공고, 상표권, 투자 계약"
+    },
+    {
+      "id": "environment",
+      "label": "환경",
+      "icon": "🌱",
+      "description": "전기차 보조금, 노후 경유차 조기 폐차 지원, 미세먼지 비상저감조치 안내문"
+    },
+    {
+      "id": "event",
+      "label": "행사",
+      "icon": "🎉",
+      "description": "예식장 이용, 스냅 및 영상 촬영 계약서, 상조 서비스 약관"
+    },
+    {
+      "id": "residence",
+      "label": "거주",
+      "icon": "🏠",
+      "description": "주거 지원 사업, 관리비 명세서"
+    },
+    {
+      "id": "show",
+      "label": "공연·전시",
+      "icon": "🎭",
+      "description": "문화예술 지원사업, 공연 예매 유의사항, 예술 저작권"
     }
   ],
   "types": [
@@ -253,6 +283,170 @@
       "icon": "🎯",
       "description": "아파트 청약 공고·분양 안내문",
       "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
+    },
+    {
+      "id": "biz-business-transfer",
+      "category": "business",
+      "label": "영업 양수도 계약",
+      "icon": "🤝",
+      "description": "사업체 권리금 및 영업권 승계 계약서",
+      "keywords": ["영업양수도", "권리금", "비품", "경업금지", "채무승계"]
+    },
+    {
+      "id": "biz-franchise-disclosure",
+      "category": "business",
+      "label": "가맹사업 정보공개서",
+      "icon": "📑",
+      "description": "프랜차이즈 가맹본부 정보 및 가맹금 안내",
+      "keywords": ["정보공개서", "가맹", "로열티", "가맹금", "예상매출"]
+    },
+    {
+      "id": "biz-interior-contract",
+      "category": "business",
+      "label": "인테리어 공사 계약",
+      "icon": "🏗️",
+      "description": "매장 인테리어 시공 및 하자 보수 계약서",
+      "keywords": ["인테리어", "지체상금", "준공", "착공", "하자보수"]
+    },
+    {
+      "id": "biz-investment-termsheet",
+      "category": "business",
+      "label": "투자 조건 합의서",
+      "icon": "📈",
+      "description": "스타트업 투자 유치를 위한 주요 조건 합의서",
+      "keywords": ["Term Sheet", "투자", "밸류에이션", "청산우선권", "RCPS"]
+    },
+    {
+      "id": "biz-policy-fund",
+      "category": "business",
+      "label": "소상공인 정책자금",
+      "icon": "💰",
+      "description": "정부 소상공인 지원 대출 및 자금 공고",
+      "keywords": ["정책자금", "소상공인", "거치기간", "이자보전", "직접대출"]
+    },
+    {
+      "id": "biz-registration-guide",
+      "category": "business",
+      "label": "사업자 등록 안내",
+      "icon": "💼",
+      "description": "신규 사업자 등록 및 업종 선택 가이드",
+      "keywords": ["사업자등록", "간이과세", "일반과세", "업종코드", "인허가"]
+    },
+    {
+      "id": "trademark-register",
+      "category": "business",
+      "label": "상표권 등록 가이드",
+      "icon": "🏷️",
+      "description": "브랜드 상표 출원 및 등록 절차 안내",
+      "keywords": ["상표", "출원", "특허청", "식별력", "지정상품"]
+    },{
+      "id": "env-diesel-scrapping",
+      "category": "environment",
+      "label": "노후 경유차 조기폐차",
+      "icon": "🚛",
+      "description": "배출가스 4·5등급 차량 폐차 지원금 안내",
+      "keywords": ["조기폐차", "배출가스", "저감장치", "상한액", "4등급", "5등급"]
+    },
+    {
+      "id": "env-ev-subsidy",
+      "category": "environment",
+      "label": "전기차 보조금",
+      "icon": "⚡",
+      "description": "전기자동차 구매 보조금 신청 및 지급 공고",
+      "keywords": ["전기차", "보조금", "국비", "지방비", "의무운행"]
+    },
+    {
+      "id": "env-finedust-manual",
+      "category": "environment",
+      "label": "미세먼지 저감 매뉴얼",
+      "icon": "😷",
+      "description": "비상저감조치 시 차량 운행 제한 및 행동 요령",
+      "keywords": ["미세먼지", "비상저감조치", "운행제한", "과태료", "5부제"]
+    },{
+      "id": "event-funeral-columbarium",
+      "category": "event",
+      "label": "봉안당 사용 계약",
+      "icon": "🕯️",
+      "description": "납골당 안치 및 시설 사용 계약서",
+      "keywords": ["봉안당", "납골당", "안치", "관리비", "영구안치"]
+    },
+    {
+      "id": "event-funeral-sangjo",
+      "category": "event",
+      "label": "상조 서비스 약관",
+      "icon": "📋",
+      "description": "상조 상품 가입 및 해약환급금 관련 표준약관",
+      "keywords": ["상조", "해약환급금", "의전", "납입금", "장례서비스"]
+    },
+    {
+      "id": "event-wedding-custom",
+      "category": "event",
+      "label": "예물·예복 맞춤",
+      "icon": "👔",
+      "description": "맞춤 예복 및 예물 제작 의뢰서",
+      "keywords": ["가봉", "예복", "맞춤", "AS", "원단"]
+    },
+    {
+      "id": "event-wedding-photography",
+      "category": "event",
+      "label": "웨딩 스냅·영상 계약",
+      "icon": "📸",
+      "description": "결혼식 촬영 및 앨범 제작 관련 계약서",
+      "keywords": ["스냅", "원판", "수정본", "데이터형", "초상권"]
+    },
+    {
+      "id": "event-wedding-venue",
+      "category": "event",
+      "label": "예식장 대관 계약",
+      "icon": "💍",
+      "description": "웨딩홀 대관 및 식대 정산 관련 계약서",
+      "keywords": ["예식장", "보증인원", "식대", "연출비", "위약금"]
+    },{
+      "id": "maintenance-cost",
+      "category": "residence",
+      "label": "관리비 명세서",
+      "icon": "🧾",
+      "description": "주거 시설 관리비 부과 상세 내역",
+      "keywords": ["관리비", "장기수선충당금", "전기료", "수도료", "일반관리비"]
+    },
+    {
+      "id": "realestate-confirmation-report",
+      "category": "realestate",
+      "label": "중개대상물 확인설명서",
+      "icon": "🏠",
+      "description": "부동산 계약 시 시설 상태 및 권리 관계 확인서",
+      "keywords": ["확인설명서", "누수", "위반건축물", "벽면", "일조"]
+    },
+    {
+      "id": "residence-support",
+      "category": "residence",
+      "label": "주거 지원 사업",
+      "icon": "🏡",
+      "description": "청년 월세 지원 등 주거 복지 사업 공고",
+      "keywords": ["월세지원", "주거지원", "중위소득", "무주택", "전입신고"]
+    },{
+      "id": "art-copyright-license",
+      "category": "show",
+      "label": "예술 저작권 라이선스",
+      "icon": "🎨",
+      "description": "작품 사용 권한 및 저작권 이용 허락 계약",
+      "keywords": ["저작권", "이용허락", "2차적저작물", "양도", "로열티"]
+    },
+    {
+      "id": "art-grant-notice",
+      "category": "show",
+      "label": "문화예술 지원 공고",
+      "icon": "📢",
+      "description": "예술가 창작 지원금 및 공모전 안내",
+      "keywords": ["지원사업", "공모", "예술가", "포트폴리오", "정산"]
+    },
+    {
+      "id": "performance-ticketing-terms",
+      "category": "show",
+      "label": "공연 예매·입장 안내",
+      "icon": "🎭",
+      "description": "공연 티켓 예매 취소 규정 및 관람 유의사항",
+      "keywords": ["예매", "취소수수료", "커튼콜", "지연입장", "본인확인"]
     },
     {
       "id": "default",
