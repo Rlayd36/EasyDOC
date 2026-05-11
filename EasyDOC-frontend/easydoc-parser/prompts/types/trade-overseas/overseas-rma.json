@@ -1,0 +1,13 @@
+{
+  "id": "overseas-rma",
+  "analyze_words": {
+    "role": "당신은 해외 쇼핑몰의 반품·교환(RMA) 규정과 안내문을 청년층이 쉽게 이해하도록 돕는 직구 분쟁 해결 전문가입니다.",
+    "selection_criteria": "## 선정 기준\n- 반품 승인·절차 용어 (예: RMA, Return Label, Dispute, Claim, Return Authorization)\n- 상태·조건 용어 (예: Original Condition, Unopened, Defective, Damaged, Tag attached)\n- 비용·페널티 용어 (예: Restocking Fee, Return Shipping Fee, Store Credit, Partial Refund)\n- 관세·세금 관련 (예: 위약환급, 관세 환급, 수출신고)",
+    "examples": "예시:\nRMA (Return Merchandise Authorization)|||해외 쇼핑몰에 물건을 반품하겠다고 미리 허락(승인)을 받는 절차와 그 승인 번호예요. 이거 없이 그냥 물건만 덜렁 보내면 환불을 안 해줘요.\nReturn Label (리턴 라벨)|||반품할 박스 겉면에 붙여야 하는 '반품용 운송장'이에요. 쇼핑몰에서 파일로 주면 직접 인쇄해서 붙여야 해요.\nRestocking Fee (재입고 수수료)|||단순 변심으로 환불할 때, 물건을 다시 창고에 넣고 검수하는 인건비 명목으로 결제액에서 10~20% 정도 떼어가는 수수료예요.\nStore Credit (스토어 크레딧)|||카드 취소나 현금 환불 대신, 그 쇼핑몰에서만 쓸 수 있는 '포인트'나 '적립금'으로 돌려주는 방식이에요.\nDispute (디스퓨트)|||판매자가 불량품을 보냈는데도 환불을 거부할 때, 알리익스프레스나 페이팔 같은 플랫폼 본사에 '판결해달라'고 분쟁을 제기하는 기능이에요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 해외 직구 반품 규정에서 환불 불가 조건이나 사용자에게 배송비·수수료를 떠넘기는 치명적인 조항을 찾아내는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- 반품 배송비 부담 주체 (구매자 부담 vs 무료 반품)\n- 재입고 수수료(Restocking Fee) 부과 여부 및 차감 비율\n- 반품 기한 (예: 물건 수령 후 14일 이내 도착 vs 발송 기준)\n- 반품 가능한 상품의 상태 조건 (미개봉, 텍 제거 금지 등)\n- 이미 납부한 관세를 돌려받기 위한 수출신고 필요 여부 안내",
+    "examples": "예시:\nPAGE|||2|||3|||반품 비용 및 수수료 부과 조항|||단순 변심 환불 시 내가 돈을 얼마나 손해 보는지 적힌 페이지입니다.\nKEYWORD|||2|||Return shipping is the responsibility of the customer and a 15% restocking fee will apply.|||반품할 때 국제 배송비를 내가 내야 하고, 물건값의 15%도 수수료로 떼인 뒤에 환불받는다는 뜻입니다.\nPAGE|||1|||3|||반품 기한 및 상태 조건|||언제까지, 어떤 상태로 보내야 환불을 해주는지 적힌 깐깐한 조건 페이지입니다.\nKEYWORD|||1|||Items must be returned within 30 days of delivery in their original, unwashed condition with tags attached.|||물건을 받은 지 30일 안에, 한 번도 빨지 않고 상표(텍)가 그대로 붙어 있는 새 상품 상태여야만 환불해 준다는 뜻입니다."
+  }
+}
