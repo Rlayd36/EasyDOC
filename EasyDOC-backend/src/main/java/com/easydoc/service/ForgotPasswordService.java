@@ -49,7 +49,7 @@ public class ForgotPasswordService {
 			throw e;
 		}
 	}
-
+	
 	/**
 	 * 토큰 + 새 비밀번호로 재설정. 토큰 유효하면 users 비밀번호 갱신하고 userinfos 행 삭제ㅇㅇ.
 	 */
