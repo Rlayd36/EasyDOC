@@ -43,6 +43,30 @@
       "label": "부동산",
       "icon": "🏠",
       "description": "전세·월세 계약, 등기부등본, 청약"
+    },
+    {
+      "id": "network",
+      "label": "컴퓨터 네트워크",
+      "icon": "🌐",
+      "description": "프로토콜·장비 설정·NAS·보안"
+    },
+    {
+      "id": "cs",
+      "label": "컴퓨터공학",
+      "icon": "🖥️",
+      "description": "컴퓨터 구조·OS·알고리즘·DB·소프트웨어공학"
+    },
+    {
+      "id": "gamedev",
+      "label": "게임 개발",
+      "icon": "🎮",
+      "description": "Unity·Unreal·Godot·Cocos2d·RPG Maker 엔진 문서"
+    },
+    {
+      "id": "ai",
+      "label": "AI·머신러닝",
+      "icon": "🤖",
+      "description": "ML/DL 이론·LLM·프레임워크·MLOps 문서"
     }
   ],
   "types": [
@@ -253,6 +277,150 @@
       "icon": "🎯",
       "description": "아파트 청약 공고·분양 안내문",
       "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
+    },
+    {
+      "id": "network-protocol",
+      "category": "network",
+      "label": "프로토콜·이론",
+      "icon": "📡",
+      "description": "TCP/IP·OSI·HTTP 교재 및 프로토콜 명세서",
+      "keywords": ["TCP", "UDP", "IP", "HTTP", "DNS", "DHCP", "OSI", "NAT", "CIDR", "소켓", "프로토콜"]
+    },
+    {
+      "id": "network-device",
+      "category": "network",
+      "label": "장비 설정",
+      "icon": "🔧",
+      "description": "공유기·스위치·AP 설정 매뉴얼",
+      "keywords": ["공유기", "스위치", "AP", "SSID", "VLAN", "QoS", "DDNS", "포트포워딩", "WPA3", "PoE"]
+    },
+    {
+      "id": "network-nas",
+      "category": "network",
+      "label": "NAS·스토리지",
+      "icon": "💾",
+      "description": "Synology·QNAP·TrueNAS·헤놀로지 설정서",
+      "keywords": ["NAS", "RAID", "SMB", "NFS", "DSM", "Synology", "QNAP", "XPEnology", "헤놀로지", "Plex", "iSCSI"]
+    },
+    {
+      "id": "network-security",
+      "category": "network",
+      "label": "네트워크 보안",
+      "icon": "🔐",
+      "description": "방화벽·VPN·IDS/IPS 정책서 및 설정 문서",
+      "keywords": ["방화벽", "VPN", "IDS", "IPS", "ACL", "DMZ", "SSL", "TLS", "제로트러스트", "WireGuard"]
+    },
+    {
+      "id": "cs-architecture",
+      "category": "cs",
+      "label": "컴퓨터 구조",
+      "icon": "⚙️",
+      "description": "CPU·메모리·캐시·ISA 구조 교재",
+      "keywords": ["컴퓨터구조", "CPU", "ALU", "ISA", "RISC", "CISC", "캐시", "파이프라이닝", "가상메모리", "TLB"]
+    },
+    {
+      "id": "cs-os",
+      "category": "cs",
+      "label": "운영체제",
+      "icon": "🖥️",
+      "description": "프로세스·스케줄링·메모리관리·파일시스템 교재",
+      "keywords": ["운영체제", "프로세스", "스레드", "스케줄링", "세마포어", "데드락", "페이징", "시스템콜"]
+    },
+    {
+      "id": "cs-algorithm",
+      "category": "cs",
+      "label": "알고리즘·자료구조",
+      "icon": "🧮",
+      "description": "정렬·탐색·그래프·동적계획법 알고리즘 교재",
+      "keywords": ["알고리즘", "자료구조", "시간복잡도", "BFS", "DFS", "동적계획법", "정렬", "트리", "그래프", "O표기법"]
+    },
+    {
+      "id": "cs-database",
+      "category": "cs",
+      "label": "데이터베이스",
+      "icon": "🗄️",
+      "description": "SQL·정규화·트랜잭션·인덱스 교재 및 명세",
+      "keywords": ["데이터베이스", "SQL", "정규화", "트랜잭션", "ACID", "인덱스", "JOIN", "ERD", "NoSQL"]
+    },
+    {
+      "id": "cs-software",
+      "category": "cs",
+      "label": "소프트웨어공학",
+      "icon": "🔩",
+      "description": "설계 패턴·개발 방법론·UML·테스트 교재 및 명세서",
+      "keywords": ["소프트웨어공학", "애자일", "스크럼", "SOLID", "디자인패턴", "UML", "CI/CD", "TDD", "리팩토링"]
+    },
+    {
+      "id": "gamedev-unity",
+      "category": "gamedev",
+      "label": "Unity",
+      "icon": "🟦",
+      "description": "Unity 엔진 매뉴얼·C# 스크립팅·API 레퍼런스",
+      "keywords": ["Unity", "유니티", "MonoBehaviour", "Prefab", "프리팹", "Coroutine", "GameObject", "Inspector", "ScriptableObject", "Rigidbody", "Animator", "Canvas", "NavMesh", "Shader", "UGUI"]
+    },
+    {
+      "id": "gamedev-unreal",
+      "category": "gamedev",
+      "label": "Unreal Engine",
+      "icon": "🎯",
+      "description": "UE5·Blueprint·C++ 공식 문서 및 가이드",
+      "keywords": ["Unreal", "언리얼", "UE5", "Blueprint", "블루프린트", "Actor", "Component", "GameMode", "PlayerController", "Nanite", "Lumen", "GAS", "MetaHuman", "HLOD", "AI"]
+    },
+    {
+      "id": "gamedev-godot",
+      "category": "gamedev",
+      "label": "Godot",
+      "icon": "🤖",
+      "description": "Godot 엔진 공식 문서·GDScript·씬 시스템",
+      "keywords": ["Godot", "고도", "GDScript", "Node", "Scene", "Signal", "Export", "CharacterBody2D", "Area2D", "AnimationPlayer", "Tween", "Autoload", "Resource", "Inspector"]
+    },
+    {
+      "id": "gamedev-cocos",
+      "category": "gamedev",
+      "label": "Cocos2d / Creator",
+      "icon": "🥥",
+      "description": "Cocos Creator 공식 문서·TypeScript·모바일 게임",
+      "keywords": ["Cocos", "코코스", "Cocos Creator", "CocosCreator", "cc.Node", "Component", "Prefab", "Action", "Scheduler", "Physics", "TypeScript", "Scene", "Layer", "Animation"]
+    },
+    {
+      "id": "gamedev-rpgmaker",
+      "category": "gamedev",
+      "label": "RPG Maker / 쯔꾸르",
+      "icon": "⚔️",
+      "description": "RPG Maker MV/MZ 매뉴얼·플러그인·이벤트 가이드",
+      "keywords": ["RPG Maker", "쯔꾸르", "RMMV", "RMMZ", "MV", "MZ", "이벤트", "플러그인", "스위치", "변수", "공통이벤트", "트룹", "타일셋", "JavaScript", "Plugin"]
+    },
+    {
+      "id": "ai-theory",
+      "category": "ai",
+      "label": "ML/DL 이론",
+      "icon": "🧠",
+      "description": "딥러닝 교재·논문·CV·NLP 이론 문서",
+      "keywords": ["머신러닝", "딥러닝", "신경망", "역전파", "손실함수", "활성화함수", "CNN", "RNN", "Transformer", "BERT", "YOLO", "GAN", "강화학습", "과적합", "정규화", "최적화"]
+    },
+    {
+      "id": "ai-llm",
+      "category": "ai",
+      "label": "LLM·프롬프트 엔지니어링",
+      "icon": "💬",
+      "description": "GPT·Claude API·RAG·Fine-tuning·프롬프트 설계 문서",
+      "keywords": ["LLM", "GPT", "Claude", "프롬프트", "RAG", "Fine-tuning", "파인튜닝", "임베딩", "벡터DB", "토큰", "컨텍스트", "System Prompt", "Chain-of-Thought", "Hallucination", "에이전트"]
+    },
+    {
+      "id": "ai-framework",
+      "category": "ai",
+      "label": "ML 프레임워크",
+      "icon": "🔥",
+      "description": "PyTorch·TensorFlow·Keras·Hugging Face 공식 문서",
+      "keywords": ["PyTorch", "TensorFlow", "Keras", "Hugging Face", "Tensor", "Dataset", "DataLoader", "Module", "Optimizer", "Gradient", "CUDA", "GPU", "Checkpoint", "Pipeline", "Transformers"]
+    },
+    {
+      "id": "ai-mlops",
+      "category": "ai",
+      "label": "MLOps·파이프라인",
+      "icon": "⚙️",
+      "description": "MLflow·Kubeflow·모델 서빙·데이터 파이프라인 문서",
+      "keywords": ["MLOps", "MLflow", "Kubeflow", "모델 서빙", "파이프라인", "Feature Store", "모델 레지스트리", "드리프트", "A/B 테스트", "Docker", "Kubernetes", "Airflow", "데이터 전처리", "CI/CD"]
     },
     {
       "id": "default",

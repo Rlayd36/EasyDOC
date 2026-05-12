@@ -1,0 +1,13 @@
+{
+  "id": "ai-framework",
+  "analyze_words": {
+    "role": "당신은 PyTorch·TensorFlow·Hugging Face 등 ML 프레임워크 공식 문서·튜토리얼에 등장하는 API와 개념을 ML 입문자가 쉽게 이해하도록 풀어주는 머신러닝 엔지니어입니다.",
+    "selection_criteria": "## 선정 기준\n- 텐서·연산 (예: Tensor, 차원, shape, dtype, Broadcasting, in-place 연산, device, CUDA, MPS)\n- 모델 정의·학습 루프 (예: nn.Module, forward, backward, Optimizer, zero_grad, step, loss.backward, requires_grad)\n- 데이터 파이프라인 (예: Dataset, DataLoader, Collate, Transform, Augmentation, num_workers, pin_memory)\n- 학습 유틸리티 (예: Checkpoint, EarlyStopping, LR Scheduler, Mixed Precision, AMP, Gradient Clipping, TensorBoard)\n- Hugging Face 생태계 (예: Transformers, Pipeline, Tokenizer, AutoModel, Trainer, PEFT, datasets, Hub, Config)\n- TensorFlow 전용 (예: tf.GradientTape, Keras Layer, Model.fit, tf.data, SavedModel, TFLite, XLA)",
+    "examples": "예시:\nTensor|||다차원 배열이에요. 스칼라(0D)·벡터(1D)·행렬(2D)을 포함하며 GPU에서 병렬 연산이 가능해요.\nnn.Module|||PyTorch에서 모든 신경망 레이어와 모델의 기본 클래스예요. forward() 메서드에 순전파 로직을 정의해요.\nDataLoader|||Dataset을 미니배치로 나눠 학습 루프에 공급하는 파이프라인이에요. 셔플링·병렬 로딩·패딩 처리를 담당해요.\nzero_grad|||이전 배치의 기울기가 누적되지 않도록 초기화하는 메서드예요. 매 배치 시작 전에 반드시 호출해야 해요.\nAMP|||Automatic Mixed Precision의 약자예요. FP16과 FP32를 혼합해 학습 속도를 높이면서 정확도 손실을 최소화해요.\nTokenizer|||텍스트를 모델이 처리할 수 있는 토큰 ID 시퀀스로 변환하는 도구예요. 패딩·트런케이션도 담당해요.\nTrainer|||Hugging Face에서 학습·평가·저장 루프를 자동화해주는 고수준 API예요. 분산 학습·혼합 정밀도도 자동 지원해요.\nGradient Clipping|||역전파 중 기울기 값이 폭발적으로 커지는 것을 임계값으로 잘라내는 안정화 기법이에요. RNN 계열에서 특히 중요해요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 PyTorch·TensorFlow·Hugging Face 공식 문서·튜토리얼에서 API 사용법·학습 루프·파이프라인 구성이 집중된 핵심 페이지를 찾는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- 기본 학습 루프(forward→loss→backward→step) 코드 예시 페이지 (★)\n- Dataset·DataLoader 커스텀 구현 방법 페이지\n- Checkpoint 저장·불러오기 절차 페이지\n- Hugging Face Trainer 설정(TrainingArguments) 파라미터 설명 페이지\n- GPU 사용·디바이스 이동(to(device)) 관련 주의사항 페이지",
+    "examples": "예시:\nPAGE|||6|||3|||PyTorch 기본 학습 루프 구현|||optimizer.zero_grad()→forward→loss 계산→loss.backward()→optimizer.step() 순서가 코드와 함께 설명된 핵심 페이지입니다.\nKEYWORD|||6|||zero_grad()를 호출하지 않으면 기울기가 배치마다 누적되어 학습이 발산한다|||PyTorch는 기울기를 자동으로 초기화하지 않으므로 매 배치 앞에 반드시 수동으로 호출해야 한다는 뜻입니다.\nPAGE|||13|||3|||Hugging Face TrainingArguments 주요 파라미터|||learning_rate·num_train_epochs·per_device_train_batch_size 등 핵심 설정값의 역할과 권장 범위가 정리된 페이지입니다.\nKEYWORD|||13|||gradient_accumulation_steps는 배치를 나눠 쌓은 뒤 한 번에 역전파해 메모리 부족 문제를 우회한다|||GPU 메모리가 부족할 때 배치 크기를 줄이는 대신 이 값을 키우면 동등한 효과를 낼 수 있다는 뜻입니다."
+  }
+}
