@@ -55,3 +55,6 @@ vision-key.json
 
 ### GCP 서비스 계정 키 ###
 google-key.json
+
+### macOS 벤더 라이브러리 ###
+.agent_vendor_pdf/
