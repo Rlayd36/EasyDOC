@@ -112,6 +112,31 @@ def get_document_list(user_email: str = Query(...), db: Session = Depends(get_db
     ]
     return result
 
+
+@app.get("/api/documents/stats")
+def get_document_stats(user_email: str = Query(...), db: Session = Depends(get_db)):
+    """사용자 문서 수·페이지 수·doc_type별 건수 (카테고리 집계는 프론트에서 registry 기준)"""
+    rows = (
+        db.query(Document.doc_type, Document.page_count)
+        .filter(Document.user_email == user_email)
+        .all()
+    )
+
+    total_docs = len(rows)
+    total_pages = sum((row.page_count or 1) for row in rows)
+
+    type_counts: dict[str, int] = {}
+    for row in rows:
+        doc_type = (row.doc_type or "default").strip() or "default"
+        type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
+
+    return {
+        "documents": total_docs,
+        "pages": total_pages,
+        "type_counts": type_counts,
+    }
+
+
 # 특정 문서 상세 조회
 @app.get("/api/documents/{doc_id}")
 def get_document_detail(doc_id: int, db: Session = Depends(get_db)):
