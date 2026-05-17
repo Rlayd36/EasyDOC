@@ -2,6 +2,8 @@ package com.easydoc.controller;
 
 import com.easydoc.service.ForgotPasswordService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +15,7 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 public class ForgotPasswordController {
 
+	private static final Logger log = LoggerFactory.getLogger(ForgotPasswordController.class);
 	private static final String FORGOT_OK_MESSAGE = "이메일이 등록되어 있으면 비밀번호 재설정 안내를 보냈습니다.";
 
 	private final ForgotPasswordService forgotPasswordService;
@@ -29,6 +32,7 @@ public class ForgotPasswordController {
 		try {
 			forgotPasswordService.requestReset(email);
 		} catch (RuntimeException e) {
+			log.error("비밀번호 재설정 요청 처리 실패 email={}: {}", email, e.getMessage(), e);
 			return ResponseEntity.internalServerError().body("메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
 		}
 		// enumeration(이메일 존재 여부 추정) 완화: 항상 동일 응답
