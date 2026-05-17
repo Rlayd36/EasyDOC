@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios"; // 통신 라이브러리
 import Viewer from "./Viewer";
 import Loading from "./Loading";
@@ -8,7 +8,11 @@ import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import { formatDocumentDateKo } from "../utils/documentDate";
 import "./Upload.css";
 
-export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEmail }) {
+export default function Upload({
+  onNavigateToMyPage,
+  onNavigateToUpload,
+  userEmail,
+}) {
   const [routeSnapshot] = useState(() => loadAppRoute());
   /** 복원 effect가 끝난 뒤에만 경로를 저장해 새로고침 직후 viewerDocId가 지워지지 않게 함 */
   const [routeHydrated, setRouteHydrated] = useState(false);
@@ -17,7 +21,6 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
   const [showViewer, setShowViewer] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [parseResult, setParseResult] = useState(null);
-  const [parsedText, setParsedText] = useState("");
   const [ocrResult, setOcrResult] = useState(null); // OCR 상태
   const [pdfFileUrl, setPdfFileUrl] = useState(null); // PDF 원본 렌더링용 블롭 URL
   const [showDocTypeModal, setShowDocTypeModal] = useState(false);
@@ -27,10 +30,12 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
   const API_GATEWAY_URL = "http://localhost:8001/s3/upload-url";
 
   // 최근 문서 목록 가져오기
-  const fetchRecentDocs = async () => {
+  const fetchRecentDocs = useCallback(async () => {
     try {
-      const response = await axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`);
-      
+      const response = await axios.get(
+        `http://localhost:8002/api/documents?user_email=${userEmail}`,
+      );
+
       // DB 데이터를 화면에 맞게 변환
       const formattedDocs = response.data.map((doc) => ({
         id: doc.id,
@@ -41,16 +46,18 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     } catch (error) {
       console.error("최근 문서 목록 로딩 실패:", error);
     }
-  };
+  }, [userEmail]);
 
   // 페이지가 처음 열릴 때 목록 가져오기
   useEffect(() => {
     fetchRecentDocs();
-  }, []);
+  }, [fetchRecentDocs]);
 
   /** DB 문서 id로 뷰어용 상태 채우기 (최근 문서 클릭 / 새로고침 복원 공통) */
   const applyDocumentToViewer = async (docId) => {
-    const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
+    const response = await axios.get(
+      `http://localhost:8002/api/documents/${docId}`,
+    );
     const docData = response.data;
     setParseResult({
       id: docData.id,
@@ -95,7 +102,8 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     if (!routeHydrated) return;
     saveAppRoute({
       page: "upload",
-      viewerDocId: showViewer && parseResult?.id != null ? parseResult.id : null,
+      viewerDocId:
+        showViewer && parseResult?.id != null ? parseResult.id : null,
     });
   }, [routeHydrated, showViewer, parseResult?.id]);
 
@@ -140,7 +148,10 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     if (!selectedFile) return;
 
     // PDF 파일이면 원본 렌더링을 위해 블롭 URL 저장
-    if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
+    if (
+      selectedFile.type === "application/pdf" ||
+      selectedFile.name.toLowerCase().endsWith(".pdf")
+    ) {
       setPdfFileUrl(URL.createObjectURL(selectedFile));
     } else {
       setPdfFileUrl(null);
@@ -152,11 +163,11 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
       const response = await axios.get(API_GATEWAY_URL, {
         params: {
           fileName: selectedFile.name,
-          fileType: selectedFile.type
-        }
+          fileType: selectedFile.type,
+        },
       });
 
-      const {uploadUrl, key} = response.data;
+      const { uploadUrl, key } = response.data;
       console.log("2. URL 발급 완료:", uploadUrl);
       console.log("   Lambda 응답 전체:", response.data);
 
@@ -177,7 +188,7 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
       await axios.put(uploadUrl, selectedFile, {
         headers: {
           "Content-Type": selectedFile.type,
-        }
+        },
       });
 
       console.log("5. 업로드 성공!");
@@ -185,19 +196,18 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
 
       // S3 업로드 완료를 위한 대기 (eventual consistency)
       console.log("대기 중... (3초)");
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
       if (selectedFile.type.startsWith("image/")) {
         // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
         console.log("6. OCR 서버에 분석 요청...");
         const ocrResponse = await axios.get(
-          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
+          `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`,
         );
         console.log("7. OCR 결과 도착!", ocrResponse.data);
         setOcrResult(ocrResponse.data); // 결과 저장
-        setParseResult(null);           // 파싱 데이터는 비움
-        setParsedText("");
+        setParseResult(null); // 파싱 데이터는 비움
 
         if (ocrResponse.data.pdf_url) {
           setPdfFileUrl(ocrResponse.data.pdf_url);
@@ -206,15 +216,15 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
         // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
         console.log("6. 파싱 요청 중..., S3 키:", s3Key);
         const parseResponse = await axios.get(
-          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=${encodeURIComponent(docType)}`
+          `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=${encodeURIComponent(docType)}`,
         );
         console.log("7. 파싱 완료!", parseResponse.data);
 
-        const extractedText = parseResponse.data.text;
-        setParsedText(extractedText);
-
-        setParseResult({ ...parseResponse.data, doc_type: parseResponse.data.doc_type || docType });
-        setOcrResult(null);  // OCR 데이터는 비움
+        setParseResult({
+          ...parseResponse.data,
+          doc_type: parseResponse.data.doc_type || docType,
+        });
+        setOcrResult(null); // OCR 데이터는 비움
       }
 
       setShowLoading(false);
@@ -260,14 +270,18 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
     return "default";
   };
   if (showLoading) {
-    return <Loading title="문서 분석 중" subtitle="문서를 확인하는 중입니다. 잠시만 기다려 주세요" />;
+    return (
+      <Loading
+        title="문서 분석 중"
+        subtitle="문서를 확인하는 중입니다. 잠시만 기다려 주세요"
+      />
+    );
   }
 
   const handleExitToUpload = () => {
     setShowViewer(false);
     setParseResult(null);
     setOcrResult(null);
-    setParsedText("");
     setPdfFileUrl(null);
   };
 
@@ -288,7 +302,11 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
       {/* Header */}
       <header className="upload-header">
         <AppBrandLogo onClick={onNavigateToUpload} />
-        <div className="header-user" onClick={onNavigateToMyPage} style={{cursor: "pointer"}}>
+        <div
+          className="header-user"
+          onClick={onNavigateToMyPage}
+          style={{ cursor: "pointer" }}
+        >
           <UserIcon />
         </div>
       </header>
@@ -303,8 +321,8 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
             </div>
             <div className="recent-list">
               {recentDocs.map((doc, index) => (
-                <div 
-                  key={doc.id || index} 
+                <div
+                  key={doc.id || index}
                   className="recent-item"
                   onClick={() => handleRecentDocClick(doc.id)}
                   style={{ cursor: "pointer" }}
@@ -356,9 +374,7 @@ export default function Upload({ onNavigateToMyPage, onNavigateToUpload, userEma
             </div>
 
             {selectedFile && (
-              <div className="selected-file">
-                {selectedFile.name}
-              </div>
+              <div className="selected-file">{selectedFile.name}</div>
             )}
 
             <input
