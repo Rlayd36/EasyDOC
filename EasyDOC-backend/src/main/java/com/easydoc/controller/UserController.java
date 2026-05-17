@@ -2,6 +2,7 @@ package com.easydoc.controller;
 
 import com.easydoc.entity.User;
 import com.easydoc.repository.UserRepository;
+import com.easydoc.service.UserAccountDeletionService;
 import com.easydoc.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,11 +20,17 @@ public class UserController {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtUtil jwtUtil;
+	private final UserAccountDeletionService userAccountDeletionService;
 
-	public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+	public UserController(
+			UserRepository userRepository,
+			PasswordEncoder passwordEncoder,
+			JwtUtil jwtUtil,
+			UserAccountDeletionService userAccountDeletionService) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtUtil = jwtUtil;
+		this.userAccountDeletionService = userAccountDeletionService;
 	}
 
 	@PostMapping("/signup")
@@ -69,11 +76,9 @@ public class UserController {
 
 	@DeleteMapping("/delete")
 	public ResponseEntity<?> deleteUser(@RequestParam("email") String email) {
-		User user = userRepository.findByEmail(email).orElse(null);
-		if (user == null) {
+		if (!userAccountDeletionService.deleteAccountByEmail(email)) {
 			return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
 		}
-		userRepository.delete(user);
 		return ResponseEntity.ok("계정이 삭제되었습니다!");
 	}
 

@@ -5,6 +5,7 @@ import PdfHighlightViewer from "./PdfHighlightViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
+import DocTypeSelectModal from "../components/DocTypeSelectModal";
 import { formatDocumentDateKo } from "../utils/documentDate";
 
 // 텍스트를 하이라이트해주는 컴포넌트
@@ -78,6 +79,10 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
     // 패널 접기/펼치기 상태
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
+
+    /** 사이드바 업로드: 파일만 먼저 고르고, Upload.jsx와 동일하게 문서 유형 모달 후 처리 */
+    const [pendingUploadFile, setPendingUploadFile] = useState(null);
+    const [showDocTypeModal, setShowDocTypeModal] = useState(false);
 
     // 에이전트 어시스트 ↔ PDF 뷰어 브리지
     const [sharedTableCells, setSharedTableCells] = useState([]);       // PdfHighlightViewer → AgentChat
@@ -171,99 +176,95 @@ export default function Viewer({ parsedData, ocrData, pdfFileUrl, userEmail, onL
       fileInputRef.current?.click();
     };
 
-// handleFileChange 수정
-const handleFileChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const handleFileChange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      setPendingUploadFile(file);
+      setShowDocTypeModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
 
-  const objectUrl = URL.createObjectURL(file);
-  setPdfUrl(objectUrl);
-  // PDF 여부에 따라 렌더링 모드 결정
-  const fileIsPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-  setIsPdf(fileIsPdf);
-  setDocumentName(file.name);
-  setHighlightWord(""); // 새 파일 업로드 시 강조 단어 초기화
-  setIsLoading(true);  // 로딩 시작
+    const handleDocTypeCancel = () => {
+      setShowDocTypeModal(false);
+      setPendingUploadFile(null);
+    };
 
-  try {
-    // URL 발급 (AWS S3) - Presigned URL
-    console.log("1. URL 요청 중...");
-    const response = await axios.get(API_GATEWAY_URL, {
-      params: {
-        fileName: file.name,
-        fileType: file.type
+    const handleDocTypeConfirm = async (docType) => {
+      setShowDocTypeModal(false);
+      const file = pendingUploadFile;
+      setPendingUploadFile(null);
+      if (!file) return;
+
+      const objectUrl = URL.createObjectURL(file);
+      setPdfUrl(objectUrl);
+      const fileIsPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      setIsPdf(fileIsPdf);
+      setDocumentName(file.name);
+      setHighlightWord("");
+      setSelectedDoc(null);
+      setCurrentDocType(docType || "default");
+      setIsLoading(true);
+
+      try {
+        console.log(`1. URL 요청 중... (doc_type=${docType})`);
+        const response = await axios.get(API_GATEWAY_URL, {
+          params: {
+            fileName: file.name,
+            fileType: file.type,
+          },
+        });
+
+        const { uploadUrl, key } = response.data;
+        console.log("2. URL 발급 완료:", uploadUrl);
+
+        let s3Key = key || decodeURIComponent(new URL(uploadUrl).pathname.substring(1));
+        console.log("3. S3 키:", s3Key);
+
+        console.log("4. S3로 파일 전송 중...");
+        await axios.put(uploadUrl, file, {
+          headers: { "Content-Type": file.type },
+        });
+        console.log("5. 업로드 성공!");
+
+        setPdfUrl(objectUrl);
+        console.log("원본 문서 임시 URL (업로드 뷰):", objectUrl);
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        if (file.type.startsWith("image/")) {
+          console.log("6. OCR 서버에 분석 요청...");
+          const ocrResponse = await axios.get(
+            `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
+          );
+          console.log("7. OCR 결과 도착!", ocrResponse.data);
+          setOcrText(ocrResponse.data.text || ocrResponse.data);
+          setParsedText("");
+          setCurrentDocType(docType || "default");
+
+          if (ocrResponse.data.pdf_url) {
+            setPdfUrl(ocrResponse.data.pdf_url);
+            setIsPdf(true);
+          }
+        } else {
+          console.log("6. 파싱 요청 중..., S3 키:", s3Key);
+          const parseResponse = await axios.get(
+            `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=${encodeURIComponent(docType)}`
+          );
+          console.log("7. 파싱 완료!", parseResponse.data);
+          const extractedText = parseResponse.data.text;
+          setParsedText(extractedText);
+          setCurrentDocType(parseResponse.data.doc_type || docType || "default");
+          setOcrText("");
+        }
+
+        await fetchDocuments();
+      } catch (error) {
+        console.error("파일 처리 오류:", error);
+        alert("파일 처리 중 오류가 발생했습니다.");
+      } finally {
+        setIsLoading(false);
       }
-    });
-
-    const {uploadUrl, key} = response.data;
-    console.log("2. URL 발급 완료:", uploadUrl);
-    
-    // AWS Lambda 응답 key 혹은 임시 파싱한 key
-    let s3Key = key || decodeURIComponent(new URL(uploadUrl).pathname.substring(1));
-    console.log("3. S3 키:", s3Key);
-
-    // S3 업로드
-    console.log("4. S3로 파일 전송 중...");
-    await axios.put(uploadUrl, file, {
-      headers: { "Content-Type": file.type },
-    });
-    console.log("5. 업로드 성공!");
-
-    // PDF.js가 로드할 수 있도록 Presigned URL 자체를 pdfUrl로 지정.
-    // (S3 객체가 'public-read' 권한이 없을 수도 있어서, 접근 가능한 URL을 써줘야 합니다)
-    // 업로드 직후 사용할 수 있도록 뷰어용 URL은 서명된 URL에서 쿼리파라미터를 잠시 제거한 원본이 아닌 GET용 Presigned URL을 새로 받아오거나,
-    // S3 버킷 권한 설정에 따라 그냥 s3Url로도 가능할 수 있습니다. 하지만 업로드가 완료된 presigned url을 뷰어에서 다시 fetch로 불러오려 하면 403이 뜰 수 있습니다.
-    // 임시로 그냥 로컬 objectUrl을 유지합니다. 서버 파싱이 완료되면 s3 기반으로 넘어가든가 선택하세요.
-    setPdfUrl(objectUrl);
-    console.log("원본 문서 임시 URL (업로드 뷰):", objectUrl);
-
-    // S3 업로드 완료를 위한 짧은 대기
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // 업로드된 파일형에 따라 파싱 혹은 OCR 실행
-    if (file.type.startsWith("image/")) {
-      // 파일이 이미지일 때 -> OCR 서버 (8001번) 요청
-      console.log("6. OCR 서버에 분석 요청...");
-      const ocrResponse = await axios.get(
-        `http://localhost:8001/ocr/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}`
-      );
-      console.log("7. OCR 결과 도착!", ocrResponse.data);
-      setOcrText(ocrResponse.data.text || ocrResponse.data);
-      setParsedText("");  // 문서 파싱 결과는 비움
-
-      if (ocrResponse.data.pdf_url) {
-        setPdfUrl(ocrResponse.data.pdf_url);
-        setIsPdf(true);
-      }
-    } else {
-      // 파일이 문서일 때 -> 파싱 서버 (8000번) 요청
-      // 사이드바 업로드는 빠른 재업로드 경로이므로 doc_type은 기본값으로 보낸다.
-      // 유형 지정이 필요한 경우 메인 업로드 페이지를 사용한다.
-      console.log("6. 파싱 요청 중..., S3 키:", s3Key);
-      const parseResponse = await axios.get(
-        `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=default`
-      );
-      console.log("7. 파싱 완료!", parseResponse.data);
-      const extractedText = parseResponse.data.text;
-      setParsedText(extractedText);  // 파싱 결과 저장
-      setCurrentDocType(parseResponse.data.doc_type || "default");
-
-      setOcrText("");  // OCR 결과는 비움
-    }
-
-    // 최근 문서 목록 업데이트
-   await fetchDocuments();
-
-  } catch (error) {
-    console.error("파일 처리 오류:", error);
-    alert("파일 처리 중 오류가 발생했습니다.");
-  } finally {
-    setIsLoading(false);  // 로딩 끝
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }
-};
+    };
 
     return (
     <div className="viewer-page">
@@ -376,6 +377,12 @@ const handleFileChange = async (e) => {
         />
       </div>
 
+      <DocTypeSelectModal
+        open={showDocTypeModal}
+        fileName={pendingUploadFile?.name}
+        onConfirm={handleDocTypeConfirm}
+        onCancel={handleDocTypeCancel}
+      />
     </div>
   );
 }

@@ -43,6 +43,126 @@
       "label": "부동산",
       "icon": "🏠",
       "description": "전세·월세 계약, 등기부등본, 청약"
+    },
+    {
+      "id": "network",
+      "label": "컴퓨터 네트워크",
+      "icon": "🌐",
+      "description": "프로토콜·장비 설정·NAS·보안"
+    },
+    {
+      "id": "cs",
+      "label": "컴퓨터공학",
+      "icon": "🖥️",
+      "description": "컴퓨터 구조·OS·알고리즘·DB·소프트웨어공학"
+    },
+    {
+      "id": "gamedev",
+      "label": "게임 개발",
+      "icon": "🎮",
+      "description": "Unity·Unreal·Godot·Cocos2d·RPG Maker 엔진 문서"
+    },
+    {
+      "id": "ai",
+      "label": "AI·머신러닝",
+      "icon": "🤖",
+      "description": "ML/DL 이론·LLM·프레임워크·MLOps 문서"
+    },
+    {
+      "id": "sports",
+      "label": "스포츠",
+      "icon": "⚽",
+      "description": "대회 참가, 시설 이용, 경기 규칙, 학교 체육, 스포츠 보험"
+    },
+    {
+      "id": "military",
+      "label": "병역",
+      "icon": "🎖️",
+      "description": "병역판정·입영, 현역·보충역, 예비역·동원훈련 안내"
+    },
+    {
+      "id": "disaster",
+      "label": "안전·재난",
+      "icon": "🚨",
+      "description": "자연재난·화재·시설 비상, 응급처치·생활안내"
+    },
+    {
+      "id": "vehicle",
+      "label": "차량",
+      "icon": "🚗",
+      "description": "구매·보험·등록, 과태료·정비, 전기차·충전 안내"
+    },
+    {
+      "id": "electronics",
+      "label": "IT·전자제품",
+      "icon": "💻",
+      "description": "사용설명서, 보증·A/S, 안전·인증, 펌웨어, 스마트 연동, 액세서리"
+    },
+    {
+      "id": "digital-subscription",
+      "label": "구독 서비스",
+      "icon": "📱",
+      "description": "OTT, 소프트웨어 등 정기결제 서비스 약관"
+    },
+    {
+      "id": "content-creator",
+      "label": "콘텐츠 제작·저작권",
+      "icon": "🎬",
+      "description": "MCN 계약, 스폰서십, 저작권, 방송 플랫폼 약관"
+    },
+    {
+      "id": "trade-overseas",
+      "label": "해외직구·통관",
+      "icon": "📦",
+      "description": "수입신고필증, 관세 고지서, 인보이스"
+    },
+    {
+      "id": "travel-airline",
+      "label": "여행·항공권",
+      "icon": "✈️",
+      "description": "e-티켓, 숙박 예약서, 여행자 보험"
+    },
+    {
+      "id": "pet",
+      "label": "반려동물",
+      "icon": "🐾",
+      "description": "반려동물 입양, 진료비, 펫보험 약관"
+    },
+    {
+      "id": "beauty-wellness",
+      "label": "뷰티·시술",
+      "icon": "✨",
+      "description": "피부과 시술 동의서, 미용·네일샵 정액권 약관"
+    },
+    {
+      "id": "business",
+      "label": "사업",
+      "icon": "💼",
+      "description": "정책자금 지원 공고, 상표권, 투자 계약"
+    },
+    {
+      "id": "environment",
+      "label": "환경",
+      "icon": "🌱",
+      "description": "전기차 보조금, 노후 경유차 조기 폐차 지원, 미세먼지 비상저감조치 안내문"
+    },
+    {
+      "id": "event",
+      "label": "행사",
+      "icon": "🎉",
+      "description": "예식장 이용, 스냅 및 영상 촬영 계약서, 상조 서비스 약관"
+    },
+    {
+      "id": "residence",
+      "label": "거주",
+      "icon": "🏠",
+      "description": "주거 지원 사업, 관리비 명세서"
+    },
+    {
+      "id": "show",
+      "label": "공연·전시",
+      "icon": "🎭",
+      "description": "문화예술 지원사업, 공연 예매 유의사항, 예술 저작권"
     }
   ],
   "types": [
@@ -253,6 +373,690 @@
       "icon": "🎯",
       "description": "아파트 청약 공고·분양 안내문",
       "keywords": ["청약", "분양", "가점제", "추첨제", "특별공급", "무주택", "청약통장", "전매제한", "분양가상한제"]
+    },
+    {
+      "id": "network-protocol",
+      "category": "network",
+      "label": "프로토콜·이론",
+      "icon": "📡",
+      "description": "TCP/IP·OSI·HTTP 교재 및 프로토콜 명세서",
+      "keywords": ["TCP", "UDP", "IP", "HTTP", "DNS", "DHCP", "OSI", "NAT", "CIDR", "소켓", "프로토콜"]
+    },
+    {
+      "id": "network-device",
+      "category": "network",
+      "label": "장비 설정",
+      "icon": "🔧",
+      "description": "공유기·스위치·AP 설정 매뉴얼",
+      "keywords": ["공유기", "스위치", "AP", "SSID", "VLAN", "QoS", "DDNS", "포트포워딩", "WPA3", "PoE"]
+    },
+    {
+      "id": "network-nas",
+      "category": "network",
+      "label": "NAS·스토리지",
+      "icon": "💾",
+      "description": "Synology·QNAP·TrueNAS·헤놀로지 설정서",
+      "keywords": ["NAS", "RAID", "SMB", "NFS", "DSM", "Synology", "QNAP", "XPEnology", "헤놀로지", "Plex", "iSCSI"]
+    },
+    {
+      "id": "network-security",
+      "category": "network",
+      "label": "네트워크 보안",
+      "icon": "🔐",
+      "description": "방화벽·VPN·IDS/IPS 정책서 및 설정 문서",
+      "keywords": ["방화벽", "VPN", "IDS", "IPS", "ACL", "DMZ", "SSL", "TLS", "제로트러스트", "WireGuard"]
+    },
+    {
+      "id": "cs-architecture",
+      "category": "cs",
+      "label": "컴퓨터 구조",
+      "icon": "⚙️",
+      "description": "CPU·메모리·캐시·ISA 구조 교재",
+      "keywords": ["컴퓨터구조", "CPU", "ALU", "ISA", "RISC", "CISC", "캐시", "파이프라이닝", "가상메모리", "TLB"]
+    },
+    {
+      "id": "cs-os",
+      "category": "cs",
+      "label": "운영체제",
+      "icon": "🖥️",
+      "description": "프로세스·스케줄링·메모리관리·파일시스템 교재",
+      "keywords": ["운영체제", "프로세스", "스레드", "스케줄링", "세마포어", "데드락", "페이징", "시스템콜"]
+    },
+    {
+      "id": "cs-algorithm",
+      "category": "cs",
+      "label": "알고리즘·자료구조",
+      "icon": "🧮",
+      "description": "정렬·탐색·그래프·동적계획법 알고리즘 교재",
+      "keywords": ["알고리즘", "자료구조", "시간복잡도", "BFS", "DFS", "동적계획법", "정렬", "트리", "그래프", "O표기법"]
+    },
+    {
+      "id": "cs-database",
+      "category": "cs",
+      "label": "데이터베이스",
+      "icon": "🗄️",
+      "description": "SQL·정규화·트랜잭션·인덱스 교재 및 명세",
+      "keywords": ["데이터베이스", "SQL", "정규화", "트랜잭션", "ACID", "인덱스", "JOIN", "ERD", "NoSQL"]
+    },
+    {
+      "id": "cs-software",
+      "category": "cs",
+      "label": "소프트웨어공학",
+      "icon": "🔩",
+      "description": "설계 패턴·개발 방법론·UML·테스트 교재 및 명세서",
+      "keywords": ["소프트웨어공학", "애자일", "스크럼", "SOLID", "디자인패턴", "UML", "CI/CD", "TDD", "리팩토링"]
+    },
+    {
+      "id": "gamedev-unity",
+      "category": "gamedev",
+      "label": "Unity",
+      "icon": "🟦",
+      "description": "Unity 엔진 매뉴얼·C# 스크립팅·API 레퍼런스",
+      "keywords": ["Unity", "유니티", "MonoBehaviour", "Prefab", "프리팹", "Coroutine", "GameObject", "Inspector", "ScriptableObject", "Rigidbody", "Animator", "Canvas", "NavMesh", "Shader", "UGUI"]
+    },
+    {
+      "id": "gamedev-unreal",
+      "category": "gamedev",
+      "label": "Unreal Engine",
+      "icon": "🎯",
+      "description": "UE5·Blueprint·C++ 공식 문서 및 가이드",
+      "keywords": ["Unreal", "언리얼", "UE5", "Blueprint", "블루프린트", "Actor", "Component", "GameMode", "PlayerController", "Nanite", "Lumen", "GAS", "MetaHuman", "HLOD", "AI"]
+    },
+    {
+      "id": "gamedev-godot",
+      "category": "gamedev",
+      "label": "Godot",
+      "icon": "🤖",
+      "description": "Godot 엔진 공식 문서·GDScript·씬 시스템",
+      "keywords": ["Godot", "고도", "GDScript", "Node", "Scene", "Signal", "Export", "CharacterBody2D", "Area2D", "AnimationPlayer", "Tween", "Autoload", "Resource", "Inspector"]
+    },
+    {
+      "id": "gamedev-cocos",
+      "category": "gamedev",
+      "label": "Cocos2d / Creator",
+      "icon": "🥥",
+      "description": "Cocos Creator 공식 문서·TypeScript·모바일 게임",
+      "keywords": ["Cocos", "코코스", "Cocos Creator", "CocosCreator", "cc.Node", "Component", "Prefab", "Action", "Scheduler", "Physics", "TypeScript", "Scene", "Layer", "Animation"]
+    },
+    {
+      "id": "gamedev-rpgmaker",
+      "category": "gamedev",
+      "label": "RPG Maker / 쯔꾸르",
+      "icon": "⚔️",
+      "description": "RPG Maker MV/MZ 매뉴얼·플러그인·이벤트 가이드",
+      "keywords": ["RPG Maker", "쯔꾸르", "RMMV", "RMMZ", "MV", "MZ", "이벤트", "플러그인", "스위치", "변수", "공통이벤트", "트룹", "타일셋", "JavaScript", "Plugin"]
+    },
+    {
+      "id": "ai-theory",
+      "category": "ai",
+      "label": "ML/DL 이론",
+      "icon": "🧠",
+      "description": "딥러닝 교재·논문·CV·NLP 이론 문서",
+      "keywords": ["머신러닝", "딥러닝", "신경망", "역전파", "손실함수", "활성화함수", "CNN", "RNN", "Transformer", "BERT", "YOLO", "GAN", "강화학습", "과적합", "정규화", "최적화"]
+    },
+    {
+      "id": "ai-llm",
+      "category": "ai",
+      "label": "LLM·프롬프트 엔지니어링",
+      "icon": "💬",
+      "description": "GPT·Claude API·RAG·Fine-tuning·프롬프트 설계 문서",
+      "keywords": ["LLM", "GPT", "Claude", "프롬프트", "RAG", "Fine-tuning", "파인튜닝", "임베딩", "벡터DB", "토큰", "컨텍스트", "System Prompt", "Chain-of-Thought", "Hallucination", "에이전트"]
+    },
+    {
+      "id": "ai-framework",
+      "category": "ai",
+      "label": "ML 프레임워크",
+      "icon": "🔥",
+      "description": "PyTorch·TensorFlow·Keras·Hugging Face 공식 문서",
+      "keywords": ["PyTorch", "TensorFlow", "Keras", "Hugging Face", "Tensor", "Dataset", "DataLoader", "Module", "Optimizer", "Gradient", "CUDA", "GPU", "Checkpoint", "Pipeline", "Transformers"]
+    },
+    {
+      "id": "ai-mlops",
+      "category": "ai",
+      "label": "MLOps·파이프라인",
+      "icon": "⚙️",
+      "description": "MLflow·Kubeflow·모델 서빙·데이터 파이프라인 문서",
+      "keywords": ["MLOps", "MLflow", "Kubeflow", "모델 서빙", "파이프라인", "Feature Store", "모델 레지스트리", "드리프트", "A/B 테스트", "Docker", "Kubernetes", "Airflow", "데이터 전처리", "CI/CD"]
+    },
+    {
+      "id": "sports-event",
+      "category": "sports",
+      "label": "대회·참가",
+      "icon": "🏃",
+      "description": "마라톤·철인·등산대회 등 참가 신청·유의사항·면책 고지",
+      "keywords": ["마라톤", "대회", "참가", "컷오프", "타임리밋", "페이스메이커", "면책", "참가비", "DNS", "DNF"]
+    },
+    {
+      "id": "sports-facility",
+      "category": "sports",
+      "label": "시설·멤버십",
+      "icon": "🏋️",
+      "description": "헬스·클라이밍·수영장 등 이용약관·회원 규정·예약·환불",
+      "keywords": ["헬스", "클라이밍", "수영장", "회원", "이용약관", "멤버십", "예약", "환불", "면책", "락커"]
+    },
+    {
+      "id": "sports-rules",
+      "category": "sports",
+      "label": "경기 규칙·리그",
+      "icon": "📕",
+      "description": "종목 공식 룰북·리그 운영 규정·대회 형식",
+      "keywords": ["룰북", "규칙", "리그", "VAR", "파울", "오프사이드", "와일드카드", "플레이오프", "기술파울"]
+    },
+    {
+      "id": "sports-school",
+      "category": "sports",
+      "label": "학교·청소년 체육",
+      "icon": "🎒",
+      "description": "학교체육·학생선수 등록·대회 자격·보호자 동의",
+      "keywords": ["학교체육", "학생선수", "선수등록", "보호자동의", "교육청", "체육대회", "부상예방"]
+    },
+    {
+      "id": "sports-insurance",
+      "category": "sports",
+      "label": "스포츠 보험",
+      "icon": "🛡️",
+      "description": "단체 상해보험·클럽 가입 보장·면책·자기부담금",
+      "keywords": ["상해", "보험금", "면책", "자기부담금", "특별약관", "단체보험", "후유장해", "치료비"]
+    },
+    {
+      "id": "military-exam",
+      "category": "military",
+      "label": "병역판정·신체검사",
+      "icon": "📋",
+      "description": "병역판정검사 통지·등위급·재검·판정 변경 안내",
+      "keywords": ["병역판정검사", "신체등위급", "현역", "보충역", "재신체검사", "재판정", "병무청", "면제"]
+    },
+    {
+      "id": "military-call",
+      "category": "military",
+      "label": "입영·소집",
+      "icon": "📨",
+      "description": "입영통지·입영 연기·입영일·소집 해제 안내",
+      "keywords": ["입영통지", "입영연기", "소집해제", "입영훈련소", "징병검사", "복무기간산정"]
+    },
+    {
+      "id": "military-active",
+      "category": "military",
+      "label": "현역 복무",
+      "icon": "🪖",
+      "description": "현역 입대 준비·복무 기간·휴가·외박·포상·징계 안내",
+      "keywords": ["현역", "입대", "복무기간", "휴가", "외박", "포상", "징계", "전역", "부대"]
+    },
+    {
+      "id": "military-alternative",
+      "category": "military",
+      "label": "보충역·대체역",
+      "icon": "🏢",
+      "description": "사회복무요원·산업기능요원 등 배치·복무·교육 안내",
+      "keywords": ["사회복무요원", "산업기능요원", "보충역", "대체역", "복무기관", "복무관", "소집해제일"]
+    },
+    {
+      "id": "military-reserve",
+      "category": "military",
+      "label": "예비역·동원",
+      "icon": "📯",
+      "description": "예비역 편입·동원훈련·교육소집 통지 및 안내",
+      "keywords": ["예비역", "동원훈련", "교육소집", "민방위", "소집통지", "동원지정"]
+    },
+    {
+      "id": "disaster-natural",
+      "category": "disaster",
+      "label": "자연재난",
+      "icon": "🌊",
+      "description": "호우·태풍·홍수·산사태·산불·지진 등 대피·행동요령",
+      "keywords": ["호우경보", "대피소", "긴급대피", "산사태", "홍수", "태풍", "지진", "산불", "안전지대"]
+    },
+    {
+      "id": "disaster-fire",
+      "category": "disaster",
+      "label": "화재·소방",
+      "icon": "🧯",
+      "description": "건물 화재 대피·소방법·소화시설·연기 대피 안내",
+      "keywords": ["피난안내등", "소화전", "연소방지", "화재경보", "대피훈련", "비상구", "스프링클러"]
+    },
+    {
+      "id": "disaster-facility",
+      "category": "disaster",
+      "label": "시설·비상대응",
+      "icon": "🚉",
+      "description": "지하철·터미널·학교 등 비상대응 매뉴얼·안전관리 안내",
+      "keywords": ["비상대피로", "대피유도등", "다중이용업소", "안전관리자", "비상조명", "유도등"]
+    },
+    {
+      "id": "disaster-first-aid",
+      "category": "disaster",
+      "label": "응급처치·구조",
+      "icon": "⛑️",
+      "description": "심폐소생술·AED·출혈·화상 등 현장 응급처치 교육 자료",
+      "keywords": ["심폐소생술", "CPR", "AED", "기도폐쇄", "지혈", "골든타임", "응급처치"]
+    },
+    {
+      "id": "disaster-life",
+      "category": "disaster",
+      "label": "생활안전·예방",
+      "icon": "🏠",
+      "description": "가스·전기·낙상·화상 등 가정·일상 사고 예방 안내",
+      "keywords": ["가스누출", "CO중독", "누전차단기", "감전", "낙상예방", "안전수칙", "어린이안전"]
+    },
+    {
+      "id": "vehicle-purchase",
+      "category": "vehicle",
+      "label": "구매·리스·할부",
+      "icon": "📜",
+      "description": "신차·중고차 매매, 장기렌트·리스·할부 약정",
+      "keywords": ["리스", "장기렌트", "잔가", "선수금", "원리금균등", "중도해지료", "명의이전", "할부", "중고차"]
+    },
+    {
+      "id": "vehicle-insurance",
+      "category": "vehicle",
+      "label": "자동차 보험",
+      "icon": "🔖",
+      "description": "자동차보험 약관·자차·대물·무보험·긴급출동",
+      "keywords": ["자동차보험", "자차", "대물배상", "대인배상", "무보험", "긴급출동", "할증", "면책금"]
+    },
+    {
+      "id": "vehicle-registration",
+      "category": "vehicle",
+      "label": "등록·명의",
+      "icon": "🏷️",
+      "description": "이전등록·말소·번호판·취득세·폐차 안내",
+      "keywords": ["자동차등록원부", "명의이전", "말소등록", "취득세", "번호판", "폐차", "압류", "저당"]
+    },
+    {
+      "id": "vehicle-violation",
+      "category": "vehicle",
+      "label": "과태료·교통",
+      "icon": "⚠️",
+      "description": "과태료·범칙금 고지, 주차·신호 위반, 이의·납부",
+      "keywords": ["과태료", "범칙금", "부과처분", "이의신청", "자진납부", "주차위반", "CCTV단속"]
+    },
+    {
+      "id": "vehicle-maintenance",
+      "category": "vehicle",
+      "label": "정비·보증·리콜",
+      "icon": "🔧",
+      "description": "정비 견적·보증수리·리콜·무상점검 안내",
+      "keywords": ["보증수리", "리콜", "무상점검", "마모", "에프터서비스", "순정부품", "소모품"]
+    },
+    {
+      "id": "vehicle-ev",
+      "category": "vehicle",
+      "label": "전기차·충전",
+      "icon": "⚡",
+      "description": "보조금·충전 멤버십·요금제·배터리·충전 규격 안내",
+      "keywords": ["전기차", "EV", "충전소", "급속충전", "완속충전", "CCS", "충전요금", "배터리보증", "V2L"]
+    },
+    {
+      "id": "electronics-manual",
+      "category": "electronics",
+      "label": "사용설명서·사양",
+      "icon": "📖",
+      "description": "매뉴얼·퀵스타트·버튼·메뉴·사양표·방수등급 안내",
+      "keywords": ["매뉴얼", "퀵스타트", "페어링", "공장초기화", "리셋", "IP등급", "SKU", "모델명"]
+    },
+    {
+      "id": "electronics-warranty",
+      "category": "electronics",
+      "label": "보증·A/S",
+      "icon": "🧰",
+      "description": "보증 기간·제외·무상·유상 수리·RMA·서비스 센터",
+      "keywords": ["보증서", "RMA", "시리얼", "무상수리", "유상수리", "소모품", "교환", "환불"]
+    },
+    {
+      "id": "electronics-safety",
+      "category": "electronics",
+      "label": "안전·전원·인증",
+      "icon": "🔋",
+      "description": "KC 인증·전원·어댑터·배터리 취급·과열·폐기 안내",
+      "keywords": ["KC", "입력전압", "과충전", "분해금지", "폐가전", "리튬배터리", "방사열", "접지"]
+    },
+    {
+      "id": "electronics-software",
+      "category": "electronics",
+      "label": "소프트웨어·펌웨어",
+      "icon": "💾",
+      "description": "펌웨어·OTA·복구 모드·드라이버·공장초기화 안내",
+      "keywords": ["펌웨어", "OTA", "부트로더", "복구모드", "드라이버", "바이오스", "업데이트"]
+    },
+    {
+      "id": "electronics-smart",
+      "category": "electronics",
+      "label": "연결·개인정보",
+      "icon": "📡",
+      "description": "Wi‑Fi·앱 연동·수집 항목·마이크·위치 등 스마트 제품 안내",
+      "keywords": ["개인정보", "Wi-Fi", "로그", "마이크", "위치정보", "계정연동", "동의철회"]
+    },
+    {
+      "id": "electronics-accessory",
+      "category": "electronics",
+      "label": "액세서리·충전·호환",
+      "icon": "🔌",
+      "description": "충전기·케이블·PD·Qi 등 호환·비호환·손상 면책 안내",
+      "keywords": ["USB-C", "PD", "Qi", "와트", "정품충전기", "비호환", "케이블", "독"]
+    },
+    {
+      "id": "sub-media",
+      "category": "digital-subscription",
+      "label": "콘텐츠·미디어 구독",
+      "icon": "📺",
+      "description": "OTT, 멤버십, 음원 스트리밍 서비스 이용 및 해지 약관",
+      "keywords": ["OTT", "스트리밍", "멤버십", "정기결제", "청약철회", "해지", "환불", "콘텐츠", "미디어", "저작권"]
+    },
+    {
+      "id": "sub-software",
+      "category": "digital-subscription",
+      "label": "소프트웨어·클라우드 서비스",
+      "icon": "💻",
+      "description": "소프트웨어 및 클라우드 스토리지 라이선스 및 구독 약관",
+      "keywords": ["소프트웨어", "SaaS", "클라우드", "스토리지", "라이선스", "구독", "정기결제", "자동결제", "환불", "기능제한"]
+    },
+    {
+      "id": "creator-mcn",
+      "category": "content-creator",
+      "label": "MCN·소속사 계약",
+      "icon": "📝",
+      "description": "크리에이터 소속사 전속 계약서, 수익 분배 약정서",
+      "keywords": ["MCN", "소속사", "전속계약", "수익분배", "계약기간", "해지", "페널티", "정산", "위약금"]
+    },
+    {
+      "id": "creator-sponsor",
+      "category": "content-creator",
+      "label": "광고·스폰서십 계약",
+      "icon": "📢",
+      "description": "게임 협찬, 제품 리뷰, 브랜디드 콘텐츠 제작 및 스폰서십 계약서",
+      "keywords": ["광고", "스폰서십", "협찬", "제품리뷰", "브랜디드콘텐츠", "계약서", "대가", "성과보수", "비밀유지", "NDA"]
+    },
+    {
+      "id": "creator-license",
+      "category": "content-creator",
+      "label": "저작권·에셋 라이선스",
+      "icon": "🎨",
+      "description": "캐릭터 디자인, 음원, 폰트 등 콘텐츠 사용 허락 및 2차창작 저작물 약관",
+      "keywords": ["저작권", "라이선스", "에셋", "BGM", "폰트", "초상권", "2차창작", "가이드라인", "사용범위", "저작물"]
+    },
+    {
+      "id": "creator-platform",
+      "category": "content-creator",
+      "label": "플랫폼 약관",
+      "icon": "▶️",
+      "description": "유튜브, 치지직 등 방송 플랫폼 이용 약관, 수익 창출 및 커뮤니티 가이드라인",
+      "keywords": ["유튜브", "치지직", "SOOP", "방송플랫폼", "스트리밍", "이용약관", "수익창출", "저작권침해", "콘텐츠ID", "페널티"]
+    },
+    {
+      "id": "overseas-customs",
+      "category": "trade-overseas",
+      "label": "수입신고·관세",
+      "icon": "🏢",
+      "description": "해외 직구 물품 수입신고필증 및 관세·부가세 납부 고지서",
+      "keywords": ["수입신고필증", "관세", "부가세", "통관", "개인통관고유부호", "유니패스", "관세법인"]
+    },
+    {
+      "id": "overseas-invoice",
+      "category": "trade-overseas",
+      "label": "인보이스·영수증",
+      "icon": "🧾",
+      "description": "해외 쇼핑몰 구매 내역서 및 인보이스, 배송 대행지 신청서",
+      "keywords": ["인보이스", "Invoice", "영수증", "배대지", "트래킹", "RMA", "해외직구", "구매내역"]
+    },
+    {
+      "id": "overseas-rma",
+      "category": "trade-overseas",
+      "label": "반품·교환·AS",
+      "icon": "🔄",
+      "description": "해외 쇼핑몰 반품·교환·AS 신청서, 반품 라벨 및 안내문",
+      "keywords": ["RMA", "반품", "교환", "AS", "리턴라벨", "해외배송", "불량", "파손", "환불"]
+    },
+    {
+      "id": "travel-flight",
+      "category": "travel-airline",
+      "label": "항공권·e-티켓",
+      "icon": "🎫",
+      "description": "전자 항공권, 여정 안내서, 수하물 규정 및 취소 수수료 안내문",
+      "keywords": ["항공권", "e-티켓", "여정안내서", "수하물규정", "취소수수료", "환불규정", "체크인", "탑승권", "보딩패스", "마일리지"]
+    },
+    {
+      "id": "travel-hotel",
+      "category": "travel-airline",
+      "label": "숙박 예약 확인서",
+      "icon": "🏨",
+      "description": "호텔 예약 확인서, 취소 및 환불 정책 안내문",
+      "keywords": ["숙박예약", "예약확인서", "취소정책", "환불정책", "체크인", "체크아웃", "노쇼", "연박", "조식", "보증금"]
+    },
+    {
+      "id": "travel-insurance",
+      "category": "travel-airline",
+      "label": "해외여행보험·여행자보험",
+      "icon": "⛑️",
+      "description": "해외/국내 여행자 보험 가입 증명서 및 휴대품 파손 보상 청구 서류",
+      "keywords": ["여행자보험", "해외여행보험", "국내여행보험", "가입증명서", "휴대품파손", "보상청구", "긴급지원", "의료비보상", "여행취소", "면책금"]
+    },
+    {
+      "id": "travel-rental",
+      "category": "travel-airline",
+      "label": "렌터카·교통패스",
+      "icon": "🚗",
+      "description": "렌터카 대여 계약서, 국제운전면허증, 교통패스 이용 약관 및 환불 정책 안내문",
+      "keywords": ["렌터카", "교통패스", "대여계약서", "국제운전면허증", "이용약관", "환불정책", "보험", "면책조항", "연료정책", "면책금"]
+    },
+    {
+      "id": "travel-visa",
+      "category": "travel-airline",
+      "label": "비자·출입국 신고서",
+      "icon": "🛂",
+      "description": "비자 신청서, 세관 신고서, 출입국 신고서 및 심사 관련 안내문",
+      "keywords": ["비자", "출입국신고서", "세관신고서", "입국심사", "ESTA", "비자면제", "체류기간", "재입국허가", "면세한도"]
+    },
+    {
+    "id": "pet-adoption",
+    "category": "pet",
+    "label": "분양·입양 계약서",
+    "icon": "🐶",
+    "description": "반려동물 분양 계약서 및 유기동물 입양 책임 서약서",
+    "keywords": ["분양", "입양", "유기동물", "책임서약", "반려동물", "동물보호법", "예방접종", "중성화", "혈통서", "예방접종"]
+    },
+    {
+      "id": "pet-hospital",
+      "category": "pet",
+      "label": "동물병원·펫보험",
+      "icon": "🏥",
+      "description": "동물병원 진료 안내문, 수술 동의서, 펫보험 약관 및 보상 청구 서류",
+      "keywords": ["동물병원", "펫보험", "진료안내", "수술동의서", "보상청구", "면책조항", "예방접종"]
+    },
+    {
+      "id": "pet-service",
+      "category": "pet",
+      "label": "반려동물 서비스",
+      "icon": "✂️",
+      "description": "애견미용, 펫시터, 훈련소, 위탁 호텔 등 반려동물 서비스 이용 약관",
+      "keywords": ["애견미용", "펫시터", "훈련소", "위탁호텔", "위탁", "이용약관", "예약취소", "환불정책", "면책조항"]
+    },
+    {
+      "id": "beauty-clinic",
+      "category": "beauty-wellness",
+      "label": "피부과·시술 동의서",
+      "icon": "💉",
+      "description": "레이저, 쁘띠 시술 등 피부과 시술 동의서, 부작용 안내문, 시술 후 관리 지침",
+      "keywords": ["피부과", "성형외과", "시술동의서", "레이저", "부작용", "사후관리", "환불", "회원권"]
+    },
+    {
+      "id": "beauty-shop",
+      "category": "beauty-wellness",
+      "label": "미용실·네일·에스테틱",
+      "icon": "💅",
+      "description": "헤어, 네일샵, 피부관리실 다회권/정액권 결제 및 중도 해지 환불 약관",
+      "keywords": ["미용실", "네일샵", "에스테틱", "다회권", "정액권", "결제약관", "환불약관", "중도해지", "회원권"]
+    },
+    {
+      "id": "beauty-tattoo",
+      "category": "beauty-wellness",
+      "label": "타투·반영구 시술",
+      "icon": "🖋️",
+      "description": "타투, 반영구 화장 시술 전 주의사항 안내, 리터치 규정 및 동의서",
+      "keywords": ["타투", "반영구", "시술동의서", "주의사항", "예약", "리터치", "환불정책", "사후관리", "알레르기", "감염"]
+    },
+    {
+      "id": "biz-business-transfer",
+      "category": "business",
+      "label": "영업 양수도 계약",
+      "icon": "🤝",
+      "description": "사업체 권리금 및 영업권 승계 계약서",
+      "keywords": ["영업양수도", "권리금", "비품", "경업금지", "채무승계"]
+    },
+    {
+      "id": "biz-franchise-disclosure",
+      "category": "business",
+      "label": "가맹사업 정보공개서",
+      "icon": "📑",
+      "description": "프랜차이즈 가맹본부 정보 및 가맹금 안내",
+      "keywords": ["정보공개서", "가맹", "로열티", "가맹금", "예상매출"]
+    },
+    {
+      "id": "biz-interior-contract",
+      "category": "business",
+      "label": "인테리어 공사 계약",
+      "icon": "🏗️",
+      "description": "매장 인테리어 시공 및 하자 보수 계약서",
+      "keywords": ["인테리어", "지체상금", "준공", "착공", "하자보수"]
+    },
+    {
+      "id": "biz-investment-termsheet",
+      "category": "business",
+      "label": "투자 조건 합의서",
+      "icon": "📈",
+      "description": "스타트업 투자 유치를 위한 주요 조건 합의서",
+      "keywords": ["Term Sheet", "투자", "밸류에이션", "청산우선권", "RCPS"]
+    },
+    {
+      "id": "biz-policy-fund",
+      "category": "business",
+      "label": "소상공인 정책자금",
+      "icon": "💰",
+      "description": "정부 소상공인 지원 대출 및 자금 공고",
+      "keywords": ["정책자금", "소상공인", "거치기간", "이자보전", "직접대출"]
+    },
+    {
+      "id": "biz-registration-guide",
+      "category": "business",
+      "label": "사업자 등록 안내",
+      "icon": "💼",
+      "description": "신규 사업자 등록 및 업종 선택 가이드",
+      "keywords": ["사업자등록", "간이과세", "일반과세", "업종코드", "인허가"]
+    },
+    {
+      "id": "trademark-register",
+      "category": "business",
+      "label": "상표권 등록 가이드",
+      "icon": "🏷️",
+      "description": "브랜드 상표 출원 및 등록 절차 안내",
+      "keywords": ["상표", "출원", "특허청", "식별력", "지정상품"]
+    },{
+      "id": "env-diesel-scrapping",
+      "category": "environment",
+      "label": "노후 경유차 조기폐차",
+      "icon": "🚛",
+      "description": "배출가스 4·5등급 차량 폐차 지원금 안내",
+      "keywords": ["조기폐차", "배출가스", "저감장치", "상한액", "4등급", "5등급"]
+    },
+    {
+      "id": "env-ev-subsidy",
+      "category": "environment",
+      "label": "전기차 보조금",
+      "icon": "⚡",
+      "description": "전기자동차 구매 보조금 신청 및 지급 공고",
+      "keywords": ["전기차", "보조금", "국비", "지방비", "의무운행"]
+    },
+    {
+      "id": "env-finedust-manual",
+      "category": "environment",
+      "label": "미세먼지 저감 매뉴얼",
+      "icon": "😷",
+      "description": "비상저감조치 시 차량 운행 제한 및 행동 요령",
+      "keywords": ["미세먼지", "비상저감조치", "운행제한", "과태료", "5부제"]
+    },{
+      "id": "event-funeral-columbarium",
+      "category": "event",
+      "label": "봉안당 사용 계약",
+      "icon": "🕯️",
+      "description": "납골당 안치 및 시설 사용 계약서",
+      "keywords": ["봉안당", "납골당", "안치", "관리비", "영구안치"]
+    },
+    {
+      "id": "event-funeral-sangjo",
+      "category": "event",
+      "label": "상조 서비스 약관",
+      "icon": "📋",
+      "description": "상조 상품 가입 및 해약환급금 관련 표준약관",
+      "keywords": ["상조", "해약환급금", "의전", "납입금", "장례서비스"]
+    },
+    {
+      "id": "event-wedding-custom",
+      "category": "event",
+      "label": "예물·예복 맞춤",
+      "icon": "👔",
+      "description": "맞춤 예복 및 예물 제작 의뢰서",
+      "keywords": ["가봉", "예복", "맞춤", "AS", "원단"]
+    },
+    {
+      "id": "event-wedding-photography",
+      "category": "event",
+      "label": "웨딩 스냅·영상 계약",
+      "icon": "📸",
+      "description": "결혼식 촬영 및 앨범 제작 관련 계약서",
+      "keywords": ["스냅", "원판", "수정본", "데이터형", "초상권"]
+    },
+    {
+      "id": "event-wedding-venue",
+      "category": "event",
+      "label": "예식장 대관 계약",
+      "icon": "💍",
+      "description": "웨딩홀 대관 및 식대 정산 관련 계약서",
+      "keywords": ["예식장", "보증인원", "식대", "연출비", "위약금"]
+    },{
+      "id": "maintenance-cost",
+      "category": "residence",
+      "label": "관리비 명세서",
+      "icon": "🧾",
+      "description": "주거 시설 관리비 부과 상세 내역",
+      "keywords": ["관리비", "장기수선충당금", "전기료", "수도료", "일반관리비"]
+    },
+    {
+      "id": "realestate-confirmation-report",
+      "category": "realestate",
+      "label": "중개대상물 확인설명서",
+      "icon": "🏠",
+      "description": "부동산 계약 시 시설 상태 및 권리 관계 확인서",
+      "keywords": ["확인설명서", "누수", "위반건축물", "벽면", "일조"]
+    },
+    {
+      "id": "residence-support",
+      "category": "residence",
+      "label": "주거 지원 사업",
+      "icon": "🏡",
+      "description": "청년 월세 지원 등 주거 복지 사업 공고",
+      "keywords": ["월세지원", "주거지원", "중위소득", "무주택", "전입신고"]
+    },{
+      "id": "art-copyright-license",
+      "category": "show",
+      "label": "예술 저작권 라이선스",
+      "icon": "🎨",
+      "description": "작품 사용 권한 및 저작권 이용 허락 계약",
+      "keywords": ["저작권", "이용허락", "2차적저작물", "양도", "로열티"]
+    },
+    {
+      "id": "art-grant-notice",
+      "category": "show",
+      "label": "문화예술 지원 공고",
+      "icon": "📢",
+      "description": "예술가 창작 지원금 및 공모전 안내",
+      "keywords": ["지원사업", "공모", "예술가", "포트폴리오", "정산"]
+    },
+    {
+      "id": "performance-ticketing-terms",
+      "category": "show",
+      "label": "공연 예매·입장 안내",
+      "icon": "🎭",
+      "description": "공연 티켓 예매 취소 규정 및 관람 유의사항",
+      "keywords": ["예매", "취소수수료", "커튼콜", "지연입장", "본인확인"]
     },
     {
       "id": "default",

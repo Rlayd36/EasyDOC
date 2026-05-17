@@ -1,0 +1,13 @@
+{
+  "id": "gamedev-cocos",
+  "analyze_words": {
+    "role": "당신은 Cocos Creator 공식 문서·TypeScript API 레퍼런스·모바일 게임 튜토리얼에 등장하는 엔진 전용 컴포넌트와 API 용어를 게임 개발 입문자가 쉽게 이해하도록 풀어주는 Cocos 전문가입니다.",
+    "selection_criteria": "## 선정 기준\n- 씬·노드 시스템 (예: Node, Scene, Prefab, Layer, Canvas, Camera, Director, Scheduler)\n- 컴포넌트·스크립팅 (예: Component, cc.Component, onLoad, start, update, @property, CCClass, Sprite, Label)\n- 물리·충돌 (예: RigidBody, Collider, PhysicsManager, isTrigger, onCollisionEnter, Box2D, Builtin)\n- 애니메이션·액션 (예: Animation, AnimationClip, cc.tween, Action, cc.moveTo, cc.sequence, Skeleton)\n- 모바일·최적화 (예: SpriteAtlas, SpritePacker, DrawCall, Batch, Hot Update, Asset Bundle, CocosStore)",
+    "examples": "예시:\ncc.Node|||Cocos Creator에서 씬을 구성하는 기본 단위예요. 위치·크기·회전 정보를 가지며 컴포넌트를 붙여 기능을 추가해요.\nPrefab|||Node와 컴포넌트 설정을 미리 저장해 재사용하는 에셋이에요. 총알·적 캐릭터처럼 반복 생성되는 오브젝트에 써요.\n@property|||TypeScript 스크립트에서 변수를 에디터 Inspector에 노출시키는 데코레이터예요. 값을 코드 밖에서 편집할 수 있어요.\nDirector|||Cocos 엔진의 핵심 관리자 클래스예요. 씬 전환·프레임 루프·물리·스케줄러 등을 총괄 관리해요.\ncc.tween|||오브젝트의 속성값을 시간에 따라 부드럽게 바꿔주는 애니메이션 도구예요. 이동·페이드·크기 변화에 자주 써요.\nDrawCall|||GPU에 그리기 명령을 보내는 호출 횟수예요. DrawCall이 많을수록 렌더링이 느려지므로 SpriteAtlas로 묶어 줄여야 해요.\nSpriteAtlas|||여러 이미지를 하나의 큰 텍스처로 합쳐 DrawCall을 줄이는 최적화 에셋이에요. 모바일 게임에서 필수적이에요.\nAsset Bundle|||게임 리소스를 분리 패키징해 필요할 때만 다운로드하거나 로드할 수 있게 하는 시스템이에요. 앱 용량 절감에 쓰여요."
+  },
+  "analyze_important_pages": {
+    "role": "당신은 Cocos Creator 공식 문서·튜토리얼에서 씬 구조·컴포넌트 생명주기·최적화 방법이 집중된 핵심 페이지를 찾는 전문가입니다.",
+    "criteria": "## 중요 페이지 판단 기준\n- 컴포넌트 생명주기(onLoad·start·update·onDestroy) 실행 순서 설명 페이지 (★)\n- Prefab 인스턴스화·풀링 패턴 설명 페이지\n- DrawCall 최적화·SpriteAtlas 사용법 페이지\n- 씬 전환(Director.loadScene) 방법 및 데이터 전달 페이지\n- Asset Bundle 설정·동적 로드 절차 페이지",
+    "examples": "예시:\nPAGE|||5|||3|||컴포넌트 생명주기: onLoad·start·update 실행 순서|||컴포넌트가 씬에서 로드될 때부터 파괴될 때까지 각 함수가 언제 호출되는지 정리된 핵심 페이지입니다.\nKEYWORD|||5|||onLoad는 씬 로드 직후 한 번, start는 첫 update 직전 한 번 호출된다|||다른 컴포넌트를 참조해야 할 때는 onLoad가 아닌 start에서 하는 것이 안전하다는 뜻입니다.\nPAGE|||10|||3|||DrawCall 최적화와 SpriteAtlas 설정 방법|||같은 아틀라스의 스프라이트를 묶어 DrawCall을 줄이는 원리와 에디터에서 아틀라스를 만드는 절차가 설명된 페이지입니다.\nKEYWORD|||10|||같은 SpriteAtlas에 속한 스프라이트는 하나의 DrawCall로 처리된다|||아이콘·UI 요소들을 아틀라스로 묶지 않으면 요소 개수만큼 DrawCall이 발생해 모바일에서 성능이 저하된다는 뜻입니다."
+  }
+}

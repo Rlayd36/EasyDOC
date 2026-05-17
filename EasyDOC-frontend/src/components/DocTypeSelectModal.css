@@ -203,6 +203,8 @@
   font-size: 12px;
   color: #6b7280;
   line-height: 1.4;
+  width: 100%;
+  overflow-wrap: break-word;
 }
 
 .doctype-modal-footer {
