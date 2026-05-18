@@ -191,6 +191,51 @@
   letter-spacing: -0.5px;
 }
 
+.stat-card--doc-types .stat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-type-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-type-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.stat-type-name {
+  color: #111827;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.stat-type-count {
+  color: #3b82f6;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.stat-types-empty {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
 /* ===============================
    프로필 정보 섹션
    =============================== */

@@ -21,7 +21,11 @@ import Loading from "./Loading";
 import AppBrandLogo from "../components/AppBrandLogo";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import { parseDocumentCreatedAt, formatDocumentDateTimeKo } from "../utils/documentDate";
+import { aggregateTopCategories } from "../utils/docTypeLabels";
 import "./mypage.css";
+
+const PARSER_URL = "http://localhost:8000";
+const DOCUMENT_API_URL = "http://localhost:8002";
 
 // ============================================
 // 사이드바 네비게이션 아이콘들
@@ -99,15 +103,13 @@ function PageStatsIcon() {
   );
 }
 
-/**
- * 단어 학습 통계 아이콘
- * 표시 정보: 사용자가 학습한 전문 용어 개수
- */
-function WordStatsIcon() {
+/** 문서 유형 통계 아이콘 */
+function DocTypeStatsIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="1.5">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8 12h8M12 8v8" strokeLinecap="round" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+      <rect x="4" y="4" width="6" height="16" rx="1" />
+      <rect x="12" y="10" width="6" height="10" rx="1" />
+      <rect x="12" y="4" width="6" height="4" rx="1" />
     </svg>
   );
 }
@@ -136,7 +138,7 @@ function LogoutIcon() {
  * @param {Object} userData.stats - 통계 정보
  * @param {number} userData.stats.documents - 변환한 문서 수
  * @param {number} userData.stats.pages - 변환한 페이지 수
- * @param {number} userData.stats.words - 학습한 용어 수
+ * @param {Array<{categoryId: string, label: string, count: number}>} userData.stats.topCategories - 분야(category)별 상위 3개
  * 
  * 차후 편집 가능 기능 추가해야 함
  */
@@ -159,11 +161,24 @@ function ProfileContent({ userData }) {
             <span className="stat-value">{userData.stats.pages.toLocaleString()}</span>
           </div>
         </div>
-        <div className="stat-card">
-          <WordStatsIcon />
+        <div className="stat-card stat-card--doc-types">
+          <DocTypeStatsIcon />
           <div className="stat-info">
-            <span className="stat-label">용어 학습</span>
-            <span className="stat-value">{userData.stats.words}</span>
+            <span className="stat-label">분야 TOP 3</span>
+            {userData.stats.topCategories?.length > 0 ? (
+              <ul className="stat-type-list">
+                {userData.stats.topCategories.map((item) => (
+                  <li key={item.categoryId} className="stat-type-item">
+                    <span className="stat-type-name" title={item.label}>
+                      {item.label}
+                    </span>
+                    <span className="stat-type-count">{item.count}건</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="stat-types-empty">아직 없음</span>
+            )}
           </div>
         </div>
       </div>
@@ -873,7 +888,7 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
     name: " ",
     email: userEmail,
     joinDate: "",
-    stats:{documents: 0, pages:0,words:0}
+    stats: { documents: 0, pages: 0, topCategories: [] },
   });
 
   React.useEffect(() => {
@@ -916,28 +931,29 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
           console.error("정보 로딩 실패:", err);
         });
 
-      // 문서 DB에서 데이터 가져와서 통계 (문서 수, 페이지 수) 계산하기
-      axios.get(`http://localhost:8002/api/documents?user_email=${userEmail}`)
-        .then(response => {
-          const docs = response.data;
+      Promise.all([
+        axios.get(`${DOCUMENT_API_URL}/api/documents/stats`, {
+          params: { user_email: userEmail },
+        }),
+        axios.get(`${PARSER_URL}/document-types`),
+      ])
+        .then(([statsRes, typesRes]) => {
+          const topCategories = aggregateTopCategories(
+            statsRes.data?.type_counts,
+            typesRes.data,
+            3,
+          );
 
-          // 총 문서 개수
-          const totalDocs = docs.length;
-
-          // 총 페이지 수 합산 (값이 비어있으면 1장으로 계산)
-          const totalPages = docs.reduce((sum, doc) => sum + (doc.page_count || 1), 0);
-
-          // 계산된 결과를 userData.stats에 반영
-          setUserData(prev => ({
+          setUserData((prev) => ({
             ...prev,
             stats: {
-              ...prev.stats,
-              documents: totalDocs,
-              pages: totalPages
-            }
+              documents: statsRes.data?.documents ?? 0,
+              pages: statsRes.data?.pages ?? 0,
+              topCategories,
+            },
           }));
         })
-        .catch(error => {
+        .catch((error) => {
           console.error("통계 정보 로딩 실패:", error);
         });
     }
