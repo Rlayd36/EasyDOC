@@ -20,6 +20,7 @@ import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
 import DocTypeSelectModal from "../components/DocTypeSelectModal";
 import { formatDocumentDateKo } from "../utils/documentDate";
+import { isOcrImageDocument } from "../utils/documentViewMode";
 
 // 텍스트를 하이라이트해주는 컴포넌트
 function HighlightedTextView({ text, highlightWord }) {
@@ -82,7 +83,8 @@ export default function Viewer({
   // 최근 문서 목록 상태
   const [recentDocs, setRecentDocs] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null); // 현재 선택된 문서 상세 정보
-  const viewerDocId = selectedDoc?.id ?? parsedData?.id ?? null;
+  const viewerDocId =
+    selectedDoc?.id ?? parsedData?.id ?? ocrData?.id ?? null;
 
   // 파일 선택을 위한 ref
   const fileInputRef = useRef(null);
@@ -155,19 +157,30 @@ export default function Viewer({
       setCurrentDocType(docData.doc_type || "default");
       setHighlightWord(""); // 문서가 바뀔 때 강조 단어 초기화
 
-      // 가져온 텍스트를 뷰어 상태에 반영
-      setParsedText(docData.text || "");
-      setOcrText("");
-      setIsOcr(false);
-
       if (docData.s3_url) {
         setPdfUrl(docData.s3_url);
-        const ext =
-          docData.file_type?.toLowerCase() ||
-          docData.file_name?.split(".").pop().toLowerCase();
-        setIsPdf(ext === "pdf");
-        setIsHwpx(ext === "hwpx");
-        setIsMd(ext === "md");
+        if (isOcrImageDocument(docData)) {
+          setOcrText(docData.text || "");
+          setParsedText("");
+          setIsOcr(true);
+          setIsPdf(true);
+          setIsHwpx(false);
+          setIsMd(false);
+        } else {
+          setParsedText(docData.text || "");
+          setOcrText("");
+          setIsOcr(false);
+          const ext =
+            docData.file_type?.toLowerCase() ||
+            docData.file_name?.split(".").pop().toLowerCase();
+          setIsPdf(ext === "pdf");
+          setIsHwpx(ext === "hwpx");
+          setIsMd(ext === "md");
+        }
+      } else {
+        setParsedText(docData.text || "");
+        setOcrText("");
+        setIsOcr(false);
       }
     } catch (error) {
       console.error("문서 상세 로딩 실패:", error);
@@ -203,6 +216,7 @@ export default function Viewer({
       setIsOcr(true);
       setIsHwpx(false); // 이전 HWPX 상태 초기화
       setParsedText(""); // OCR 데이터가 있으면 파싱은 비움
+      if (ocrData.doc_type) setCurrentDocType(ocrData.doc_type);
     }
 
     // Upload에서 전달받은 파일 URL 설정

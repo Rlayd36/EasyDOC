@@ -6,6 +6,10 @@ import AppBrandLogo from "../components/AppBrandLogo";
 import DocTypeSelectModal from "../components/DocTypeSelectModal";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import { formatDocumentDateKo } from "../utils/documentDate";
+import {
+  isOcrImageDocument,
+  buildOcrResultFromDocument,
+} from "../utils/documentViewMode";
 import "./Upload.css";
 
 export default function Upload({
@@ -59,14 +63,20 @@ export default function Upload({
       `http://localhost:8002/api/documents/${docId}`,
     );
     const docData = response.data;
-    setParseResult({
-      id: docData.id,
-      filename: docData.file_name,
-      text: docData.text,
-      difficult_words: docData.difficult_words,
-      doc_type: docData.doc_type || "default",
-    });
-    setOcrResult(null);
+
+    if (isOcrImageDocument(docData)) {
+      setOcrResult(buildOcrResultFromDocument(docData));
+      setParseResult(null);
+    } else {
+      setParseResult({
+        id: docData.id,
+        filename: docData.file_name,
+        text: docData.text,
+        difficult_words: docData.difficult_words,
+        doc_type: docData.doc_type || "default",
+      });
+      setOcrResult(null);
+    }
     setPdfFileUrl(docData.s3_url || null);
     setShowViewer(true);
   };
@@ -103,9 +113,11 @@ export default function Upload({
     saveAppRoute({
       page: "upload",
       viewerDocId:
-        showViewer && parseResult?.id != null ? parseResult.id : null,
+        showViewer && (parseResult?.id ?? ocrResult?.id) != null
+          ? (parseResult?.id ?? ocrResult?.id)
+          : null,
     });
-  }, [routeHydrated, showViewer, parseResult?.id]);
+  }, [routeHydrated, showViewer, parseResult?.id, ocrResult?.id]);
 
   // 최근 문서 목록에서 문서 클릭 시 뷰어 페이지로 이동
   const handleRecentDocClick = async (docId) => {

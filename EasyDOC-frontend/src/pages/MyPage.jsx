@@ -22,6 +22,10 @@ import AppBrandLogo from "../components/AppBrandLogo";
 import { saveAppRoute, loadAppRoute } from "../utils/appRoute";
 import { parseDocumentCreatedAt, formatDocumentDateTimeKo } from "../utils/documentDate";
 import { aggregateTopCategories } from "../utils/docTypeLabels";
+import {
+  isOcrImageDocument,
+  buildOcrResultFromDocument,
+} from "../utils/documentViewMode";
 import "./mypage.css";
 
 const PARSER_URL = "http://localhost:8000";
@@ -810,16 +814,26 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
   const applyDocumentToViewer = async (docId) => {
     const response = await axios.get(`http://localhost:8002/api/documents/${docId}`);
     const docData = response.data;
-    setViewerData({
-      parseResult: {
-        id: docData.id,
-        filename: docData.file_name,
-        text: docData.text,
-        difficult_words: docData.difficult_words
-      },
-      ocrResult: null,
-      pdfFileUrl: docData.s3_url || null
-    });
+
+    if (isOcrImageDocument(docData)) {
+      setViewerData({
+        parseResult: null,
+        ocrResult: buildOcrResultFromDocument(docData),
+        pdfFileUrl: docData.s3_url || null,
+      });
+    } else {
+      setViewerData({
+        parseResult: {
+          id: docData.id,
+          filename: docData.file_name,
+          text: docData.text,
+          difficult_words: docData.difficult_words,
+          doc_type: docData.doc_type || "default",
+        },
+        ocrResult: null,
+        pdfFileUrl: docData.s3_url || null,
+      });
+    }
     setShowViewer(true);
   };
 
@@ -867,9 +881,18 @@ export default function MyPage({userEmail,onLogout,onNavigateToUpload}) {
       page: "mypage",
       activeMenu,
       viewerDocId:
-        showViewer && viewerData.parseResult?.id != null ? viewerData.parseResult.id : null,
+        showViewer &&
+        (viewerData.parseResult?.id ?? viewerData.ocrResult?.id) != null
+          ? (viewerData.parseResult?.id ?? viewerData.ocrResult?.id)
+          : null,
     });
-  }, [routeHydrated, showViewer, activeMenu, viewerData.parseResult?.id]);
+  }, [
+    routeHydrated,
+    showViewer,
+    activeMenu,
+    viewerData.parseResult?.id,
+    viewerData.ocrResult?.id,
+  ]);
 
   const handleDocumentClick = async (docId) => {
     try {

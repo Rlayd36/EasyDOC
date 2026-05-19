@@ -1,0 +1,18 @@
+INFO:     Will watch for changes in these directories: ['/Users/yongjin/코리아텍/4-1/졸업설계/EasyDOC/EasyDOC-frontend/easydoc-parser']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [56896] using WatchFiles
+/opt/anaconda3/lib/python3.13/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+INFO:     Started server process [56898]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [56898]
+✓ .env 로드 완료: ['/Users/yongjin/코리아텍/4-1/졸업설계/EasyDOC/.env']
+✓ 서비스 계정 키: /Users/yongjin/코리아텍/4-1/졸업설계/EasyDOC/EasyDOC-frontend/easydoc-parser/google-key.json
+✓ Vertex AI Gemini 초기화 성공 (model=gemini-2.5-flash, location=asia-northeast3)
+✓ Gemini 캐시 로드 완료: 340개 단어
+✓ 프롬프트 로드 완료: 113개 유형 (['legal', 'contract', 'insurance', 'finance-loan', 'finance-card', 'finance-invest', 'finance-tax', 'finance-pension', 'finance', 'admin-welfare', 'admin-resident', 'admin-tax-civic', 'admin-permit', 'admin-notice', 'admin', 'medical', 'education', 'labor-payslip', 'labor-rules', 'labor-unemploy', 'labor-accident', 'labor-dispute', 'realestate-jeonse', 'realestate-monthly', 'realestate-registry', 'realestate-subscription', 'network-protocol', 'network-device', 'network-nas', 'network-security', 'cs-architecture', 'cs-os', 'cs-algorithm', 'cs-database', 'cs-software', 'gamedev-unity', 'gamedev-unreal', 'gamedev-godot', 'gamedev-cocos', 'gamedev-rpgmaker', 'ai-theory', 'ai-llm', 'ai-framework', 'ai-mlops', 'sports-event', 'sports-facility', 'sports-rules', 'sports-school', 'sports-insurance', 'military-exam', 'military-call', 'military-active', 'military-alternative', 'military-reserve', 'disaster-natural', 'disaster-fire', 'disaster-facility', 'disaster-first-aid', 'disaster-life', 'vehicle-purchase', 'vehicle-insurance', 'vehicle-registration', 'vehicle-violation', 'vehicle-maintenance', 'vehicle-ev', 'electronics-manual', 'electronics-warranty', 'electronics-safety', 'electronics-software', 'electronics-smart', 'electronics-accessory', 'sub-media', 'sub-software', 'creator-mcn', 'creator-sponsor', 'creator-license', 'creator-platform', 'overseas-customs', 'overseas-invoice', 'overseas-rma', 'travel-flight', 'travel-hotel', 'travel-insurance', 'travel-rental', 'travel-visa', 'pet-adoption', 'pet-hospital', 'pet-service', 'beauty-clinic', 'beauty-shop', 'beauty-tattoo', 'biz-business-transfer', 'biz-franchise-disclosure', 'biz-interior-contract', 'biz-investment-termsheet', 'biz-policy-fund', 'biz-registration-guide', 'trademark-register', 'env-diesel-scrapping', 'env-ev-subsidy', 'env-finedust-manual', 'event-funeral-columbarium', 'event-funeral-sangjo', 'event-wedding-custom', 'event-wedding-photography', 'event-wedding-venue', 'maintenance-cost', 'realestate-confirmation-report', 'residence-support', 'art-copyright-license', 'art-grant-notice', 'performance-ticketing-terms', 'default'])
+INFO:     Stopping reloader process [56896]
