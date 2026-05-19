@@ -410,8 +410,18 @@ async def parse_from_s3(
         elif ext == "hwpx":
             text = _parse_hwpx_bytes(contents)
 
+        elif ext == "md":
+            for enc in ("utf-8", "euc-kr", "cp949", "latin-1"):
+                try:
+                    text = contents.decode(enc)
+                    break
+                except (UnicodeDecodeError, ValueError):
+                    continue
+            else:
+                text = contents.decode("utf-8", errors="replace")
+
         else:
-            return {"error": "지원하지 않는 파일 형식입니다. (PDF, HWPX, 이미지만 지원)"}
+            return {"error": "지원하지 않는 파일 형식입니다. (PDF, HWPX, MD, 이미지만 지원)"}
 
         # ================= DB 저장 로직 =================
         # 파일 크기 계산

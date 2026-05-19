@@ -147,9 +147,9 @@ export default function Upload({
     setShowDocTypeModal(false);
     if (!selectedFile) return;
 
-    // PDF/HWPX 파일이면 원본 렌더링을 위해 블롭 URL 저장
+    // PDF/HWPX/MD 파일이면 원본 렌더링을 위해 블롭 URL 저장
     const _ext = selectedFile.name.split(".").pop().toLowerCase();
-    if (_ext === "pdf" || _ext === "hwpx") {
+    if (_ext === "pdf" || _ext === "hwpx" || _ext === "md") {
       setPdfFileUrl(URL.createObjectURL(selectedFile));
     } else {
       setPdfFileUrl(null);
@@ -264,6 +264,7 @@ export default function Upload({
     const ext = fileName.split(".").pop().toLowerCase();
     if (ext === "pdf") return "pdf";
     if (ext === "hwpx") return "hwp";
+    if (ext === "md") return "md";
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) return "image";
     return "default";
   };
@@ -328,6 +329,7 @@ export default function Upload({
                   <div className="recent-item-icon">
                     {getFileIcon(doc.name) === "pdf" && <PDFIcon />}
                     {getFileIcon(doc.name) === "hwp" && <HWPIcon />}
+                    {getFileIcon(doc.name) === "md" && <MDIcon />}
                     {getFileIcon(doc.name) === "image" && <ImageIcon />}
                   </div>
                   <div className="recent-item-info">
@@ -366,6 +368,10 @@ export default function Upload({
                 <span>HWPX</span>
               </div>
               <div className="format-item">
+                <MDIcon />
+                <span>Markdown</span>
+              </div>
+              <div className="format-item">
                 <ImageIcon />
                 <span>이미지</span>
               </div>
@@ -378,7 +384,7 @@ export default function Upload({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.hwpx,.jpg,.jpeg,.png,.gif,.bmp"
+              accept=".pdf,.hwpx,.md,.jpg,.jpeg,.png,.gif,.bmp"
               onChange={handleFileSelect}
               className="file-input"
               id="file-input"
@@ -599,6 +605,15 @@ function HWPIcon() {
       >
         HWPX
       </text>
+    </svg>
+  );
+}
+
+function MDIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="16" height="16" rx="2" fill="#7C3AED" stroke="#7C3AED" strokeWidth="1" />
+      <text x="12" y="16" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">MD</text>
     </svg>
   );
 }
