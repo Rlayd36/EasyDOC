@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import HwpxViewer from "./HwpxViewer";
-import ReactMarkdown from "react-markdown";
+import MarkdownViewer from "./MarkdownViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
@@ -498,9 +498,12 @@ export default function Viewer({
               docType={currentDocType}
             />
           ) : isMd && parsedText ? (
-            <div style={{ padding: 32, maxWidth: 800, margin: "0 auto", lineHeight: 1.8, fontSize: 15, color: "#1f2937" }}>
-              <ReactMarkdown>{parsedText}</ReactMarkdown>
-            </div>
+            <MarkdownViewer
+              text={parsedText}
+              highlightWord={highlightWord}
+              docId={viewerDocId}
+              onTextSaved={(t) => setParsedText(t)}
+            />
           ) : (
             <iframe
               src={pdfUrl}

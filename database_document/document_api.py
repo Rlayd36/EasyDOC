@@ -169,6 +169,19 @@ def update_difficult_words(doc_id: int, data: DifficultWordsUpdate, db: Session 
 
     return {"message": "어려운 단어 업데이트 성공"}
 
+class TextUpdate(BaseModel):
+    text: str
+
+# 문서 텍스트 수정 저장
+@app.patch("/api/documents/{doc_id}/text")
+def update_document_text(doc_id: int, data: TextUpdate, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.extracted_text = data.text
+    db.commit()
+    return {"message": "텍스트 업데이트 성공"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8002)
