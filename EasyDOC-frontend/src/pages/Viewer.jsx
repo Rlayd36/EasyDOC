@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import PdfHighlightViewer from "./PdfHighlightViewer";
 import HwpxViewer from "./HwpxViewer";
+import MarkdownViewer from "./MarkdownViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
@@ -75,6 +76,7 @@ export default function Viewer({
   const [isPdf, setIsPdf] = useState(false);
   const [isHwpx, setIsHwpx] = useState(false);
   const [isOcr, setIsOcr] = useState(false);
+  const [isMd, setIsMd] = useState(false);
 
   // 최근 문서 목록 상태
   const [recentDocs, setRecentDocs] = useState([]);
@@ -164,6 +166,7 @@ export default function Viewer({
           docData.file_name?.split(".").pop().toLowerCase();
         setIsPdf(ext === "pdf");
         setIsHwpx(ext === "hwpx");
+        setIsMd(ext === "md");
       }
     } catch (error) {
       console.error("문서 상세 로딩 실패:", error);
@@ -210,6 +213,7 @@ export default function Viewer({
         const ext = parsedData?.filename?.split(".").pop().toLowerCase();
         setIsPdf(ext === "pdf");
         setIsHwpx(ext === "hwpx");
+        setIsMd(ext === "md");
         setIsOcr(false);
       }
     }
@@ -245,6 +249,7 @@ export default function Viewer({
     const fileExt = file.name.split(".").pop().toLowerCase();
     setIsPdf(fileExt === "pdf");
     setIsHwpx(fileExt === "hwpx");
+    setIsMd(fileExt === "md");
     setDocumentName(file.name);
     setHighlightWord("");
     setSelectedDoc(null);
@@ -404,6 +409,19 @@ export default function Viewer({
           <div className="header-title">
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
+            {isMd && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#7C3AED", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
+                  Markdown 모드
+                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                  powered by{" "}
+                  <a href="https://github.com/remarkjs/react-markdown" target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}>
+                    react-markdown
+                  </a>
+                </span>
+              </>
+            )}
             {isOcr && (
               <>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#059669", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
@@ -478,6 +496,13 @@ export default function Viewer({
               fileUrl={pdfUrl}
               highlightWord={highlightWord}
               docType={currentDocType}
+            />
+          ) : isMd && parsedText ? (
+            <MarkdownViewer
+              text={parsedText}
+              highlightWord={highlightWord}
+              docId={viewerDocId}
+              onTextSaved={(t) => setParsedText(t)}
             />
           ) : (
             <iframe
