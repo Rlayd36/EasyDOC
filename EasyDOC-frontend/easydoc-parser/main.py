@@ -7,6 +7,7 @@ from typing import List, Optional
 import pdfplumber
 import zipfile
 from xml.etree import ElementTree as ET
+import olefile
 import vertexai
 from vertexai.generative_models import GenerativeModel, Content, Part
 import io
@@ -324,13 +325,60 @@ async def parse_pdf(file: UploadFile = File(...)):
     }
 
 
+def _parse_ole_hwp_bytes(contents: bytes) -> str:
+    """OLE(HWP 바이너리) 파일에서 텍스트 추출.
+
+    1순위: PrvText 스트림 (미리보기 텍스트)
+    2순위: PrvImage 스트림 → Google Cloud Vision OCR
+    """
+    ole = olefile.OleFileIO(io.BytesIO(contents))
+
+    # 1순위: PrvText
+    if ole.exists("PrvText"):
+        raw = ole.openstream("PrvText").read()
+        text = raw.decode("utf-16", errors="ignore").strip()
+        if text:
+            print(f"[OLE HWP] PrvText 추출 성공, 길이: {len(text)}")
+            ole.close()
+            return text
+
+    # 2순위: PrvImage → Google Cloud Vision OCR
+    if ole.exists("PrvImage"):
+        img_bytes = ole.openstream("PrvImage").read()
+        ole.close()
+        try:
+            from google.cloud import vision as vision_api
+            client = vision_api.ImageAnnotatorClient()
+            image = vision_api.Image(content=img_bytes)
+            response = client.document_text_detection(image=image)
+            text = response.full_text_annotation.text or ""
+            print(f"[OLE HWP] Vision OCR 추출 성공, 길이: {len(text)}")
+            return text
+        except Exception as e:
+            print(f"[OLE HWP] Vision OCR 실패: {e}")
+            return ""
+
+    ole.close()
+    return ""
+
+
 def _parse_hwpx_bytes(contents: bytes) -> str:
     """HWPX(ZIP+XML) 바이트에서 텍스트 추출.
 
     1순위: Preview/PrvText.txt (이미 추출된 텍스트)
     2순위: Contents/section*.xml 의 <*:t> 요소 (네임스페이스 버전 무관)
     """
-    with zipfile.ZipFile(io.BytesIO(contents)) as z:
+    _OLE_MAGIC = bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])
+    if contents[:8] == _OLE_MAGIC:
+        return _parse_ole_hwp_bytes(contents)
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise ValueError(
+            "HWPX 파일이 아닌 것 같습니다. "
+            "파일이 손상됐거나 알 수 없는 포맷입니다."
+        )
+    with zf:
         names = z.namelist()
 
         # 1순위: PrvText.txt
@@ -462,7 +510,8 @@ async def parse_from_s3(
         # ========================================================
 
         # 저장된 ID와 함께 프론트엔드로 응답
-        return {"id": new_doc.id, "filename": filename, "text": text, "doc_type": resolved_type}
+        is_ole = ext == "hwpx" and contents[:8] == bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])
+        return {"id": new_doc.id, "filename": filename, "text": text, "doc_type": resolved_type, "is_ole": is_ole}
     
     except Exception as e:
         return {"error": str(e)}

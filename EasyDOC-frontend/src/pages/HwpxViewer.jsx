@@ -380,7 +380,7 @@ function HwpxPage({
 }
 
 /* ── 뷰어 본체 ── */
-export default function HwpxViewer({ fileUrl, highlightWord, docType }) {
+export default function HwpxViewer({ fileUrl, highlightWord, docType, fallbackText, isOle }) {
   const [doc,       setDoc]       = useState(null);
   const [pageCount, setPageCount] = useState(0);
   const [error,     setError]     = useState(null);
@@ -432,10 +432,12 @@ export default function HwpxViewer({ fileUrl, highlightWord, docType }) {
         const bytes = new Uint8Array(await resp.arrayBuffer());
         if (docRef.current) { docRef.current.free(); docRef.current = null; }
         const hwpDoc = new HwpDocument(bytes);
+        const pages = hwpDoc.pageCount();
+        console.log(`[HwpxViewer] pageCount: ${pages}`);
         if (!cancelled) {
           docRef.current = hwpDoc;
           setDoc(hwpDoc);
-          setPageCount(hwpDoc.pageCount());
+          setPageCount(pages);
         } else { hwpDoc.free(); }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -598,6 +600,22 @@ export default function HwpxViewer({ fileUrl, highlightWord, docType }) {
   );
   if (!doc) return null;
 
+  const isOleFormat = isOle && pageCount > 0;
+
+  // rhwp가 페이지를 인식 못한 경우 → 파서가 추출한 텍스트로 폴백
+  if (pageCount === 0) {
+    return (
+      <div style={{ padding: 24, flex: 1, overflowY: "auto" }}>
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6, fontSize: 12, color: "#92400e" }}>
+          ⚠️ 이 HWPX 파일은 뷰어로 렌더링할 수 없어 텍스트로 표시합니다.
+        </div>
+        <pre style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.7, color: "#1f2937", fontFamily: "inherit" }}>
+          {fallbackText || "텍스트를 불러올 수 없습니다."}
+        </pre>
+      </div>
+    );
+  }
+
   const btnBase = { display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6, fontSize: 12, cursor: "pointer", border: "1px solid #d1d5db", background: "#fff", color: "#374151" };
   const btnActive = { ...btnBase, border: "1px solid #3D4B90", background: "#eef0fb", color: "#3D4B90", fontWeight: 700 };
 
@@ -659,6 +677,13 @@ export default function HwpxViewer({ fileUrl, highlightWord, docType }) {
         {/* 분석 중 */}
         {analyzingImportant && (
           <span style={{ fontSize: 11, color: "#6b7280" }}>중요 페이지 분석 중...</span>
+        )}
+
+        {/* OLE 포맷 안내 */}
+        {isOleFormat && (
+          <span style={{ fontSize: 11, color: "#f59e0b", marginLeft: 4 }}>
+            ⚠️ HWP(OLE) 포맷 — 렌더링만 지원, AI 분석 불가
+          </span>
         )}
       </div>
 

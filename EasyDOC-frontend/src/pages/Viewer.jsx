@@ -77,6 +77,7 @@ export default function Viewer({
   const [isHwpx, setIsHwpx] = useState(false);
   const [isOcr, setIsOcr] = useState(false);
   const [isMd, setIsMd] = useState(false);
+  const [isOle, setIsOle] = useState(false);
 
   // 최근 문서 목록 상태
   const [recentDocs, setRecentDocs] = useState([]);
@@ -193,7 +194,8 @@ export default function Viewer({
     if (parsedData) {
       console.log("Viewer가 받은 parsedData:", parsedData);
       setParsedText(parsedData.text || "");
-      setOcrText(""); setIsOcr(false); // 파싱 데이터가 있으면 OCR은 비움
+      setOcrText(""); setIsOcr(false);
+      setIsOle(!!parsedData.is_ole);
       if (parsedData.doc_type) setCurrentDocType(parsedData.doc_type);
     } else if (ocrData) {
       console.log("Viewer가 받은 ocrData:", ocrData);
@@ -304,6 +306,10 @@ export default function Viewer({
           `http://localhost:8000/parse/s3/${encodeURIComponent(s3Key)}?user_email=${userEmail}&doc_type=${encodeURIComponent(docType)}`,
         );
         console.log("7. 파싱 완료!", parseResponse.data);
+        if (parseResponse.data.error) {
+          alert(`파일 처리 실패: ${parseResponse.data.error}`);
+          return;
+        }
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         setCurrentDocType(parseResponse.data.doc_type || docType || "default");
@@ -458,21 +464,31 @@ export default function Viewer({
                 </span>
               </>
             )}
-            {isHwpx && (
+            {isHwpx && !isOle && (
               <>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#3D4B90", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
                   HWPX 모드
                 </span>
                 <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
                   powered by{" "}
-                  <a
-                    href="https://github.com/edwardkim/rhwp"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}
-                  >
+                  <a href="https://github.com/edwardkim/rhwp" target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}>
                     rhwp
                   </a>
+                </span>
+              </>
+            )}
+            {isHwpx && isOle && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#92400e", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
+                  HWP(OLE) 모드
+                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                  powered by{" "}
+                  <a href="https://github.com/edwardkim/rhwp" target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}>rhwp</a>
+                  {", "}
+                  <a href="https://pypi.org/project/olefile/" target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}>olefile</a>
+                  {", "}
+                  <a href="https://cloud.google.com/vision" target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}>Google Cloud Vision</a>
                 </span>
               </>
             )}
@@ -496,6 +512,8 @@ export default function Viewer({
               fileUrl={pdfUrl}
               highlightWord={highlightWord}
               docType={currentDocType}
+              fallbackText={parsedText}
+              isOle={isOle}
             />
           ) : isMd && parsedText ? (
             <MarkdownViewer

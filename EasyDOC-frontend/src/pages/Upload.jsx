@@ -218,6 +218,12 @@ export default function Upload({
         );
         console.log("7. 파싱 완료!", parseResponse.data);
 
+        if (parseResponse.data.error) {
+          setShowLoading(false);
+          alert(`파일 처리 실패: ${parseResponse.data.error}`);
+          return;
+        }
+
         setParseResult({
           ...parseResponse.data,
           doc_type: parseResponse.data.doc_type || docType,
