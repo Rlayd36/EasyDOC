@@ -13,6 +13,7 @@ import {
   PanelRightOpen,
 } from "lucide-react";
 import PdfHighlightViewer from "./PdfHighlightViewer";
+import HwpxViewer from "./HwpxViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
@@ -72,6 +73,8 @@ export default function Viewer({
 
   // PDF 원본 렌더링 모드 여부
   const [isPdf, setIsPdf] = useState(false);
+  const [isHwpx, setIsHwpx] = useState(false);
+  const [isOcr, setIsOcr] = useState(false);
 
   // 최근 문서 목록 상태
   const [recentDocs, setRecentDocs] = useState([]);
@@ -152,15 +155,15 @@ export default function Viewer({
       // 가져온 텍스트를 뷰어 상태에 반영
       setParsedText(docData.text || "");
       setOcrText("");
+      setIsOcr(false);
 
       if (docData.s3_url) {
         setPdfUrl(docData.s3_url);
-        const isPdfFile =
-          docData.file_type?.toLowerCase() === "pdf" ||
-          docData.file_type?.toLowerCase() === "pdf" ||
-          docData.file_name?.toLowerCase().endsWith(".pdf") ||
-          docData.s3_url?.toLowerCase().includes(".pdf");
-        setIsPdf(isPdfFile);
+        const ext =
+          docData.file_type?.toLowerCase() ||
+          docData.file_name?.split(".").pop().toLowerCase();
+        setIsPdf(ext === "pdf");
+        setIsHwpx(ext === "hwpx");
       }
     } catch (error) {
       console.error("문서 상세 로딩 실패:", error);
@@ -175,7 +178,7 @@ export default function Viewer({
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) {
       return <ImageIcon size={18} color="#10B981" />;
     }
-    if (ext === "hwp") {
+    if (ext === "hwpx") {
       return <FileText size={18} color="#2563EB" />;
     }
     return <FileText size={18} color="#DC2626" />;
@@ -187,18 +190,28 @@ export default function Viewer({
     if (parsedData) {
       console.log("Viewer가 받은 parsedData:", parsedData);
       setParsedText(parsedData.text || "");
-      setOcrText(""); // 파싱 데이터가 있으면 OCR은 비움
+      setOcrText(""); setIsOcr(false); // 파싱 데이터가 있으면 OCR은 비움
       if (parsedData.doc_type) setCurrentDocType(parsedData.doc_type);
     } else if (ocrData) {
       console.log("Viewer가 받은 ocrData:", ocrData);
       setOcrText(ocrData.text || ocrData || "");
+      setIsOcr(true);
+      setIsHwpx(false); // 이전 HWPX 상태 초기화
       setParsedText(""); // OCR 데이터가 있으면 파싱은 비움
     }
 
-    // Upload에서 전달받은 PDF URL 설정
+    // Upload에서 전달받은 파일 URL 설정
     if (pdfFileUrl) {
       setPdfUrl(pdfFileUrl);
-      setIsPdf(true);
+      if (ocrData) {
+        // OCR 결과 PDF → PdfHighlightViewer로 표시
+        setIsPdf(true);
+      } else {
+        const ext = parsedData?.filename?.split(".").pop().toLowerCase();
+        setIsPdf(ext === "pdf");
+        setIsHwpx(ext === "hwpx");
+        setIsOcr(false);
+      }
     }
   }, [parsedData, ocrData, pdfFileUrl, selectedDoc]);
 
@@ -229,10 +242,9 @@ export default function Viewer({
 
     const objectUrl = URL.createObjectURL(file);
     setPdfUrl(objectUrl);
-    const fileIsPdf =
-      file.type === "application/pdf" ||
-      file.name.toLowerCase().endsWith(".pdf");
-    setIsPdf(fileIsPdf);
+    const fileExt = file.name.split(".").pop().toLowerCase();
+    setIsPdf(fileExt === "pdf");
+    setIsHwpx(fileExt === "hwpx");
     setDocumentName(file.name);
     setHighlightWord("");
     setSelectedDoc(null);
@@ -273,6 +285,7 @@ export default function Viewer({
         );
         console.log("7. OCR 결과 도착!", ocrResponse.data);
         setOcrText(ocrResponse.data.text || ocrResponse.data);
+        setIsOcr(true); setIsHwpx(false);
         setParsedText("");
         setCurrentDocType(docType || "default");
 
@@ -289,7 +302,7 @@ export default function Viewer({
         const extractedText = parseResponse.data.text;
         setParsedText(extractedText);
         setCurrentDocType(parseResponse.data.doc_type || docType || "default");
-        setOcrText("");
+        setOcrText(""); setIsOcr(false);
       }
 
       await fetchDocuments();
@@ -317,7 +330,7 @@ export default function Viewer({
           type="file"
           ref={fileInputRef}
           style={{ display: "none" }}
-          accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
+          accept=".pdf, .hwpx, .jpg, .jpeg, .png, .gif, .bmp"
           onChange={handleFileChange}
         />
         <button
@@ -391,6 +404,60 @@ export default function Viewer({
           <div className="header-title">
             <BookOpen size={24} color="#3D4B90" />
             <span>문서</span>
+            {isOcr && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#059669", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
+                  OCR 모드
+                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                  powered by{" "}
+                  <a
+                    href="https://cloud.google.com/vision"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    Google Cloud Vision
+                  </a>
+                </span>
+              </>
+            )}
+            {isPdf && !isOcr && !isHwpx && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#DC2626", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
+                  PDF 모드
+                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                  powered by{" "}
+                  <a
+                    href="https://github.com/mozilla/pdf.js"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    PDF.js
+                  </a>
+                </span>
+              </>
+            )}
+            {isHwpx && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#3D4B90", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>
+                  HWPX 모드
+                </span>
+                <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                  powered by{" "}
+                  <a
+                    href="https://github.com/edwardkim/rhwp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "#6b7280", textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    rhwp
+                  </a>
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -405,6 +472,12 @@ export default function Viewer({
               docType={currentDocType}
               docId={viewerDocId}
               userEmail={userEmail}
+            />
+          ) : isHwpx && pdfUrl ? (
+            <HwpxViewer
+              fileUrl={pdfUrl}
+              highlightWord={highlightWord}
+              docType={currentDocType}
             />
           ) : (
             <iframe

@@ -147,11 +147,9 @@ export default function Upload({
     setShowDocTypeModal(false);
     if (!selectedFile) return;
 
-    // PDF 파일이면 원본 렌더링을 위해 블롭 URL 저장
-    if (
-      selectedFile.type === "application/pdf" ||
-      selectedFile.name.toLowerCase().endsWith(".pdf")
-    ) {
+    // PDF/HWPX 파일이면 원본 렌더링을 위해 블롭 URL 저장
+    const _ext = selectedFile.name.split(".").pop().toLowerCase();
+    if (_ext === "pdf" || _ext === "hwpx") {
       setPdfFileUrl(URL.createObjectURL(selectedFile));
     } else {
       setPdfFileUrl(null);
@@ -265,7 +263,7 @@ export default function Upload({
   const getFileIcon = (fileName) => {
     const ext = fileName.split(".").pop().toLowerCase();
     if (ext === "pdf") return "pdf";
-    if (ext === "hwp") return "hwp";
+    if (ext === "hwpx") return "hwp";
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) return "image";
     return "default";
   };
@@ -365,7 +363,7 @@ export default function Upload({
               </div>
               <div className="format-item">
                 <HWPIcon />
-                <span>HWP</span>
+                <span>HWPX</span>
               </div>
               <div className="format-item">
                 <ImageIcon />
@@ -380,7 +378,7 @@ export default function Upload({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.hwp,.jpg,.jpeg,.png,.gif,.bmp"
+              accept=".pdf,.hwpx,.jpg,.jpeg,.png,.gif,.bmp"
               onChange={handleFileSelect}
               className="file-input"
               id="file-input"
@@ -599,7 +597,7 @@ function HWPIcon() {
         fontSize="8"
         fontWeight="bold"
       >
-        HWP
+        HWPX
       </text>
     </svg>
   );
