@@ -537,7 +537,7 @@ export default function Viewer({
         className={`sidebar-right-wrapper ${rightCollapsed ? "collapsed" : ""}`}
       >
         <AgentChat
-          parsedText={parsedText}
+          parsedText={parsedText || ocrText}
           documentName={documentName}
           onHighlightWord={setHighlightWord}
           tableCells={sharedTableCells}
