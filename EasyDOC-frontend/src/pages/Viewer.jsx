@@ -13,6 +13,7 @@ import {
   PanelRightOpen,
 } from "lucide-react";
 import PdfHighlightViewer from "./PdfHighlightViewer";
+import HwpxViewer from "./HwpxViewer";
 import AgentChat from "./AgentChat";
 import "./viewer.css";
 import AppBrandLogo from "../components/AppBrandLogo";
@@ -72,6 +73,7 @@ export default function Viewer({
 
   // PDF 원본 렌더링 모드 여부
   const [isPdf, setIsPdf] = useState(false);
+  const [isHwpx, setIsHwpx] = useState(false);
 
   // 최근 문서 목록 상태
   const [recentDocs, setRecentDocs] = useState([]);
@@ -155,12 +157,11 @@ export default function Viewer({
 
       if (docData.s3_url) {
         setPdfUrl(docData.s3_url);
-        const isPdfFile =
-          docData.file_type?.toLowerCase() === "pdf" ||
-          docData.file_type?.toLowerCase() === "pdf" ||
-          docData.file_name?.toLowerCase().endsWith(".pdf") ||
-          docData.s3_url?.toLowerCase().includes(".pdf");
-        setIsPdf(isPdfFile);
+        const ext =
+          docData.file_type?.toLowerCase() ||
+          docData.file_name?.split(".").pop().toLowerCase();
+        setIsPdf(ext === "pdf");
+        setIsHwpx(ext === "hwpx");
       }
     } catch (error) {
       console.error("문서 상세 로딩 실패:", error);
@@ -175,7 +176,7 @@ export default function Viewer({
     if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) {
       return <ImageIcon size={18} color="#10B981" />;
     }
-    if (ext === "hwp") {
+    if (ext === "hwpx") {
       return <FileText size={18} color="#2563EB" />;
     }
     return <FileText size={18} color="#DC2626" />;
@@ -195,10 +196,12 @@ export default function Viewer({
       setParsedText(""); // OCR 데이터가 있으면 파싱은 비움
     }
 
-    // Upload에서 전달받은 PDF URL 설정
+    // Upload에서 전달받은 파일 URL 설정
     if (pdfFileUrl) {
       setPdfUrl(pdfFileUrl);
-      setIsPdf(true);
+      const ext = parsedData?.filename?.split(".").pop().toLowerCase();
+      setIsPdf(ext === "pdf");
+      setIsHwpx(ext === "hwpx");
     }
   }, [parsedData, ocrData, pdfFileUrl, selectedDoc]);
 
@@ -229,10 +232,9 @@ export default function Viewer({
 
     const objectUrl = URL.createObjectURL(file);
     setPdfUrl(objectUrl);
-    const fileIsPdf =
-      file.type === "application/pdf" ||
-      file.name.toLowerCase().endsWith(".pdf");
-    setIsPdf(fileIsPdf);
+    const fileExt = file.name.split(".").pop().toLowerCase();
+    setIsPdf(fileExt === "pdf");
+    setIsHwpx(fileExt === "hwpx");
     setDocumentName(file.name);
     setHighlightWord("");
     setSelectedDoc(null);
@@ -317,7 +319,7 @@ export default function Viewer({
           type="file"
           ref={fileInputRef}
           style={{ display: "none" }}
-          accept=".pdf, .hwp, .jpg, .jpeg, .png, .gif, .bmp"
+          accept=".pdf, .hwpx, .jpg, .jpeg, .png, .gif, .bmp"
           onChange={handleFileChange}
         />
         <button
@@ -405,6 +407,12 @@ export default function Viewer({
               docType={currentDocType}
               docId={viewerDocId}
               userEmail={userEmail}
+            />
+          ) : isHwpx && pdfUrl ? (
+            <HwpxViewer
+              fileUrl={pdfUrl}
+              highlightWord={highlightWord}
+              docType={currentDocType}
             />
           ) : (
             <iframe

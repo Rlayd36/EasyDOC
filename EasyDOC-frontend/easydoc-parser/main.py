@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import pdfplumber
-import olefile
-import zlib
+import zipfile
+from xml.etree import ElementTree as ET
 import vertexai
 from vertexai.generative_models import GenerativeModel, Content, Part
 import io
@@ -324,36 +324,59 @@ async def parse_pdf(file: UploadFile = File(...)):
     }
 
 
-@app.post("/parse/hwp")
-async def parse_hwp(file: UploadFile = File(...)):
-    """HWP 파일에서 텍스트 추출"""
+def _parse_hwpx_bytes(contents: bytes) -> str:
+    """HWPX(ZIP+XML) 바이트에서 텍스트 추출.
+
+    1순위: Preview/PrvText.txt (이미 추출된 텍스트)
+    2순위: Contents/section*.xml 의 <*:t> 요소 (네임스페이스 버전 무관)
+    """
+    with zipfile.ZipFile(io.BytesIO(contents)) as z:
+        names = z.namelist()
+
+        # 1순위: PrvText.txt
+        prv = next((n for n in names if n.lower() == "preview/prvtext.txt"), None)
+        if prv:
+            raw = z.read(prv)
+            for enc in ("utf-8", "utf-16", "euc-kr", "cp949"):
+                try:
+                    text = raw.decode(enc).strip()
+                    if text:
+                        print(f"[HWPX] PrvText.txt 사용 ({enc}), 길이: {len(text)}")
+                        return text
+                except (UnicodeDecodeError, ValueError):
+                    continue
+
+        # 2순위: section XML — 네임스페이스 버전 무관하게 <*:t> 추출
+        section_files = sorted(
+            n for n in names
+            if n.lower().startswith("contents/section") and n.endswith(".xml")
+        )
+        text_parts = []
+        for sf in section_files:
+            root = ET.fromstring(z.read(sf))
+            for elem in root.iter():
+                if (
+                    elem.tag.endswith("}t")
+                    and "hancom.co.kr/hwpml" in elem.tag
+                    and elem.text
+                ):
+                    text_parts.append(elem.text)
+            text_parts.append("")
+
+        result = "\n".join(text_parts).strip()
+        print(f"[HWPX] XML 파싱 텍스트 길이: {len(result)}")
+        return result
+
+
+@app.post("/parse/hwpx")
+async def parse_hwpx(file: UploadFile = File(...)):
+    """HWPX 파일에서 텍스트 추출"""
     contents = await file.read()
-    
     try:
-        ole = olefile.OleFileIO(io.BytesIO(contents))
-        
-        if ole.exists("PrvText"):
-            encoded_text = ole.openstream("PrvText").read()
-            text = encoded_text.decode("utf-16", errors="ignore")
-        elif ole.exists("BodyText/Section0"):
-            data = ole.openstream("BodyText/Section0").read()
-            try:
-                decompressed = zlib.decompress(data, -15)
-                text = decompressed.decode("utf-16", errors="ignore")
-            except:
-                text = ""
-        else:
-            text = "텍스트를 추출할 수 없습니다."
-        
-        ole.close()
-        
+        text = _parse_hwpx_bytes(contents)
     except Exception as e:
         return {"filename": file.filename, "error": str(e), "text": ""}
-    
-    return {
-        "filename": file.filename,
-        "text": text.strip()
-    }
+    return {"filename": file.filename, "text": text}
 
 
 @app.get("/parse/s3/{file_key:path}")
@@ -384,18 +407,11 @@ async def parse_from_s3(
                     if page_text:
                         text += page_text + "\n"
         
-        elif ext == "hwp":
-            ole = olefile.OleFileIO(io.BytesIO(contents))
-            if ole.exists("PrvText"):
-                encoded_text = ole.openstream("PrvText").read()
-                text = encoded_text.decode("utf-16", errors="ignore")
-            else:
-                text = "텍스트를 추출할 수 없습니다."
-            ole.close()
-            text = text.strip()
-        
+        elif ext == "hwpx":
+            text = _parse_hwpx_bytes(contents)
+
         else:
-            return {"error": "지원하지 않는 파일 형식입니다."}
+            return {"error": "지원하지 않는 파일 형식입니다. (PDF, HWPX, 이미지만 지원)"}
 
         # ================= DB 저장 로직 =================
         # 파일 크기 계산
