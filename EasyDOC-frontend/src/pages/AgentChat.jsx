@@ -178,6 +178,7 @@ export default function AgentChat({ parsedText, documentName, onHighlightWord, t
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);
+  const termEnterPendingRef = useRef(false);
 
   const currentPersona = PERSONAS[persona];
 
@@ -386,17 +387,34 @@ ${emptySummary || "  (없음)"}
     sendMessage(action.prompt);
   };
 
-  // 용어 태그 추가 (Enter 또는 쉼표)
+  // 용어 태그 추가 (Enter 또는 쉼표) — IME 조합 중에는 compositionEnd 후 처리
+  const addTermTag = (rawValue) => {
+    const word = (rawValue ?? termInputValue).trim().replace(/,/g, "");
+    if (word && !termTags.includes(word)) {
+      setTermTags((prev) => [...prev, word]);
+    }
+    setTermInputValue("");
+  };
+
   const handleTermKeyDown = (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      const word = termInputValue.trim().replace(/,/g, "");
-      if (word && !termTags.includes(word)) {
-        setTermTags((prev) => [...prev, word]);
+      // 한글 IME 조합 중 Enter: compositionend 이후 태그 추가
+      if (e.nativeEvent.isComposing) {
+        termEnterPendingRef.current = true;
+        return;
       }
-      setTermInputValue("");
+      addTermTag(e.currentTarget.value);
     } else if (e.key === "Backspace" && !termInputValue && termTags.length > 0) {
       setTermTags((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const handleTermCompositionEnd = (e) => {
+    setTermInputValue(e.target.value);
+    if (termEnterPendingRef.current) {
+      termEnterPendingRef.current = false;
+      addTermTag(e.target.value);
     }
   };
 
@@ -417,6 +435,7 @@ ${emptySummary || "  (없음)"}
     setShowTermInput(false);
     setTermTags([]);
     setTermInputValue("");
+    termEnterPendingRef.current = false;
   };
 
   // 대화 초기화
@@ -660,6 +679,7 @@ ${emptySummary || "  (없음)"}
                 className="term-tag-input"
                 value={termInputValue}
                 onChange={(e) => setTermInputValue(e.target.value)}
+                onCompositionEnd={handleTermCompositionEnd}
                 onKeyDown={handleTermKeyDown}
                 placeholder={termTags.length === 0 ? "예: 채권, 이자율, 담보 ..." : "추가 입력..."}
                 autoFocus

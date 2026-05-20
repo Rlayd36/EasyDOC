@@ -7,6 +7,7 @@ import axios from "axios";
 import { MessageSquarePlus, GripVertical, Trash2, Type, Download, Sticker, ImagePlus, ClipboardEdit, Sparkles, CheckCheck, X, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import "./PdfHighlightViewer.css";
 import { loadBookmark, saveBookmark } from "../utils/bookmark";
+import { normalizeImportantPages } from "../utils/importantPages";
 
 const PARSER_URL = "http://localhost:8000";
 
@@ -1900,8 +1901,9 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
         });
         console.log("[중요페이지] API 응답:", res.data);
         if (!cancelled && res.data.important_pages) {
-          setImportantPages(res.data.important_pages);
-          console.log("[중요페이지] 중요 페이지 설정 완료:", res.data.important_pages);
+          const normalized = normalizeImportantPages(res.data.important_pages);
+          setImportantPages(normalized);
+          console.log("[중요페이지] 중요 페이지 설정 완료:", normalized);
         }
       } catch (err) {
         console.error("[중요페이지] 분석 실패:", err);

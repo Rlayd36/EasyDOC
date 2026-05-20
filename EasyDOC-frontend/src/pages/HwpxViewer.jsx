@@ -8,6 +8,7 @@ import {
 import rhwpInit, { HwpDocument } from "@rhwp/core/rhwp.js";
 import rhwpWasmUrl from "@rhwp/core/rhwp_bg.wasm?url";
 import "./PdfHighlightViewer.css";
+import { normalizeImportantPages } from "../utils/importantPages";
 
 const PARSER_URL = "http://localhost:8000";
 
@@ -484,7 +485,11 @@ export default function HwpxViewer({ fileUrl, highlightWord, docType, fallbackTe
     if (!pages.length) return;
     setAnalyzingImportant(true);
     axios.post(`${PARSER_URL}/analyze-important-pages`, { pages, doc_type: docType || "default" })
-      .then(res => { if (res.data.important_pages?.length) setImportantPages(res.data.important_pages); })
+      .then(res => {
+        if (res.data.important_pages?.length) {
+          setImportantPages(normalizeImportantPages(res.data.important_pages));
+        }
+      })
       .catch(err => console.error("[HwpxViewer] 중요 페이지 분석 실패:", err))
       .finally(() => setAnalyzingImportant(false));
   }, [pageCount, docType]);

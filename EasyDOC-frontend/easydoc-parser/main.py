@@ -625,6 +625,38 @@ async def analyze_with_gemini(data: dict):
 # 중요 페이지 분석 엔드포인트
 # ============================================================
 
+def dedupe_important_pages(important_pages: list, keywords_by_page: dict, valid_page_nums: set) -> list:
+    """동일 페이지 번호의 중복 PAGE 항목을 하나로 합치고, 문서 범위 밖 페이지는 제외"""
+    merged = {}
+    for p in important_pages:
+        page_num = p["page"]
+        if page_num not in valid_page_nums:
+            continue
+        kws = keywords_by_page.get(page_num, [])
+        if page_num not in merged:
+            merged[page_num] = {**p, "keywords": list(kws)}
+            continue
+        cur = merged[page_num]
+        if p["importance"] > cur["importance"]:
+            cur["importance"] = p["importance"]
+            cur["reason"] = p["reason"]
+            cur["summary"] = p["summary"]
+        # KEYWORD만 있고 PAGE가 없던 페이지도 포함
+    for page_num, kws in keywords_by_page.items():
+        if page_num not in valid_page_nums or page_num in merged or not kws:
+            continue
+        merged[page_num] = {
+            "page": page_num,
+            "importance": 2,
+            "reason": "핵심 문장이 포함된 페이지",
+            "summary": "핵심 문장이 포함된 페이지",
+            "keywords": list(kws),
+        }
+    result = list(merged.values())
+    result.sort(key=lambda x: (-x["importance"], x["page"]))
+    return result
+
+
 @app.post("/analyze-important-pages")
 async def analyze_important_pages(data: dict):
     """페이지별 텍스트를 받아 중요 페이지(독소조항, 핵심 약관 등)를 판별"""
@@ -691,12 +723,10 @@ async def analyze_important_pages(data: dict):
                 except ValueError:
                     continue
 
-        # 키워드를 각 페이지에 병합
-        for p in important_pages:
-            p["keywords"] = keywords_by_page.get(p["page"], [])
+        valid_page_nums = {p.get("page") for p in pages if p.get("page")}
+        important_pages = dedupe_important_pages(important_pages, keywords_by_page, valid_page_nums)
 
-        important_pages.sort(key=lambda x: (-x["importance"], x["page"]))
-        total_kw = sum(len(v) for v in keywords_by_page.values())
+        total_kw = sum(len(p.get("keywords") or []) for p in important_pages)
         print(f"[중요 페이지 분석] {len(important_pages)}개 중요 페이지, 키워드 {total_kw}개 발견")
         return {"important_pages": important_pages}
 
