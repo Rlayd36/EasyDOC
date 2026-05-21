@@ -1723,7 +1723,7 @@ export default function PdfHighlightViewer({ pdfUrl, highlightWord, parsedText, 
     } finally {
       setDownloading(false);
     }
-  }, [pdfDoc, numPages, memos, stickers, images, downloading]);
+  }, [pdfDoc, numPages, memos, stickers, images, tableCells, cellValues, downloading]);
 
   // 컨테이너 너비 자동 추적 (리사이즈 대응)
   useEffect(() => {
